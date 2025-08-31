@@ -83,5 +83,35 @@ export const authAPI = {
       };
     }
   },
+  // 회원가입
+  signup: async (formData) => {
+    try {
+      const response = await api.post('/api/signup', formData);
+
+      return {
+        success: true,
+        data: response.data.body?.data || {},
+        message: response.data.header?.message || '회원가입이 완료되었습니다.',
+      };
+    } catch (error) {
+      console.error('Signup API error:', error);
+
+      if (error.response) {
+        const status = error.response.status;
+        const message = error.response.data?.header?.message;
+
+        switch (status) {
+          case 400:
+            return { success: false, message: message || '잘못된 요청 데이터입니다.' };
+          case 409:
+            return { success: false, message: message || '이미 존재하는 회원입니다.' };
+          default:
+            return { success: false, message: message || '회원가입 중 오류가 발생했습니다.' };
+        }
+      }
+
+      return { success: false, message: '네트워크 연결을 확인해주세요.' };
+    }
+  },
 };
 

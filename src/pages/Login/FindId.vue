@@ -20,76 +20,26 @@
               type="text"
               class="form-input"
               placeholder="가입 시 입력한 이름을 입력하세요"
-              :disabled="isVerified"
+              :disabled="smsVerificationStatus.isVerified"
               required
             />
           </div>
 
-          <div class="form-group">
-            <label for="phone" class="form-label">휴대폰 번호</label>
-            <div class="phone-input-group">
-              <input
-                id="phone"
-                v-model="findForm.phone"
-                type="tel"
-                class="form-input"
-                placeholder="010-0000-0000"
-                maxlength="13"
-                :disabled="isVerified"
-                required
-                @input="formatPhoneNumber"
-              />
-              <button
-                type="button"
-                class="send-code-button"
-                @click="sendVerificationCode"
-                :disabled="!canSendCode || isVerified"
-              >
-                <span v-if="isSendingCode">발송중...</span>
-                <span v-else-if="timer > 0">{{ formatTime(timer) }}</span>
-                <span v-else>{{ codeSent ? '재발송' : '인증번호 발송' }}</span>
-              </button>
-            </div>
-            <div class="input-hint">'-' 없이 입력하셔도 자동으로 형식이 맞춰집니다</div>
-          </div>
+          <!-- SMS 인증 컴포넌트 -->
+          <SmsVerification
+            ref="smsVerificationRef"
+            v-model="findForm.phone"
+            :disabled="smsVerificationStatus.isVerified"
+            @verified="onSmsVerified"
+            @error="onSmsError"
+            @code-sent="onCodeSent"
+          />
 
-          <!-- 인증번호 입력 -->
-          <div v-if="codeSent" class="form-group">
-            <label for="verification-code" class="form-label">인증번호</label>
-            <div class="verification-input-group">
-              <input
-                id="verification-code"
-                v-model="findForm.verificationCode"
-                type="text"
-                class="form-input"
-                placeholder="인증번호 6자리를 입력하세요"
-                maxlength="6"
-                :disabled="isVerified"
-                @input="filterNumbers"
-              />
-              <button
-                type="button"
-                class="verify-button"
-                @click="verifyCode"
-                :disabled="!canVerifyCode || isVerified"
-              >
-                <span v-if="isVerifying">확인중...</span>
-                <span v-else>확인</span>
-              </button>
-            </div>
-            <div v-if="timer > 0" class="timer-text">남은 시간: {{ formatTime(timer) }}</div>
-            <div v-if="timer === 0" class="expired-text">
-              인증번호가 만료되었습니다. 재발송해주세요.
-            </div>
-          </div>
-
-          <!-- 인증 완료 표시 -->
-          <div v-if="isVerified" class="verification-success">
-            <div class="success-icon">✓</div>
-            <span>휴대폰 인증이 완료되었습니다</span>
-          </div>
-
-          <button type="submit" class="find-button" :disabled="!isVerified || isLoading">
+          <button
+            type="submit"
+            class="find-button"
+            :disabled="!smsVerificationStatus.isVerified || isLoading"
+          >
             <span v-if="isLoading">찾는 중...</span>
             <span v-else>아이디 찾기</span>
           </button>
@@ -139,150 +89,57 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onUnmounted } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { smsAPI } from '@/api/sms';
+import SmsVerification from '@/components/signup/SmsVerification .vue';
 
 const authStore = useAuthStore();
 
+// Refs
+const smsVerificationRef = ref(null);
 const isLoading = ref(false);
-const isSendingCode = ref(false);
-const isVerifying = ref(false);
 const message = ref('');
 const messageType = ref('');
 const foundEmails = ref([]);
-const codeSent = ref(false);
-const isVerified = ref(true);
-const timer = ref(0);
-const timerInterval = ref(null);
 
+// Form data
 const findForm = reactive({
   name: '강영광',
   phone: '010-8228-4615',
-  verificationCode: '',
 });
 
-// 인증번호 발송 가능 여부
-const canSendCode = computed(() => {
-  const validation = smsAPI.validatePhoneNumber(findForm.phone);
-  return findForm.name.trim().length >= 2 && validation.isValid && !isSendingCode.value;
+// SMS 인증 상태 추적
+const smsVerificationStatus = ref({
+  isVerified: false,
+  phone: '',
+  codeSent: false,
 });
 
-// 인증번호 확인 가능 여부
-const canVerifyCode = computed(() => {
-  return findForm.verificationCode.length === 6 && timer.value > 0 && !isVerifying.value;
-});
+// SMS 인증 완료 핸들러
+const onSmsVerified = (data) => {
+  smsVerificationStatus.value = {
+    isVerified: true,
+    phone: data.phone,
+    codeSent: true,
+  };
 
-// 전화번호 자동 포맷팅
-const formatPhoneNumber = () => {
-  let phone = findForm.phone.replace(/[^0-9]/g, '');
+  message.value = '휴대폰 인증이 완료되었습니다.';
+  messageType.value = 'success';
 
-  if (phone.length <= 3) {
-    findForm.phone = phone;
-  } else if (phone.length <= 7) {
-    findForm.phone = `${phone.slice(0, 3)}-${phone.slice(3)}`;
-  } else if (phone.length <= 11) {
-    findForm.phone = `${phone.slice(0, 3)}-${phone.slice(3, 7)}-${phone.slice(7)}`;
-  }
+  console.log('SMS 인증 완료:', data);
 };
 
-// 숫자만 입력 허용
-const filterNumbers = () => {
-  findForm.verificationCode = findForm.verificationCode.replace(/[^0-9]/g, '');
+// SMS 에러 핸들러
+const onSmsError = (error) => {
+  message.value = error.message || '인증 중 오류가 발생했습니다.';
+  messageType.value = 'error';
+
+  console.error('SMS 인증 에러:', error);
 };
 
-// 시간 포맷팅 (mm:ss)
-const formatTime = (seconds) => {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
-
-// 타이머 시작
-const startTimer = () => {
-  timer.value = 300; // 5분
-  timerInterval.value = setInterval(() => {
-    timer.value--;
-    if (timer.value <= 0) {
-      clearInterval(timerInterval.value);
-    }
-  }, 1000);
-};
-
-// 타이머 정지
-const stopTimer = () => {
-  if (timerInterval.value) {
-    clearInterval(timerInterval.value);
-    timerInterval.value = null;
-  }
-};
-
-// 인증번호 발송
-const sendVerificationCode = async () => {
-  if (!canSendCode.value) return;
-
-  const validation = smsAPI.validatePhoneNumber(findForm.phone);
-
-  try {
-    isSendingCode.value = true;
-    message.value = '';
-
-    const result = await smsAPI.sendVerificationCode(validation.cleanNumber);
-
-    if (result.success) {
-      codeSent.value = true;
-      isVerified.value = false;
-      findForm.verificationCode = '';
-      message.value = '인증번호가 발송되었습니다.';
-      messageType.value = 'success';
-
-      // 기존 타이머가 있다면 정지
-      stopTimer();
-      startTimer();
-    } else {
-      message.value = result.message;
-      messageType.value = 'error';
-    }
-  } catch (error) {
-    console.error('SMS send error:', error);
-    message.value = '인증번호 발송 중 오류가 발생했습니다.';
-    messageType.value = 'error';
-  } finally {
-    isSendingCode.value = false;
-  }
-};
-
-// 인증번호 확인
-const verifyCode = async () => {
-  if (!canVerifyCode.value) return;
-
-  const validation = smsAPI.validatePhoneNumber(findForm.phone);
-
-  try {
-    isVerifying.value = true;
-    message.value = '';
-
-    const result = await smsAPI.confirmVerificationCode(
-      validation.cleanNumber,
-      findForm.verificationCode
-    );
-
-    if (result.success) {
-      isVerified.value = true;
-      message.value = '휴대폰 인증이 완료되었습니다.';
-      messageType.value = 'success';
-      stopTimer();
-    } else {
-      message.value = result.message;
-      messageType.value = 'error';
-    }
-  } catch (error) {
-    console.error('SMS verification error:', error);
-    message.value = '인증번호 확인 중 오류가 발생했습니다.';
-    messageType.value = 'error';
-  } finally {
-    isVerifying.value = false;
-  }
+// 인증번호 발송 완료 핸들러
+const onCodeSent = (data) => {
+  console.log('인증번호 발송 완료:', data);
 };
 
 // 날짜 포맷팅
@@ -303,10 +160,9 @@ const formatDate = (dateString) => {
 
 // 아이디 찾기 실행
 const handleFindId = async () => {
-  if (!isVerified.value) {
+  if (!smsVerificationStatus.value.isVerified) {
     message.value = '휴대폰 인증을 완료해주세요.';
     messageType.value = 'error';
-    console.log('휴대폰 인증을 완료해주세요.');
     return;
   }
 
@@ -315,12 +171,13 @@ const handleFindId = async () => {
     foundEmails.value = [];
     message.value = '';
 
-    // DB와 매칭을 위해 하이픈 포함 형식으로 전송
     const result = await authStore.findIdByPhone({
       name: findForm.name.trim(),
-      phone: findForm.phone, // 하이픈 포함된 형식 그대로 전송
+      phone: findForm.phone,
     });
+
     console.log('result', result);
+
     if (result.success && result.emails && result.emails.length > 0) {
       foundEmails.value = result.emails;
       message.value = `${result.emails.length}개의 계정을 찾았습니다.`;
@@ -338,17 +195,29 @@ const handleFindId = async () => {
   }
 };
 
-// 컴포넌트 언마운트 시 타이머 정리
-onUnmounted(() => {
-  stopTimer();
-});
+// 초기화 메소드 (필요 시 사용)
+const resetForm = () => {
+  findForm.name = '';
+  findForm.phone = '';
+  foundEmails.value = [];
+  message.value = '';
+  smsVerificationStatus.value = {
+    isVerified: false,
+    phone: '',
+    codeSent: false,
+  };
+
+  // SMS 인증 컴포넌트 초기화
+  if (smsVerificationRef.value) {
+    smsVerificationRef.value.reset();
+  }
+};
 </script>
 
 <style scoped>
 .find-id-container {
-  min-height: 100vh;
+  min-height: 100%;
   display: flex;
-  align-items: center;
   justify-content: center;
   padding: 1rem;
 }
@@ -418,88 +287,6 @@ onUnmounted(() => {
   background-color: #f8f9fa;
   color: #6c757d;
   cursor: not-allowed;
-}
-
-.phone-input-group,
-.verification-input-group {
-  display: flex;
-  gap: 0.8rem;
-}
-
-.phone-input-group .form-input,
-.verification-input-group .form-input {
-  flex: 1;
-}
-
-.send-code-button,
-.verify-button {
-  padding: 1rem 1.2rem;
-  background-color: var(--color-main, #3b82f6);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-  min-width: 100px;
-}
-
-.send-code-button:hover:not(:disabled),
-.verify-button:hover:not(:disabled) {
-  background-color: var(--color-main-hover, #2563eb);
-}
-
-.send-code-button:disabled,
-.verify-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.input-hint {
-  font-size: 0.8rem;
-  color: #999;
-  margin-top: 0.3rem;
-}
-
-.timer-text {
-  font-size: 0.85rem;
-  color: var(--color-main, #3b82f6);
-  margin-top: 0.5rem;
-  font-weight: 600;
-}
-
-.expired-text {
-  font-size: 0.85rem;
-  color: #dc3545;
-  margin-top: 0.5rem;
-  font-weight: 600;
-}
-
-.verification-success {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 1rem;
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-  border-radius: 12px;
-  margin-bottom: 1rem;
-}
-
-.success-icon {
-  width: 24px;
-  height: 24px;
-  background-color: #28a745;
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 0.9rem;
 }
 
 .find-button {
@@ -694,17 +481,6 @@ onUnmounted(() => {
 @media (max-width: 640px) {
   .find-id-card {
     padding: 2rem;
-  }
-
-  .phone-input-group,
-  .verification-input-group {
-    flex-direction: column;
-  }
-
-  .send-code-button,
-  .verify-button {
-    width: 100%;
-    min-width: unset;
   }
 
   .result-actions {
