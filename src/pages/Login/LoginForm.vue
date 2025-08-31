@@ -37,8 +37,6 @@
             <span class="checkmark"></span>
             로그인 상태 유지
           </label>
-
-          <a href="#" class="forgot-password">비밀번호 찾기</a>
         </div>
 
         <button type="submit" class="login-button" :disabled="isLoading">
@@ -47,8 +45,22 @@
         </button>
       </form>
 
-      <div class="signup-link">
-        <p>계정이 없으신가요? <a href="#" class="signup-text">회원가입</a></p>
+      <div class="auth-links">
+        <div class="signup-link">
+          <p>
+            계정이 없으신가요?
+            <router-link to="/login/signup" class="signup-text">회원가입</router-link>
+          </p>
+        </div>
+
+        <div class="find-links">
+          <div class="find-id-link">
+            <router-link to="/login/find-id" class="find-link">아이디 찾기</router-link>
+          </div>
+          <div class="find-id-link">
+            <router-link to="/login/find-password" class="find-link"> 비밀번호 찾기 </router-link>
+          </div>
+        </div>
       </div>
 
       <!-- 로그인 성공/실패 메시지 -->
@@ -234,8 +246,12 @@ const handleLogin = async () => {
   transform: none;
 }
 
-.signup-link {
+.auth-links {
   text-align: center;
+}
+
+.signup-link {
+  margin-bottom: 1rem;
   color: #666;
   font-size: 0.9rem;
 }
@@ -247,6 +263,31 @@ const handleLogin = async () => {
 }
 
 .signup-text:hover {
+  text-decoration: underline;
+}
+
+.find-links {
+  justify-content: center;
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+}
+
+.find-id-link {
+  margin-bottom: 1rem;
+}
+
+.find-link {
+  color: #999;
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: color 0.3s ease;
+}
+
+.find-link:hover {
+  color: var(--color-main);
   text-decoration: underline;
 }
 
@@ -270,3 +311,4 @@ const handleLogin = async () => {
   border: 1px solid #f5c6cb;
 }
 </style>
+
