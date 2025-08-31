@@ -13,7 +13,7 @@
     <!-- 메뉴 -->
     <ul class="navbar-menu">
       <li><a href="/loans">대출 상품 보기</a></li>
-      <li><a href="/supports">정부 지원금 보기</a></li>
+      <li><a href="/policies">정부 지원금 보기</a></li>
       <!-- 마이페이지 버튼을 누르면 로그인 혹은 마이페이지 이동 -->
       <li>
         <a href="/login"><i class="bi bi-person-circle"></i> 회원가입</a>

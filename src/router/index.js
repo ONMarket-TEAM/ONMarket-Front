@@ -13,7 +13,7 @@ const router = createRouter({
       children: [
         {
           path: '/login/findId',
-          component: () => import('@/pages/Login/findId.vue'),
+          component: () => import('@/pages/Login/FindId.vue'),
         },
         {
           path: '/login/findPassword',
@@ -25,7 +25,28 @@ const router = createRouter({
         },
       ],
     },
+    
+    // 대출 상품 페이지 추가
+    {
+      path: '/loans',
+      component: () => import('@/pages/Post/PostList.vue'),
+    },
 
+    // 정부 지원금 페이지 추가
+    {
+      path: '/policies',
+      component: () => import('@/pages/Post/PostList.vue'),
+    },
+
+    // 상세 페이지들
+    {
+      path: '/loans/:id',
+      component: () => import('@/pages/Post/LoanDetail.vue'),
+    },
+    {
+      path: '/policies/:id',
+      component: () => import('@/pages/Post/PolicyDetail.vue'),
+    },
     /* 404 not found 페이지 */
     {
       path: '/:paths(.*)*',
