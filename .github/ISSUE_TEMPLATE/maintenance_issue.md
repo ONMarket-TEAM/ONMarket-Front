@@ -1,7 +1,7 @@
 ---
 name: maintenance_issue
 about: maintenance_issue
-title: ''
+title: "[⚒️REFACTOR]"
 labels: ''
 assignees: ''
 
