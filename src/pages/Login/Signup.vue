@@ -18,6 +18,16 @@
             required
           />
         </div>
+        <div class="form-group">
+          <SmsVerification
+            ref="smsVerificationRef"
+            v-model="signupForm.phone"
+            :disabled="smsVerificationStatus.isVerified"
+            @verified="onSmsVerified"
+            @error="onSmsError"
+            @code-sent="onCodeSent"
+          />
+        </div>
 
         <div class="form-group">
           <label for="nickname" class="form-label">닉네임</label>
@@ -110,6 +120,9 @@
             placeholder="비밀번호를 다시 입력하세요"
             required
           />
+          <div v-if="confirmPasswordMessage" class="check-message error">
+            {{ confirmPasswordMessage }}
+          </div>
         </div>
 
         <div class="form-group">
@@ -185,20 +198,6 @@
           </div>
         </div>
 
-        <!-- SMS 인증 컴포넌트 -->
-        <div class="sms-section">
-          <h3 class="sms-section-title">휴대폰 인증 (필수)</h3>
-          <p class="sms-section-description">보안을 위해 휴대폰 번호 인증을 진행해주세요</p>
-          <SmsVerification
-            ref="smsVerificationRef"
-            v-model="signupForm.phone"
-            :disabled="smsVerificationStatus.isVerified"
-            @verified="onSmsVerified"
-            @error="onSmsError"
-            @code-sent="onCodeSent"
-          />
-        </div>
-
         <div class="terms-group">
           <label class="checkbox-label">
             <input v-model="signupForm.agreeTerms" type="checkbox" class="checkbox" required />
@@ -235,11 +234,6 @@
           <router-link to="/login" class="login-text">로그인</router-link>
         </p>
       </div>
-
-      <!-- 회원가입 성공/실패 메시지 -->
-      <div v-if="message" :class="['message', messageType]">
-        {{ message }}
-      </div>
     </div>
   </div>
 </template>
@@ -250,7 +244,6 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useRouter } from 'vue-router';
 import SmsVerification from '@/components/signup/SmsVerification .vue';
 import { validationAPI } from '@/api/validation';
-import { authAPI } from '@/api/auth';
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -452,6 +445,11 @@ const onCodeSent = (data) => {
   console.log('인증번호 발송 완료:', data);
 };
 
+const confirmPasswordMessage = computed(() => {
+  if (!signupForm.confirmPassword) return '';
+  return signupForm.password === signupForm.confirmPassword ? '' : '비밀번호가 일치하지 않습니다.';
+});
+
 // 프로필 이미지 업로드 처리
 const handleProfileImageUpload = (event) => {
   const file = event.target.files[0];
@@ -551,7 +549,7 @@ const handleSignup = async () => {
 
       setTimeout(() => {
         router.push('/login');
-      }, 2000);
+      }, 1000);
     } else {
       message.value = result.message;
       messageType.value = 'error';
@@ -628,7 +626,7 @@ const resetForm = () => {
   border-radius: 20px;
   width: 100%;
   border: 1px solid #ccc;
-  max-width: 600px; /* SMS 컴포넌트 때문에 약간 넓게 조정 */
+  max-width: 550px;
 }
 
 .signup-header {
@@ -664,19 +662,19 @@ const resetForm = () => {
 .form-select {
   width: 100%;
   padding: 1rem;
-  border: 2px solid var(--color-light-1, #e5e7eb);
+  border: 2px solid var(--color-light-1);
   border-radius: 12px;
   font-size: 1rem;
   transition: all 0.3s ease;
-  background: var(--color-white, #ffffff);
+  background: var(--color-white);
 }
 
 .form-input:focus,
 .form-select:focus {
   outline: none;
-  border-color: var(--color-main, #3b82f6);
+  border-color: var(--color-main);
   background: white;
-  box-shadow: 0 0 0 3px var(--color-light-3, #dbeafe);
+  box-shadow: 0 0 0 3px var(--color-light-3);
 }
 
 .password-hint {
@@ -698,7 +696,7 @@ const resetForm = () => {
 
 .check-button {
   padding: 1rem 1.2rem;
-  background-color: var(--color-main, #3b82f6);
+  background-color: var(--color-main);
   color: white;
   border: none;
   border-radius: 12px;
@@ -712,7 +710,7 @@ const resetForm = () => {
 }
 
 .check-button:hover:not(:disabled) {
-  background-color: var(--color-main-hover, #2563eb);
+  box-shadow: 0 10px 30px var(--color-light-3);
 }
 
 .check-button:disabled {
@@ -721,7 +719,7 @@ const resetForm = () => {
 }
 
 .input-success {
-  border-color: #28a745 !important;
+  border-color: var(--color-main) !important;
   box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1) !important;
 }
 
@@ -761,7 +759,7 @@ const resetForm = () => {
   margin-right: 0.5rem;
   width: 18px;
   height: 18px;
-  accent-color: var(--color-main, #3b82f6);
+  accent-color: var(--color-main);
 }
 
 .radio-text {
@@ -781,7 +779,7 @@ const resetForm = () => {
 
 .file-upload-button {
   padding: 0.75rem 1.5rem;
-  background-color: var(--color-main, #3b82f6);
+  background-color: var(--color-main);
   color: white;
   border: none;
   border-radius: 8px;
@@ -793,7 +791,7 @@ const resetForm = () => {
 }
 
 .file-upload-button:hover {
-  background-color: var(--color-main-hover, #2563eb);
+  box-shadow: 0 10px 30px var(--color-light-3);
 }
 
 .image-preview {
@@ -807,7 +805,7 @@ const resetForm = () => {
   height: 120px;
   object-fit: cover;
   border-radius: 12px;
-  border: 2px solid var(--color-light-1, #e5e7eb);
+  border: 2px solid var(--color-light-1);
 }
 
 .remove-image-btn {
@@ -885,7 +883,7 @@ const resetForm = () => {
 }
 
 .terms-link {
-  color: var(--color-main, #3b82f6);
+  color: var(--color-main);
   text-decoration: none;
   font-weight: 600;
 }
@@ -897,7 +895,7 @@ const resetForm = () => {
 .signup-button {
   width: 100%;
   padding: 1rem;
-  background-color: var(--color-main, #3b82f6);
+  background-color: var(--color-main);
   color: white;
   border: none;
   border-radius: 12px;
@@ -909,8 +907,7 @@ const resetForm = () => {
 }
 
 .signup-button:hover:not(:disabled) {
-  background-color: var(--color-main-hover, #2563eb);
-  box-shadow: 0 10px 30px var(--color-light-3, #dbeafe);
+  box-shadow: 0 10px 30px var(--color-light-3);
 }
 
 .signup-button:disabled {
@@ -925,7 +922,7 @@ const resetForm = () => {
 }
 
 .login-text {
-  color: var(--color-main, #3b82f6);
+  color: var(--color-main);
   text-decoration: none;
   font-weight: 600;
 }
@@ -952,40 +949,5 @@ const resetForm = () => {
   background-color: #f8d7da;
   color: #721c24;
   border: 1px solid #f5c6cb;
-}
-
-@media (max-width: 640px) {
-  .signup-card {
-    padding: 2rem;
-    max-width: 100%;
-  }
-
-  .sms-section {
-    padding: 1rem;
-  }
-
-  .input-with-button {
-    flex-direction: column;
-    gap: 0.8rem;
-  }
-
-  .check-button {
-    width: 100%;
-    min-width: unset;
-  }
-
-  .radio-group {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .file-upload-wrapper {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .image-preview {
-    align-self: center;
-  }
 }
 </style>

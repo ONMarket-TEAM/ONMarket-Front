@@ -12,25 +12,50 @@
 
     <!-- 메뉴 -->
     <ul class="navbar-menu">
-      <li><a href="/loans">대출 상품 보기</a></li>
-      <li><a href="/policies">정부 지원금 보기</a></li>
-      <!-- 마이페이지 버튼을 누르면 로그인 혹은 마이페이지 이동 -->
-      <li>
-        <a href="/login"><i class="bi bi-person-circle"></i> 회원가입</a>
-      </li>
+      <li><RouterLink to="/loans">대출 상품 보기</RouterLink></li>
+      <li><RouterLink to="/policies">정부 지원금 보기</RouterLink></li>
 
-      <li>
-        <a href="/user/mypage"><i class="bi bi-person-circle"></i> 마이페이지</a>
-      </li>
+      <!-- 로그인 여부에 따라 메뉴 구분 -->
+      <template v-if="authStore.isAuthenticated">
+        <!-- 로그인 상태 -->
+        <li>
+          <RouterLink to="/user/mypage">
+            <i class="bi bi-person-circle"></i> 마이페이지
+          </RouterLink>
+        </li>
+        <li>
+          <a href="javascript:void(0)" @click="handleLogout">
+            <i class="bi bi-box-arrow-right"></i> 로그아웃
+          </a>
+        </li>
+      </template>
+      <template v-else>
+        <!-- 로그아웃 상태 -->
+        <li>
+          <RouterLink to="/login"> <i class="bi bi-box-arrow-in-right"></i> 로그인 </RouterLink>
+        </li>
+        <li>
+          <RouterLink to="/signup"> <i class="bi bi-person-plus"></i> 회원가입 </RouterLink>
+        </li>
+      </template>
     </ul>
   </nav>
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router';
+import { useRouter, RouterLink } from 'vue-router';
+import { useAuthStore } from '@/stores/useAuthStore';
+
 const router = useRouter();
+const authStore = useAuthStore();
+
 const navigateTo = (path) => {
   router.push(path);
+};
+
+const handleLogout = () => {
+  authStore.logout();
+  router.push('/'); // 로그아웃 후 홈으로 이동
 };
 </script>
 
@@ -42,6 +67,7 @@ const navigateTo = (path) => {
   align-items: center;
   background-color: #ffffff;
   border-bottom: 1px solid #ddd;
+  padding: 0 20px;
 }
 
 /* 로고 */
@@ -49,14 +75,15 @@ const navigateTo = (path) => {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 80px;
+  width: 120px;
   height: 50px;
-  margin-left: 10px;
+  cursor: pointer;
 }
 
 .navbar-logo-img {
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 
 /* 메뉴 리스트 */
@@ -81,3 +108,4 @@ const navigateTo = (path) => {
   color: #007bff;
 }
 </style>
+

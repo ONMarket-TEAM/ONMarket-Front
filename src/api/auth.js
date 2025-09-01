@@ -38,6 +38,47 @@ export const authAPI = {
       };
     }
   },
+  // 로그아웃
+  logout: async (accessToken) => {
+    try {
+      const response = await api.post(
+        '/api/auth/logout',
+        {}, // body 없음
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      return {
+        success: true,
+        data: response.data.body?.data || {},
+        message: response.data.header?.message || '로그아웃 성공',
+      };
+    } catch (error) {
+      console.error('Logout API error:', error);
+
+      if (error.response) {
+        const status = error.response.status;
+        const message = error.response.data?.header?.message;
+
+        switch (status) {
+          case 400:
+            return { success: false, message: message || '잘못된 요청입니다.' };
+          case 401:
+            return { success: false, message: message || '유효하지 않거나 만료된 토큰입니다.' };
+          case 404:
+            return { success: false, message: message || '사용자를 찾을 수 없습니다.' };
+          default:
+            return { success: false, message: message || '로그아웃 중 오류가 발생했습니다.' };
+        }
+      }
+
+      return { success: false, message: '네트워크 연결을 확인해주세요.' };
+    }
+  },
+
   // 아이디 찾기 (휴대폰 번호)
   findIdByPhone: async ({ name, phone }) => {
     try {
