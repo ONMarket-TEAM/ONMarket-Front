@@ -1,6 +1,7 @@
 <template>
   <div class="section container find-id-container">
     <div class="find-id-card">
+      <!-- 헤더는 그대로 -->
       <div class="find-id-header">
         <h1 class="find-id-title">아이디 찾기</h1>
         <p class="find-id-subtitle">
@@ -9,8 +10,8 @@
         </p>
       </div>
 
-      <!-- 아이디 찾기 폼 -->
-      <div class="find-method">
+      <!-- 폼 화면 -->
+      <div v-if="!isResultPage" class="find-method">
         <form @submit.prevent="handleFindId" class="find-form">
           <div class="form-group">
             <label for="name" class="form-label">이름</label>
@@ -25,7 +26,7 @@
             />
           </div>
 
-          <!-- SMS 인증 컴포넌트 -->
+          <!-- SMS 인증 -->
           <SmsVerification
             ref="smsVerificationRef"
             v-model="findForm.phone"
@@ -46,16 +47,18 @@
         </form>
       </div>
 
-      <!-- 결과 표시 -->
-      <div v-if="foundEmails.length > 0" class="result-section">
-        <h3 class="result-title">찾은 아이디</h3>
-        <div class="email-list">
+      <!-- 결과 화면 -->
+      <div v-else class="result-section">
+        <div v-if="foundEmails.length > 0" class="email-list">
           <div v-for="email in foundEmails" :key="email.id" class="email-item">
             <div class="email-info">
               <span class="masked-email">{{ email.maskedEmail }}</span>
               <span class="join-date">가입일: {{ formatDate(email.joinDate) }}</span>
             </div>
           </div>
+        </div>
+        <div v-else>
+          <p>일치하는 계정을 찾을 수 없습니다.</p>
         </div>
 
         <div class="result-actions">
@@ -68,8 +71,8 @@
         <router-link to="/login" class="back-link"> ← 로그인 페이지로 돌아가기 </router-link>
       </div>
 
-      <!-- 안내사항 -->
-      <div class="help-text">
+      <!-- 안내사항 (폼일 때만 보여주고 싶으면 v-if 붙이면 됨) -->
+      <div class="help-text" v-if="!isResultPage">
         <h3>안내사항</h3>
         <ul>
           <li>가입 시 입력한 이름과 휴대폰 번호와 정확히 일치해야 합니다</li>
@@ -79,73 +82,61 @@
           <li>문제가 지속되면 고객센터(1588-0000)로 연락해주세요</li>
         </ul>
       </div>
-
-      <!-- 메시지 -->
-      <div v-if="message" :class="['message', messageType]">
-        {{ message }}
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive } from 'vue';
 import { useAuthStore } from '@/stores/useAuthStore';
 import SmsVerification from '@/components/signup/SmsVerification .vue';
 
 const authStore = useAuthStore();
 
-// Refs
+// 상태
 const smsVerificationRef = ref(null);
 const isLoading = ref(false);
 const message = ref('');
 const messageType = ref('');
 const foundEmails = ref([]);
+const isResultPage = ref(false); // 👉 추가
 
-// Form data
+// 폼 데이터
 const findForm = reactive({
-  name: '강영광',
-  phone: '010-8228-4615',
+  name: '',
+  phone: '',
 });
 
-// SMS 인증 상태 추적
+// SMS 인증 상태
 const smsVerificationStatus = ref({
   isVerified: false,
   phone: '',
   codeSent: false,
 });
 
-// SMS 인증 완료 핸들러
+// SMS 인증 이벤트들
 const onSmsVerified = (data) => {
   smsVerificationStatus.value = {
     isVerified: true,
     phone: data.phone,
     codeSent: true,
   };
-
   message.value = '휴대폰 인증이 완료되었습니다.';
   messageType.value = 'success';
-
-  console.log('SMS 인증 완료:', data);
 };
 
-// SMS 에러 핸들러
 const onSmsError = (error) => {
   message.value = error.message || '인증 중 오류가 발생했습니다.';
   messageType.value = 'error';
-
-  console.error('SMS 인증 에러:', error);
 };
 
-// 인증번호 발송 완료 핸들러
 const onCodeSent = (data) => {
   console.log('인증번호 발송 완료:', data);
 };
 
-// 날짜 포맷팅
+// 날짜 포맷
 const formatDate = (dateString) => {
   if (!dateString) return '';
-
   try {
     const date = new Date(dateString);
     return date.toLocaleDateString('ko-KR', {
@@ -176,9 +167,7 @@ const handleFindId = async () => {
       phone: findForm.phone,
     });
 
-    console.log('result', result);
-
-    if (result.success && result.emails && result.emails.length > 0) {
+    if (result.success && result.emails?.length > 0) {
       foundEmails.value = result.emails;
       message.value = `${result.emails.length}개의 계정을 찾았습니다.`;
       messageType.value = 'success';
@@ -186,6 +175,8 @@ const handleFindId = async () => {
       message.value = result.message || '일치하는 계정을 찾을 수 없습니다.';
       messageType.value = 'error';
     }
+
+    isResultPage.value = true; // 👉 화면 전환
   } catch (error) {
     console.error('Find ID error:', error);
     message.value = '아이디 찾기 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
@@ -195,19 +186,15 @@ const handleFindId = async () => {
   }
 };
 
-// 초기화 메소드 (필요 시 사용)
+// 초기화 (다시 찾기 버튼)
 const resetForm = () => {
   findForm.name = '';
   findForm.phone = '';
   foundEmails.value = [];
   message.value = '';
-  smsVerificationStatus.value = {
-    isVerified: false,
-    phone: '',
-    codeSent: false,
-  };
+  smsVerificationStatus.value = { isVerified: false, phone: '', codeSent: false };
+  isResultPage.value = false;
 
-  // SMS 인증 컴포넌트 초기화
   if (smsVerificationRef.value) {
     smsVerificationRef.value.reset();
   }
@@ -269,16 +256,16 @@ const resetForm = () => {
 .form-input {
   width: 100%;
   padding: 1rem;
-  border: 2px solid var(--color-light-1, #e5e7eb);
+  border: 2px solid var(--color-light-1);
   border-radius: 12px;
   font-size: 1rem;
   transition: all 0.3s ease;
-  background: var(--color-white, #ffffff);
+  background: var(--color-white);
 }
 
 .form-input:focus {
   outline: none;
-  border-color: var(--color-main, #3b82f6);
+  border-color: var(--color-main);
   background: white;
   box-shadow: 0 0 0 3px var(--color-light-3, #dbeafe);
 }
@@ -292,7 +279,7 @@ const resetForm = () => {
 .find-button {
   width: 100%;
   padding: 1rem;
-  background-color: var(--color-main, #3b82f6);
+  background-color: var(--color-main);
   color: white;
   border: none;
   border-radius: 12px;
@@ -303,8 +290,7 @@ const resetForm = () => {
 }
 
 .find-button:hover:not(:disabled) {
-  background-color: var(--color-main-hover, #2563eb);
-  box-shadow: 0 10px 30px var(--color-light-3, #dbeafe);
+  box-shadow: 0 10px 30px var(--color-light-3);
 }
 
 .find-button:disabled {
@@ -313,17 +299,8 @@ const resetForm = () => {
 }
 
 .result-section {
-  background: #f8f9fa;
-  padding: 1.5rem;
   border-radius: 12px;
   margin-bottom: 2rem;
-}
-
-.result-title {
-  color: #333;
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
 }
 
 .email-list {
@@ -351,7 +328,6 @@ const resetForm = () => {
 }
 
 .masked-email {
-  color: var(--color-main, #3b82f6);
   font-weight: 600;
   font-size: 1rem;
 }
@@ -381,23 +357,22 @@ const resetForm = () => {
 }
 
 .login-button {
-  background: var(--color-main, #3b82f6);
+  background: var(--color-main,);
   color: white;
 }
 
 .login-button:hover {
-  background: var(--color-main-hover, #2563eb);
+  box-shadow: 0 10px 30px var(--color-light-3);
 }
 
 .forgot-button {
   background: white;
-  color: var(--color-main, #3b82f6);
-  border: 2px solid var(--color-main, #3b82f6);
+  color: var(--color-main);
+  border: 2px solid var(--color-main);
 }
 
 .forgot-button:hover {
-  background: var(--color-main, #3b82f6);
-  color: white;
+  box-shadow: 0 10px 30px var(--color-light-3);
 }
 
 .back-to-login {
@@ -406,7 +381,7 @@ const resetForm = () => {
 }
 
 .back-link {
-  color: var(--color-main, #3b82f6);
+  color: #999;
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
@@ -452,49 +427,9 @@ const resetForm = () => {
 
 .help-text li::before {
   content: '•';
-  color: var(--color-main, #3b82f6);
+  color: #999;
   position: absolute;
   left: 0;
   font-weight: bold;
-}
-
-.message {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-.message.success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.message.error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-@media (max-width: 640px) {
-  .find-id-card {
-    padding: 2rem;
-  }
-
-  .result-actions {
-    flex-direction: column;
-  }
-
-  .login-button,
-  .forgot-button {
-    min-width: 100%;
-  }
-
-  .email-info {
-    flex-direction: column;
-    align-items: flex-start;
-  }
 }
 </style>

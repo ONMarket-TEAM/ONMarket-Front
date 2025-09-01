@@ -232,7 +232,7 @@
       <div class="login-link">
         <p>
           이미 계정이 있으신가요?
-          <router-link to="/login" class="login-text ">로그인</router-link>
+          <router-link to="/login" class="login-text">로그인</router-link>
         </p>
       </div>
 
@@ -263,7 +263,7 @@ const messageType = ref('');
 
 // SMS 인증 상태
 const smsVerificationStatus = ref({
-  isVerified: true,
+  isVerified: false,
   phone: '',
   codeSent: false,
 });
@@ -330,62 +330,25 @@ const canCheckEmail = computed(() => {
   return signupForm.email && isValidEmail(signupForm.email) && !emailCheck.value.isChecking;
 });
 
-// 폼 유효성 검증 (SMS 인증 및 중복체크 포함)
-// const isFormValid = computed(() => {
-//   return (
-//     signupForm.username &&
-//     signupForm.nickname &&
-//     signupForm.email &&
-//     signupForm.password &&
-//     signupForm.confirmPassword &&
-//     signupForm.birthDate &&
-//     signupForm.gender &&
-//     signupForm.mainBusinessId &&
-//     signupForm.agreeTerms &&
-//     signupForm.agreePrivacy &&
-//     signupForm.password === signupForm.confirmPassword &&
-//     smsVerificationStatus.value.isVerified && // SMS 인증 필수
-//     nicknameCheck.value.isChecked &&
-//     nicknameCheck.value.isAvailable && // 닉네임 중복체크 필수
-//     emailCheck.value.isChecked &&
-//     emailCheck.value.isAvailable // 이메일 중복체크 필수
-//   );
-// });
-
 const isFormValid = computed(() => {
-  const errors = [];
-
-  if (!signupForm.username) errors.push('이름 없음');
-  if (!signupForm.nickname) errors.push('닉네임 없음');
-  if (!signupForm.email) errors.push('이메일 없음');
-  if (!signupForm.password) errors.push('비밀번호 없음');
-  if (!signupForm.confirmPassword) errors.push('비밀번호 확인 없음');
-  if (!signupForm.birthDate) errors.push('생년월일 없음');
-  if (!signupForm.gender) errors.push('성별 없음');
-  if (!signupForm.mainBusinessId) errors.push('업종 선택 안함');
-  if (!signupForm.agreeTerms) errors.push('이용약관 미동의');
-  if (!signupForm.agreePrivacy) errors.push('개인정보처리방침 미동의');
-
-  if (signupForm.password !== signupForm.confirmPassword) {
-    errors.push('비밀번호 불일치');
-  }
-
-  // if (!smsVerificationStatus.value.isVerified) {
-  //   errors.push('휴대폰 인증 안됨');
-  // }
-
-  if (!nicknameCheck.value.isChecked) errors.push('닉네임 중복확인 안함');
-  else if (!nicknameCheck.value.isAvailable) errors.push('닉네임 이미 사용중');
-
-  if (!emailCheck.value.isChecked) errors.push('이메일 중복확인 안함');
-  else if (!emailCheck.value.isAvailable) errors.push('이메일 이미 사용중');
-
-  // 디버깅용 로그
-  if (errors.length > 0) {
-    console.log('폼 유효성 미충족 조건:', errors);
-  }
-
-  return errors.length === 0;
+  return (
+    signupForm.username &&
+    signupForm.nickname &&
+    signupForm.email &&
+    signupForm.password &&
+    signupForm.confirmPassword &&
+    signupForm.birthDate &&
+    signupForm.gender &&
+    signupForm.mainBusinessId &&
+    signupForm.agreeTerms &&
+    signupForm.agreePrivacy &&
+    signupForm.password === signupForm.confirmPassword &&
+    smsVerificationStatus.value.isVerified && // SMS 인증 필수
+    nicknameCheck.value.isChecked &&
+    nicknameCheck.value.isAvailable && // 닉네임 중복체크 필수
+    emailCheck.value.isChecked &&
+    emailCheck.value.isAvailable // 이메일 중복체크 필수
+  );
 });
 
 // 입력값 변경 시 중복체크 상태 초기화
