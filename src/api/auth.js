@@ -10,7 +10,7 @@ export const authAPI = {
       if (result.accessToken) {
         return {
           success: true,
-          message: '로그인 성공',
+          message: '로그인에 성공했습니다.',
           data: result,
         };
       } else {

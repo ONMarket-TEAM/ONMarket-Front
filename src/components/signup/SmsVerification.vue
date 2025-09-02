@@ -58,18 +58,14 @@
       <div v-if="timer > 0" class="timer-text">남은 시간: {{ formatTime(timer) }}</div>
       <div v-if="timer === 0" class="expired-text">인증번호가 만료되었습니다. 재발송해주세요.</div>
     </div>
-
-    <!-- 인증 완료 표시 -->
-    <div v-if="isVerified" class="verification-success">
-      <div class="success-icon">✓</div>
-      <span>휴대폰 인증이 완료되었습니다</span>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue';
 import { smsAPI } from '@/api/sms';
+import { useToastStore } from '@/stores/useToastStore';
+const toastStore = useToastStore();
 
 // Props
 const props = defineProps({
@@ -93,7 +89,6 @@ const timerInterval = ref(null);
 
 // 메시지 (내부용)
 const message = ref('');
-const messageType = ref('');
 
 // 재발송 제한
 const resendCount = ref(0);
@@ -202,9 +197,11 @@ const sendVerificationCode = async () => {
 
       emit('code-sent', { phone: phoneNumber.value, cleanNumber: validation.cleanNumber });
     } else {
+      toastStore.error(result.message);
       emit('error', { type: 'send-code', message: result.message });
     }
   } catch (error) {
+    toastStore.error('인증번호 발송 중 오류가 발생했습니다.');
     emit('error', { type: 'send-code', error });
   } finally {
     isSendingCode.value = false;
@@ -225,15 +222,18 @@ const verifyCode = async () => {
     if (result.success) {
       isVerified.value = true;
       stopTimer();
+      toastStore.success('인증이 완료되었습니다.');
       emit('verified', {
         phone: phoneNumber.value,
         cleanNumber: validation.cleanNumber,
         verificationCode: verificationCode.value,
       });
     } else {
+      toastStore.error(result.message);
       emit('error', { type: 'verify-code', message: result.message });
     }
   } catch (error) {
+    toastStore.error('인증 중 오류가 발생했습니다.');
     emit('error', { type: 'verify-code', error });
   } finally {
     isVerifying.value = false;
@@ -351,29 +351,5 @@ onUnmounted(() => {
   color: #dc3545;
   margin-top: 0.5rem;
   font-weight: 600;
-}
-
-.verification-success {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 1rem;
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-  border-radius: 12px;
-  margin-bottom: 1rem;
-}
-.success-icon {
-  width: 24px;
-  height: 24px;
-  background-color: #28a745;
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 0.9rem;
 }
 </style>

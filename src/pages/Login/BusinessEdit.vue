@@ -29,11 +29,6 @@
       <!-- 직원 수 -->
       <EmployeeCountInput v-model="businessForm.employeeCount" :error="errors.employeeCount" />
 
-      <!-- 메시지 표시 -->
-      <div v-if="message" :class="['message', messageType]">
-        {{ message }}
-      </div>
-
       <!-- 버튼 그룹 -->
       <div class="button-group">
         <button type="button" @click="handleSkip" class="skip-button">나중에 하기</button>
@@ -57,6 +52,7 @@ import AnnualRevenueSelect from '@/components/business/AnnualRevenueSelect.vue';
 import EmployeeCountInput from '@/components/business/EmployeeCountInput.vue';
 import { useRouter } from 'vue-router';
 import { businessAPI } from '@/api/business';
+import { useToastStore } from '@/stores/useToastStore';
 
 const props = defineProps({
   businessData: {
@@ -67,11 +63,10 @@ const props = defineProps({
 
 const emit = defineEmits(['complete']);
 const router = useRouter();
+const toastStore = useToastStore();
 
 // Refs
 const isLoading = ref(false);
-const message = ref('');
-const messageType = ref('');
 
 // 폼 데이터
 const businessForm = reactive({
@@ -155,20 +150,17 @@ const handleSkip = () => {
 // 사업장 등록 API 호출
 const handleComplete = async () => {
   if (!validateForm()) {
-    message.value = '입력 정보를 확인해주세요.';
-    messageType.value = 'error';
+    toastStore.error('입력 정보를 확인해주세요.');
     return;
   }
 
   try {
     isLoading.value = true;
-    message.value = '';
 
     const result = await businessAPI.register(businessForm);
 
     if (result) {
-      message.value = '사업장이 성공적으로 등록되었습니다.';
-      messageType.value = 'success';
+      toastStore.success('사업장이 성공적으로 등록되었습니다.');
 
       // 부모 컴포넌트에도 알림 (필요시)
       emit('complete', result);
@@ -176,13 +168,10 @@ const handleComplete = async () => {
       // 메인 페이지로 이동
       router.push('/');
     } else {
-      message.value = '사업장 등록에 실패했습니다.';
-      messageType.value = 'error';
+      toastStore.error('사업장 등록에 실패했습니다.');
     }
   } catch (error) {
-    console.error('사업장 등록 오류:', error);
-    message.value = '처리 중 오류가 발생했습니다.';
-    messageType.value = 'error';
+    toastStore.error('처리 중 오류가 발생했습니다.');
   } finally {
     isLoading.value = false;
   }
@@ -222,27 +211,6 @@ onMounted(() => {
 
 .step-form {
   width: 100%;
-}
-
-/* 메시지 */
-.message {
-  margin-bottom: 1.5rem;
-  padding: 0.75rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-.message.success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.message.error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
 }
 
 /* 버튼 그룹 */

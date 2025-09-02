@@ -55,12 +55,6 @@
       <div v-if="timer > 0" class="timer-text">남은 시간: {{ formatTime(timer) }}</div>
       <div v-if="timer === 0" class="expired-text">인증번호가 만료되었습니다. 재발송해주세요.</div>
     </div>
-
-    <!-- 인증 완료 표시 -->
-    <div v-if="isVerified" class="verification-success">
-      <div class="success-icon">✓</div>
-      <span>이메일 인증이 완료되었습니다</span>
-    </div>
   </div>
 </template>
 
@@ -353,29 +347,5 @@ onUnmounted(() => {
   color: #dc3545;
   margin-top: 0.5rem;
   font-weight: 600;
-}
-
-.verification-success {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 1rem;
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-  border-radius: 12px;
-  margin-bottom: 1rem;
-}
-.success-icon {
-  width: 24px;
-  height: 24px;
-  background-color: #28a745;
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 0.9rem;
 }
 </style>
