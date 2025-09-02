@@ -1,14 +1,31 @@
 <template>
   <div class="container section">
-    <!-- 타이틀 -->
     <h1>내 정보</h1>
     <hr />
-
-    <!-- 회원 정보 -->
     <div class="user-info" v-if="me">
-      <div class="profile-image">
-        <img :src="me?.profileImage || DEFAULT_AVATAR" alt="프로필 이미지" @error="onImgErr" />
+      <div class="profile-image" @click="openImageMenu">
+        <img :src="currentAvatar" :key="avatarVersion" alt="프로필 이미지" @error="onImgErr" />
+        <div class="image-overlay">
+          <i class="fas fa-camera"></i>
+        </div>
       </div>
+
+      <div v-if="showImageMenu" class="image-menu-backdrop" @click.self="closeImageMenu">
+        <div class="image-menu chip-row" role="dialog" aria-modal="true">
+          <button class="chip-btn" @click="selectNewImage">이미지 변경</button>
+          <button class="chip-btn" @click="setDefaultImage">기본 이미지로 변경</button>
+          <button class="chip-btn" @click="closeImageMenu">취소</button>
+        </div>
+      </div>
+
+      <input
+        ref="fileInput"
+        type="file"
+        accept="image/*"
+        style="display: none"
+        @change="handleFileSelect"
+      />
+
       <div class="row">
         <strong>이름</strong> <span>{{ me?.username || '정보 없음' }}</span>
       </div>
@@ -30,7 +47,6 @@
         <button>사업정보 변경하기</button>
       </div>
 
-      <!-- 현재 비밀번호 확인 (회원정보 변경 인증용) 모달 -->
       <div v-if="showVerify" class="modal-backdrop" @click.self="closeVerifyModal">
         <div class="modal-card">
           <h2>비밀번호 확인</h2>
@@ -65,34 +81,70 @@
       </div>
     </div>
 
-    <!-- 데이터가 없거나 로딩 중일 때 -->
     <div v-else-if="loading" style="text-align: center; padding: 20px">로딩 중...</div>
 
     <div v-else style="text-align: center; padding: 20px">
       <p>회원 정보가 없습니다.</p>
     </div>
 
-    <!-- 에러 표시 -->
     <div
       v-if="error"
       style="background: #f8d7da; color: #721c24; padding: 15px; margin: 15px 0; border-radius: 5px"
     >
       에러: {{ error }}
     </div>
+
+    <div v-if="imageUploading" class="upload-loading">
+      <div class="upload-spinner"></div>
+      <p>이미지 업로드 중...</p>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import member from '@/api/member';
 import { useRouter } from 'vue-router';
 
 const me = ref(null);
-const loading = ref(false);
+const loading = ref(true);
 const error = ref('');
 const router = useRouter();
 
-// 모달
+const profileImageUrl = ref(null);
+const showImageMenu = ref(false);
+const fileInput = ref(null);
+const imageUploading = ref(false);
+const avatarVersion = ref(0);
+// 1) helper 추가
+const isSignedUrl = (url) => {
+  try {
+    const u = new URL(url);
+    return (
+      u.searchParams.has('X-Amz-Signature') ||
+      u.searchParams.has('X-Amz-Algorithm') ||
+      u.searchParams.has('X-Amz-Credential') ||
+      u.searchParams.has('Signature')
+    );
+  } catch {
+    return false;
+  }
+};
+
+// 2) currentAvatar 교체
+const currentAvatar = computed(() => {
+  const base = profileImageUrl.value || me.value?.profileImage || DEFAULT_AVATAR;
+  if (!base) return DEFAULT_AVATAR;
+
+  if (isSignedUrl(base)) {
+    // 서명 URL: 쿼리 절대 변경 X, 해시만 붙여 리마운트 트리거
+    return `${base}#v=${avatarVersion.value}`;
+  }
+  // 퍼블릭 URL: 쿼리로 캐시 버스팅
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}v=${avatarVersion.value}`;
+});
+
 const showVerify = ref(false);
 const currentPassword = ref('');
 const verifyError = ref('');
@@ -134,19 +186,97 @@ const submitVerify = async () => {
   }
 };
 
-// 회원 정보 불러오기
+const openImageMenu = () => {
+  showImageMenu.value = true;
+};
+
+const closeImageMenu = () => {
+  showImageMenu.value = false;
+};
+
+const selectNewImage = () => {
+  closeImageMenu();
+  fileInput.value?.click();
+};
+
+const setDefaultImage = async () => {
+  closeImageMenu();
+
+  try {
+    imageUploading.value = true;
+    await member.deleteProfileImage();
+    profileImageUrl.value = null;
+    if (me.value) me.value = { ...me.value, profileImage: null };
+    avatarVersion.value++;
+  } catch (e) {
+    error.value = '기본 이미지로 변경하는데 실패했습니다.';
+  } finally {
+    imageUploading.value = false;
+  }
+};
+
+const handleFileSelect = async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  if (file.size > 5 * 1024 * 1024) {
+    error.value = '파일 크기는 5MB 이하만 가능합니다.';
+    event.target.value = '';
+    return;
+  }
+  if (!file.type.startsWith('image/')) {
+    error.value = '이미지 파일만 업로드 가능합니다.';
+    event.target.value = '';
+    return;
+  }
+
+  try {
+    imageUploading.value = true;
+    error.value = '';
+
+    // 1) Presigned URL 발급 (백엔드)
+    const presign = await member.getProfileImagePresignUrl(file.name, file.type);
+
+    // 2) S3 업로드 (클라이언트 → S3)
+    await member.uploadImageToS3(presign.uploadUrl, file, file.type);
+
+    // 3) 서버에 업로드 확정(키 등록/DB 반영) 후 최종 공개 URL 받기
+    const confirm = await member.confirmProfileImage(presign.key);
+
+    // 카드처럼 "응답받은 최종 URL"을 상태에 즉시 반영
+    const newImageUrl = confirm.url; // 백엔드가 주는 최종 이미지 URL
+    profileImageUrl.value = newImageUrl;
+    if (me.value) me.value = { ...me.value, profileImage: newImageUrl };
+
+    // 캐시 우회 + <img> 리마운트
+    avatarVersion.value++;
+  } catch (e) {
+    console.error('이미지 업로드 실패:', e);
+    error.value = '이미지 업로드에 실패했습니다. 다시 시도해주세요.';
+  } finally {
+    imageUploading.value = false;
+    if (fileInput.value) fileInput.value.value = '';
+  }
+};
+
+const loadProfileImage = async () => {
+  try {
+    const imageData = await member.getCurrentProfileImage();
+    profileImageUrl.value = imageData?.url || null;
+    avatarVersion.value++;
+  } catch (e) {
+    console.error('프로필 이미지 조회 실패:', e);
+  }
+};
+
 const loadInfo = async () => {
   loading.value = true;
   error.value = '';
 
   try {
     me.value = await member.getMemberInfo();
-    console.log('회원 정보 조회 성공:', me.value);
   } catch (e) {
-    console.error('API 호출 실패:', e);
     error.value = e?.response?.data?.header?.message || '내 정보를 불러오지 못했습니다.';
-
-    // 401/403 에러인 경우 로그인 페이지로 이동
     if (e?.response?.status === 401 || e?.response?.status === 403) {
       router.push('/login');
     }
@@ -155,27 +285,30 @@ const loadInfo = async () => {
   }
 };
 
-// 프로필 이미지
 const DEFAULT_AVATAR =
   'https://i.namu.wiki/i/ogxgdn15mcEUXbczxwIvS0WD_y44VJwOfHO2QEo9wraG4mOiyl4vhMeKfVaqw7hC1AXKe-oafjIlziyk1RGMciwrziPIHS_LhrS3k5fbAA5VLWsO3K5cZVdmkWnZr76YGmu3OLT5ZMJ3DknR3iqnBQ.webp';
 const onImgErr = (e) => {
   e.target.src = DEFAULT_AVATAR;
+  profileImageUrl.value = null;
+  if (me.value) me.value = { ...me.value, profileImage: null };
+  avatarVersion.value++; // ← 추가
 };
 
 onMounted(() => {
   const token = localStorage.getItem('accessToken');
   if (!token) {
-    console.log('토큰 없음 → 로그인 필요');
-    router.push('/login'); // 필요하다면 로그인 페이지로 이동
+    router.push('/login');
     return;
   }
 
-  loadInfo();
+  (async () => {
+    await loadInfo();
+    await loadProfileImage();
+  })();
 });
 </script>
 
 <style scoped>
-/* 전체 카드 */
 .user-info {
   background: #fff;
   border: 1px solid #ececec;
@@ -184,11 +317,9 @@ onMounted(() => {
   padding: 28px 32px;
   max-width: 500px;
 }
-
-/* 라벨/값 2열 */
 .row {
   display: grid;
-  grid-template-columns: 120px 1fr; /* 라벨 120px, 값 나머지 */
+  grid-template-columns: 120px 1fr;
   align-items: center;
   padding: 14px 65px;
   border-bottom: 1px solid #f2f2f2;
@@ -197,36 +328,103 @@ onMounted(() => {
 .row:last-child {
   border-bottom: none;
 }
-
-/* 라벨 */
 .row strong {
   font-weight: 500;
   font-size: 18px;
   color: #444;
 }
-
-/* 값 */
 .row span {
   font-size: 18px;
   color: #222;
 }
-
-/* 프로필 이미지 */
 .profile-image {
-  display: flex;
-  justify-content: center;
-  margin: 4px 0 18px;
-}
-
-.profile-image img {
+  position: relative;
   width: 96px;
   height: 96px;
+  margin: 4px auto 18px; /* auto로 수평 가운데 정렬 */
+  cursor: pointer;
+  display: block; /* 전체폭을 차지하지 않게 */
+}
+
+/* 이미지는 컨테이너에 꽉 차게 */
+.profile-image img {
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   object-fit: cover;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: block;
+}
+.image-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35); /* 회색/검정 반투명 */
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.profile-image:hover .image-overlay {
+  opacity: 1;
+}
+.image-overlay i {
+  font-size: 20px;
+}
+/* 중앙 강제 정렬 제거 → 흐름상 아바타 아래에 표시 */
+.image-menu-backdrop {
+  position: static; /* ← fixed 제거 */
+  background: transparent;
+  display: block; /* grid 제거 */
+  z-index: auto;
 }
 
-/* 버튼 영역 */
+/* 칩 행만 가운데 정렬 & 간격 */
+.image-menu.chip-row {
+  background: transparent;
+  box-shadow: none;
+  margin: 8px auto 0; /* 가운데 정렬 */
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px; /* 버튼 사이 간격 */
+  flex-wrap: wrap; /* 줄바꿈 */
+  width: 100%;
+  max-width: 560px;
+}
+
+/* 칩 버튼만 둥글고 도톰하게 */
+.chip-btn {
+  appearance: none;
+  border: 1px solid #e6e6e6;
+  background: #fff;
+  color: #222;
+  padding: 5px 9px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+  white-space: nowrap;
+}
+.chip-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16);
+  border-color: #dcdcdc;
+}
+.chip-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+}
 .actions {
   margin-top: 24px;
   display: flex;
@@ -234,8 +432,6 @@ onMounted(() => {
   align-items: center;
   gap: 14px;
 }
-
-/* 버튼 스타일 */
 .actions button {
   display: block;
   width: 60%;
@@ -255,8 +451,6 @@ onMounted(() => {
   transform: translateY(-1px);
   box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
 }
-
-/* 모달 */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -318,7 +512,6 @@ onMounted(() => {
   font-size: 13px;
   margin: 10px 6px 150px;
 }
-
 .row-actions {
   display: flex;
   flex-direction: column;
