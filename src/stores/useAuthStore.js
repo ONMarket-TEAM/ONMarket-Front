@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { authAPI } from '@/api/auth';
+import { mailAPI } from '@/api/mail';
 // import { memberAPI } from '@/api/member';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -156,6 +157,36 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
+  // 비밀번호 재설정 (이메일 인증 후)
+  const resetPasswordByEmail = async ({ email, newPassword, confirmNewPassword }) => {
+    isLoading.value = true;
+
+    try {
+      const result = await mailAPI.resetPassword({
+        email,
+        newPassword,
+        confirmNewPassword,
+      });
+
+      if (result.success) {
+        return {
+          success: true,
+          message: result.message || '비밀번호가 성공적으로 변경되었습니다.',
+        };
+      } else {
+        return {
+          success: false,
+          message: result.message || '비밀번호 변경에 실패했습니다.',
+        };
+      }
+    } catch (error) {
+      console.error('Reset password error:', error);
+      return { success: false, message: '네트워크 연결을 확인해주세요.' };
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
   // 로그아웃 - 새로 추가 (기존 스타일에 맞춰서)
   const logout = () => {
     user.value = null;
@@ -238,7 +269,7 @@ export const useAuthStore = defineStore('auth', () => {
     initializeAuth, // 새로 추가
     updateProfile, // 새로 추가
     setTokens,
-
+    resetPasswordByEmail,
     // 기존 주석처리된 함수들은 필요시 추가
     // logout,
     // withdraw,
