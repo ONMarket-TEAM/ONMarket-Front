@@ -45,6 +45,23 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
 
+    // 마이페이지
+    {
+      path: '/user/mypage',
+      component: () => import('@/pages/User/MyPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/user/updateProfile',
+      component: () => import('@/pages/User/UpdateProfile.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/user/updateBusiness',
+      component: () => import('@/pages/User/UpdateBusiness.vue'),
+      meta: { requiresAuth: true },
+    },
+
     // 대출 상품 페이지 (인증 필요)
     {
       path: '/loans',
