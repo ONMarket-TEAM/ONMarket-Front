@@ -39,6 +39,11 @@ const router = createRouter({
         },
       ],
     },
+    {
+      path: '/business/register',
+      component: () => import('@/pages/Login/BusinessEdit.vue'),
+      meta: { requiresAuth: true },
+    },
 
     // 대출 상품 페이지 (인증 필요)
     {

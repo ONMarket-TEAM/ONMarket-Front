@@ -5,11 +5,11 @@
         <button class="loan-btn">{{ buttonText }}</button>
         <span class="deadline">{{ deadline }}</span>
       </div>
-      
+
       <h3 class="card-title">{{ title }}</h3>
-      
+
       <p class="card-description">{{ description }}</p>
-      
+
       <div class="card-tags">
         <span class="tag" v-for="tag in tags" :key="tag">#{{ tag }}</span>
       </div>
@@ -18,51 +18,51 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 
-const router = useRouter()
-const route = useRoute()
+const router = useRouter();
+const route = useRoute();
 
 const props = defineProps({
   id: {
     type: [String, Number],
-    required: true
+    required: true,
   },
   title: {
     type: String,
-    default: '서울시 예비 창업금 대출'
+    default: '서울시 예비 창업금 대출',
   },
   description: {
     type: String,
-    default: '서울 소재 예비창업자에게 저금리로 운영자금 대출'
+    default: '서울 소재 예비창업자에게 저금리로 운영자금 대출',
   },
   tags: {
     type: Array,
-    default: () => ['서울', '저금리']
+    default: () => ['서울', '저금리'],
   },
   deadline: {
     type: String,
-    default: 'D-12'
-  }
-})
+    default: 'D-12',
+  },
+});
 
 const buttonText = computed(() => {
   if (route.path === '/loans') {
-    return '대출'
+    return '대출';
   } else if (route.path === '/policies') {
-    return '공공 지원금'
+    return '공공 지원금';
   }
-  return '대출'
-})
+  return '대출';
+});
 
 const goToDetail = () => {
   if (route.path === '/loans') {
-    router.push(`/loans/${props.id}`)
+    router.push(`/loans/${props.id}`);
   } else if (route.path === '/policies') {
-    router.push(`/policies/${props.id}`)
+    router.push(`/policies/${props.id}`);
   }
-}
+};
 </script>
 
 <style scoped>

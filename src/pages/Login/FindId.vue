@@ -27,15 +27,19 @@
           </div>
 
           <!-- SMS 인증 -->
-          <SmsVerification
-            ref="smsVerificationRef"
-            v-model="findForm.phone"
-            :disabled="smsVerificationStatus.isVerified"
-            @verified="onSmsVerified"
-            @error="onSmsError"
-            @code-sent="onCodeSent"
-          />
+          <div class="form-group">
+            <label for="phone" class="form-label">휴대폰 번호</label>
 
+            <SmsVerification
+              ref="smsVerificationRef"
+              id="phone"
+              v-model="findForm.phone"
+              :disabled="smsVerificationStatus.isVerified"
+              @verified="onSmsVerified"
+              @error="onSmsError"
+              @code-sent="onCodeSent"
+            />
+          </div>
           <button
             type="submit"
             class="find-button"
@@ -89,7 +93,7 @@
 <script setup>
 import { ref, reactive } from 'vue';
 import { useAuthStore } from '@/stores/useAuthStore';
-import SmsVerification from '@/components/signup/SmsVerification .vue';
+import SmsVerification from '@/components/signup/SmsVerification.vue';
 
 const authStore = useAuthStore();
 
