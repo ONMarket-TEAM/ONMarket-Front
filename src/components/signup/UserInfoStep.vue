@@ -203,11 +203,6 @@
         </div>
       </div>
 
-      <!-- 메시지 표시 -->
-      <div v-if="message" :class="['message', messageType]">
-        {{ message }}
-      </div>
-
       <!-- 다음 단계 버튼 -->
       <div class="button-wrapper">
         <button type="submit" class="next-button" :disabled="!isFormValid">회원가입 완료</button>
@@ -220,6 +215,8 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import SmsVerification from '@/components/signup/SmsVerification.vue';
 import { validationAPI } from '@/api/validation';
+import { useToastStore } from '@/stores/useToastStore';
+const toastStore = useToastStore();
 
 const props = defineProps({
   userData: {
@@ -232,8 +229,6 @@ const emit = defineEmits(['next', 'complete']);
 
 // Refs
 const smsVerificationRef = ref(null);
-const message = ref('');
-const messageType = ref('');
 
 // SMS 인증 상태
 const smsVerificationStatus = ref({
@@ -391,18 +386,14 @@ const onSmsVerified = (data) => {
     codeSent: true,
   };
   signupForm.phone = data.phone;
-  message.value = '휴대폰 인증이 완료되었습니다.';
-  messageType.value = 'success';
 };
 
 const onSmsError = (error) => {
-  message.value = error.message || '인증 중 오류가 발생했습니다.';
-  messageType.value = 'error';
+  toastStore.error('인증 중 오류가 발생했습니다.');
 };
 
 const onCodeSent = () => {
-  message.value = '인증번호가 발송되었습니다.';
-  messageType.value = 'success';
+  toastStore.success('인증번호가 발송되었습니다.');
 };
 
 // 프로필 이미지 업로드 처리
@@ -411,14 +402,12 @@ const handleProfileImageUpload = (event) => {
   if (!file) return;
 
   if (file.size > 5 * 1024 * 1024) {
-    message.value = '파일 크기는 5MB 이하여야 합니다.';
-    messageType.value = 'error';
+    toastStore.error('파일 크기는 5MB 이하여야 합니다.');
     return;
   }
 
   if (!file.type.startsWith('image/')) {
-    message.value = '이미지 파일만 업로드 가능합니다.';
-    messageType.value = 'error';
+    toastStore.error('이미지 파일만 업로드 가능합니다.');
     return;
   }
 
@@ -438,8 +427,7 @@ const removeProfileImage = () => {
 // 다음 단계로
 const handleNext = () => {
   if (!isFormValid.value) {
-    message.value = '모든 필수 항목을 입력해주세요.';
-    messageType.value = 'error';
+    toastStore.error('모든 필수 항목을 입력해주세요.');
     return;
   }
 

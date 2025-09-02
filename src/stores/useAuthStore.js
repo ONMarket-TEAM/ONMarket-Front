@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { authAPI } from '@/api/auth';
 import { mailAPI } from '@/api/mail';
+import { useToastStore } from '@/stores/useToastStore';
 // import { memberAPI } from '@/api/member';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -10,7 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref(localStorage.getItem('accessToken') || null);
   const refreshToken = ref(localStorage.getItem('refreshToken') || null);
   const isLoading = ref(false);
-
+  const toastStore = useToastStore();
   // Getters - 기존 코드 + 추가
   const isAuthenticated = computed(() => !!accessToken.value);
   const userInfo = computed(() => user.value);
@@ -29,15 +30,18 @@ export const useAuthStore = defineStore('auth', () => {
 
         // 토큰 저장
         setTokens(loginData.accessToken, loginData.refreshToken);
+        toastStore.success('로그인되었습니다');
 
         // userInfo는 응답에 없으므로 여기선 세팅 안 함
         // 필요하면 따로 API 호출해서 가져오기
 
         return { success: true, message: result.message };
       } else {
+        toastStore.error(result.message);
         return { success: false, message: result.message };
       }
     } catch (error) {
+      toastStore.error('네트워크 연결을 확인해주세요.');
       return { success: false, message: '네트워크 연결을 확인해주세요.' };
     } finally {
       isLoading.value = false;
@@ -52,12 +56,14 @@ export const useAuthStore = defineStore('auth', () => {
       const result = await authAPI.signup(userData);
 
       if (result.success) {
+        toastStore.success(result.message || '회원가입이 완료되었습니다.');
         return { success: true, message: result.message || '회원가입이 완료되었습니다.' };
       } else {
+        toastStore.error(result.message || '회원가입 중 오류가 발생했습니다.');
         return { success: false, message: result.message || '회원가입 중 오류가 발생했습니다.' };
       }
     } catch (error) {
-      console.error('Signup error:', error);
+      toastStore.error('네트워크 연결을 확인해주세요.');
       return { success: false, message: '네트워크 연결을 확인해주세요.' };
     } finally {
       isLoading.value = false;
@@ -72,15 +78,17 @@ export const useAuthStore = defineStore('auth', () => {
       const result = await authAPI.forgotPassword(email);
 
       if (result.success) {
+        toastStore.success(result.message || '비밀번호 재설정 이메일이 발송되었습니다.');
         return {
           success: true,
           message: result.message || '비밀번호 재설정 이메일이 발송되었습니다.',
         };
       } else {
+        toastStore.error(result.message || '등록되지 않은 이메일입니다.');
         return { success: false, message: result.message || '등록되지 않은 이메일입니다.' };
       }
     } catch (error) {
-      console.error('Forgot password error:', error);
+      toastStore.error('네트워크 연결을 확인해주세요.');
       return { success: false, message: '네트워크 연결을 확인해주세요.' };
     } finally {
       isLoading.value = false;
@@ -107,12 +115,14 @@ export const useAuthStore = defineStore('auth', () => {
             ]
           : [];
 
+        toastStore.success(result.message || '계정을 찾았습니다.');
         return {
           success: true,
           emails: emailData,
           message: result.message || '계정을 찾았습니다.',
         };
       } else {
+        toastStore.error(result.message || '일치하는 계정을 찾을 수 없습니다.');
         return {
           success: false,
           emails: [],
@@ -120,7 +130,7 @@ export const useAuthStore = defineStore('auth', () => {
         };
       }
     } catch (error) {
-      console.error('Find ID by phone error:', error);
+      toastStore.error('네트워크 연결을 확인해주세요.');
       return {
         success: false,
         emails: [],
@@ -169,18 +179,20 @@ export const useAuthStore = defineStore('auth', () => {
       });
 
       if (result.success) {
+        toastStore.success(result.message || '비밀번호가 성공적으로 변경되었습니다.');
         return {
           success: true,
           message: result.message || '비밀번호가 성공적으로 변경되었습니다.',
         };
       } else {
+        toastStore.error(result.message || '비밀번호 변경에 실패했습니다.');
         return {
           success: false,
           message: result.message || '비밀번호 변경에 실패했습니다.',
         };
       }
     } catch (error) {
-      console.error('Reset password error:', error);
+      toastStore.error('네트워크 연결을 확인해주세요.');
       return { success: false, message: '네트워크 연결을 확인해주세요.' };
     } finally {
       isLoading.value = false;
@@ -195,6 +207,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     // 기존 방식대로 localStorage 전체 클리어
     localStorage.clear();
+    toastStore.success('로그아웃되었습니다.');
   };
 
   // 인증 초기화 - 새로 추가 (기존 스타일에 맞춰서)
@@ -214,7 +227,7 @@ export const useAuthStore = defineStore('auth', () => {
         refreshToken.value = savedRefreshToken;
       }
     } catch (error) {
-      console.error('Failed to parse saved auth data:', error);
+      toastStore.error('네트워크 연결을 확인해주세요.');
       // 잘못된 데이터가 있으면 초기화
       localStorage.clear();
       user.value = null;
@@ -235,12 +248,14 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = { ...user.value, ...result.data };
         localStorage.setItem('userInfo', JSON.stringify(user.value));
 
+        toastStore.success(result.message || '프로필이 업데이트되었습니다.');
         return { success: true, message: result.message || '프로필이 업데이트되었습니다.' };
       } else {
+        toastStore.error(result.message || '프로필 업데이트에 실패했습니다.');
         return { success: false, message: result.message || '프로필 업데이트에 실패했습니다.' };
       }
     } catch (error) {
-      console.error('Profile update error:', error);
+      toastStore.error('네트워크 연결을 확인해주세요.');
       return { success: false, message: '네트워크 연결을 확인해주세요.' };
     } finally {
       isLoading.value = false;
