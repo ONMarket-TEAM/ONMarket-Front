@@ -75,6 +75,7 @@
 import { ref, reactive } from 'vue';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useRouter } from 'vue-router';
+import { businessAPI } from '@/api/business'; // ✅ 추가
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -111,8 +112,18 @@ const handleLogin = async () => {
     if (result.success) {
       message.value = '로그인 성공!';
       messageType.value = 'success';
-      const redirectTo = router.currentRoute.value.query.redirect || '/';
-      await router.push(redirectTo);
+
+      // ✅ 로그인 성공 직후 사업장 조회
+      const businessResult = await businessAPI.getAll();
+
+      if (!businessResult.success && businessResult.message.includes('사업장을 찾을 수 없습니다')) {
+        // 신규 사용자 → 사업장 등록 페이지로
+        router.push('/business/register');
+      } else {
+        // 기존 사용자 → 메인 페이지
+        const redirectTo = router.currentRoute.value.query.redirect || '/';
+        await router.push(redirectTo);
+      }
     } else {
       message.value = result.message;
       messageType.value = 'error';

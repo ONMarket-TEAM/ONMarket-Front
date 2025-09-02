@@ -3,7 +3,6 @@
   <div class="sms-verification">
     <!-- 휴대폰 번호 입력 -->
     <div class="form-group">
-      <label for="phone" class="form-label">휴대폰 번호</label>
       <div class="phone-input-group">
         <input
           id="phone"
@@ -34,8 +33,7 @@
     </div>
 
     <!-- 인증번호 입력 -->
-    <div v-if="codeSent" class="form-group">
-      <label for="verification-code" class="form-label">인증번호</label>
+    <div v-if="codeSent" class="form-group mt-4">
       <div class="verification-input-group">
         <input
           id="verification-code"
@@ -267,9 +265,7 @@ onUnmounted(() => {
 .sms-verification {
   width: 100%;
 }
-.form-group {
-  margin-bottom: 1.5rem;
-}
+
 .form-label {
   display: block;
   margin-bottom: 0.5rem;
@@ -310,7 +306,7 @@ onUnmounted(() => {
 
 .send-code-button,
 .verify-button {
-  padding: 1rem 1.2rem;
+  padding: 0.9rem 1rem;
   background-color: var(--color-main);
   color: white;
   border: none;
