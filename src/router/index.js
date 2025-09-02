@@ -61,6 +61,11 @@ const router = createRouter({
       component: () => import('@/pages/User/UpdateBusiness.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/user/mybusiness',
+      component: () => import('@/pages/User/MyBusiness.vue'),
+      meta: { requiresAuth: true },
+    },
 
     // 대출 상품 페이지 (인증 필요)
     {
