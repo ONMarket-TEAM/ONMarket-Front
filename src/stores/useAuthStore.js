@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { authAPI } from '@/api/auth';
 import { mailAPI } from '@/api/mail';
+import { useToastStore } from '@/stores/useToastStore';
 // import { memberAPI } from '@/api/member';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -10,7 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref(localStorage.getItem('accessToken') || null);
   const refreshToken = ref(localStorage.getItem('refreshToken') || null);
   const isLoading = ref(false);
-
+  const toastStore = useToastStore();
   // Getters - 기존 코드 + 추가
   const isAuthenticated = computed(() => !!accessToken.value);
   const userInfo = computed(() => user.value);
@@ -29,15 +30,18 @@ export const useAuthStore = defineStore('auth', () => {
 
         // 토큰 저장
         setTokens(loginData.accessToken, loginData.refreshToken);
+        toastStore.success('로그인되었습니다');
 
         // userInfo는 응답에 없으므로 여기선 세팅 안 함
         // 필요하면 따로 API 호출해서 가져오기
 
         return { success: true, message: result.message };
       } else {
+        toastStore.error(result.message);
         return { success: false, message: result.message };
       }
     } catch (error) {
+      toastStore.error('네트워크 연결을 확인해주세요.');
       return { success: false, message: '네트워크 연결을 확인해주세요.' };
     } finally {
       isLoading.value = false;
