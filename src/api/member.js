@@ -7,11 +7,8 @@ export default {
   async getMemberInfo() {
     try {
       const { data } = await api.get(`${BASE_URL}`);
-      console.log('API 응답: ', data);
-
       return data?.body?.data ?? data?.body ?? data;
     } catch (error) {
-      console.error('회원 정보 조회 실패: ', error);
       throw error;
     }
   },
@@ -20,10 +17,8 @@ export default {
   async verifyPassword(currentPassword) {
     try {
       const { data } = await api.post(`${BASE_URL}/password/verify`, { currentPassword });
-      console.log('비밀번호 확인 응답: ', data);
       return data?.body?.data ?? data?.body ?? data;
     } catch (error) {
-      console.error('비밀번호 확인 실패: ', error);
       throw error;
     }
   },
@@ -32,10 +27,8 @@ export default {
   async updateMember(payload) {
     try {
       const { data } = await api.patch(`${BASE_URL}`, payload);
-      console.log('회원정보 수정 응답: ', data);
       return data?.body?.data ?? data?.body ?? data;
     } catch (error) {
-      console.error('회원정보 수정 실패: ', error);
       throw error;
     }
   },
@@ -47,10 +40,8 @@ export default {
         filename,
         contentType,
       });
-      console.log('Presigned URL 발급 응답: ', data);
       return data?.body?.data ?? data?.body ?? data;
     } catch (error) {
-      console.error('Presigned URL 발급 실패: ', error);
       throw error;
     }
   },
@@ -69,11 +60,8 @@ export default {
       if (!response.ok) {
         throw new Error(`S3 업로드 실패: ${response.status}`);
       }
-
-      console.log('S3 업로드 성공');
       return response;
     } catch (error) {
-      console.error('S3 업로드 실패: ', error);
       throw error;
     }
   },
@@ -82,10 +70,8 @@ export default {
   async confirmProfileImage(key) {
     try {
       const { data } = await api.post(`${BASE_URL}/profile-image/confirm`, { key });
-      console.log('프로필 이미지 확정 응답: ', data);
       return data?.body?.data ?? data?.body ?? data;
     } catch (error) {
-      console.error('프로필 이미지 확정 실패: ', error);
       throw error;
     }
   },
@@ -94,10 +80,8 @@ export default {
   async getCurrentProfileImage() {
     try {
       const { data } = await api.get(`${BASE_URL}/profile-image`);
-      console.log('현재 프로필 이미지 응답: ', data);
       return data?.body?.data ?? data?.body ?? data;
     } catch (error) {
-      console.error('프로필 이미지 조회 실패: ', error);
       throw error;
     }
   },
@@ -106,10 +90,8 @@ export default {
   async deleteProfileImage() {
     try {
       const { data } = await api.delete(`${BASE_URL}/profile-image`);
-      console.log('프로필 이미지 삭제 응답: ', data);
       return data?.body?.data ?? data?.body ?? data;
     } catch (error) {
-      console.error('프로필 이미지 삭제 실패: ', error);
       throw error;
     }
   },
