@@ -41,10 +41,23 @@
       <div class="row">
         <strong>생년월일</strong> <span>{{ me?.birthDate || '정보 없음' }}</span>
       </div>
+      <div class="row">
+        <strong>인스타그램</strong>
+        <div class="instagram-content">
+          <!-- 연동되어 있는 경우 -->
+          <div v-if="me?.instagramConnected" class="instagram-connected">
+            <span>{{ me?.instagramUserName }}</span>
+          </div>
+          <!-- 연동되어 있지 않은 경우 -->
+          <div v-else class="instagram-not-connected">
+            <button class="connect-btn" @click="goToInstagramConnect">연동하기</button>
+          </div>
+        </div>
+      </div>
 
       <div class="actions">
         <button @click="openVeriftModal">회원정보 변경하기</button>
-        <button>사업정보 변경하기</button>
+        <button @click="goToBusinessList">사업정보 변경하기</button>
       </div>
 
       <div v-if="showVerify" class="modal-backdrop" @click.self="closeVerifyModal">
@@ -184,6 +197,15 @@ const submitVerify = async () => {
   } finally {
     verifyLoading.value = false;
   }
+};
+
+const goToBusinessList = () => {
+  router.push('/user/mybusiness');
+};
+
+const goToInstagramConnect = () => {
+  // 인스타그램 연동 페이지로 라우터하도록 변경하기
+  router.push('/');
 };
 
 const openImageMenu = () => {
@@ -337,6 +359,25 @@ onMounted(() => {
   font-size: 18px;
   color: #222;
 }
+/* 인스타그램 행 */
+.connect-btn {
+  background: var(--color-sub);
+  color: var(--color-white);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 18px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.connect-btn:hover {
+  background: #d73447;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(228, 64, 95, 0.3);
+}
+
 .profile-image {
   position: relative;
   width: 96px;
@@ -346,7 +387,6 @@ onMounted(() => {
   display: block; /* 전체폭을 차지하지 않게 */
 }
 
-/* 이미지는 컨테이너에 꽉 차게 */
 .profile-image img {
   width: 100%;
   height: 100%;
@@ -399,10 +439,10 @@ onMounted(() => {
 /* 칩 버튼만 둥글고 도톰하게 */
 .chip-btn {
   appearance: none;
-  border: 1px solid #e6e6e6;
-  background: #fff;
-  color: #222;
+  background: var(--color-main);
+  color: #333;
   padding: 5px 9px;
+  margin-bottom: 8px;
   border-radius: 14px;
   font-size: 12px;
   font-weight: 500;
@@ -415,6 +455,8 @@ onMounted(() => {
     border-color 0.18s ease,
     background 0.18s ease;
   white-space: nowrap;
+  width: 110px;
+  height: auto;
 }
 .chip-btn:hover {
   transform: translateY(-1px);

@@ -50,7 +50,7 @@ import RegionCodeInput from '@/components/business/RegionCodeInput.vue';
 import EstablishedYearInput from '@/components/business/EstablishedYearInput.vue';
 import AnnualRevenueSelect from '@/components/business/AnnualRevenueSelect.vue';
 import EmployeeCountInput from '@/components/business/EmployeeCountInput.vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { businessAPI } from '@/api/business';
 import { useToastStore } from '@/stores/useToastStore';
 
@@ -62,6 +62,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['complete']);
+const route = useRoute();
 const router = useRouter();
 const toastStore = useToastStore();
 
@@ -143,8 +144,17 @@ const validateForm = () => {
 };
 
 // 건너뛰기
+const ALLOWED_RETURN_PATHS = ['/user/mybusiness'];
+
 const handleSkip = () => {
-  router.push('/');
+  const returnTo = route.query.returnTo;
+
+  if (returnTo && ALLOWED_RETURN_PATHS.includes(returnTo)) {
+    router.push(returnTo);
+  } else {
+    // 기본 경로로 이동
+    router.push('/');
+  }
 };
 
 // 사업장 등록 API 호출
@@ -165,8 +175,9 @@ const handleComplete = async () => {
       // 부모 컴포넌트에도 알림 (필요시)
       emit('complete', result);
 
-      // 메인 페이지로 이동
-      router.push('/');
+      // 메인 페이지 혹은 이전 페이지로 이동
+      const returnTo = route.query.returnTo;
+      router.push(returnTo && ALLOWED_RETURN_PATHS.includes(returnTo) ? returnTo : '/');
     } else {
       toastStore.error('사업장 등록에 실패했습니다.');
     }
@@ -256,3 +267,4 @@ onMounted(() => {
   cursor: not-allowed;
 }
 </style>
+
