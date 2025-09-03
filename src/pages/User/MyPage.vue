@@ -118,11 +118,13 @@
 import { ref, onMounted, computed } from 'vue';
 import member from '@/api/member';
 import { useRouter } from 'vue-router';
+import { useToastStore } from '@/stores/useToastStore';
 
 const me = ref(null);
 const loading = ref(true);
 const error = ref('');
 const router = useRouter();
+const toast = useToastStore();
 
 const profileImageUrl = ref(null);
 const showImageMenu = ref(false);
@@ -273,7 +275,7 @@ const handleFileSelect = async (event) => {
     // 캐시 우회 + <img> 리마운트
     avatarVersion.value++;
   } catch (e) {
-    console.error('이미지 업로드 실패:', e);
+    toast.error('이미지 업로드에 실패했습니다.');
     error.value = '이미지 업로드에 실패했습니다. 다시 시도해주세요.';
   } finally {
     imageUploading.value = false;
@@ -287,7 +289,7 @@ const loadProfileImage = async () => {
     profileImageUrl.value = imageData?.url || null;
     avatarVersion.value++;
   } catch (e) {
-    console.error('프로필 이미지 조회 실패:', e);
+    toast.error('프로필 이미지 조회 실패');
   }
 };
 

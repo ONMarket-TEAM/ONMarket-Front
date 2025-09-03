@@ -54,7 +54,6 @@ export const businessAPI = {
         message: response.data.header.message,
       };
     } catch (error) {
-      console.error('사업장 단건 조회 오류:', error);
       return {
         success: false,
         data: null,
@@ -75,7 +74,6 @@ export const businessAPI = {
         message: response.data.header.message,
       };
     } catch (error) {
-      console.error('사업장 수정 오류:', error);
       return {
         success: false,
         data: null,

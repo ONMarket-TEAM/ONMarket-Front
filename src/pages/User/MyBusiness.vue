@@ -55,11 +55,13 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { businessAPI } from '@/api/business';
 import regionData from '@/data/region.json';
+import { useToastStore } from '@/stores/useToastStore';
 
 const router = useRouter();
 const businesses = ref([]);
 const loading = ref(true);
 const error = ref('');
+const toast = useToastStore();
 
 /** 사업장 목록 로드 */
 const load = async () => {
@@ -83,7 +85,7 @@ const load = async () => {
     // 인증 만료 등 특정 상태 코드에 따른 처리
     if (e?.response?.status === 401) {
       // 로그인 페이지로 이동 처리
-      console.warn('인증이 만료되었습니다.');
+      toast.warn('인증이 만료되었습니다.');
       router.push('/login');
     }
   } finally {
