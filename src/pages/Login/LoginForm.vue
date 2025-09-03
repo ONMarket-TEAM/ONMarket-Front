@@ -104,7 +104,7 @@ const handleLogin = async () => {
 
     if (result.success) {
       // 로그인 성공 직후 사업장 조회
-      const businessResult = await businessAPI.getAll();
+      const businessResult = await businessAPI.getMyBusinessList();
 
       if (!businessResult.success && businessResult.message.includes('사업장을 찾을 수 없습니다')) {
         // 신규 사용자 → 사업장 등록 페이지로

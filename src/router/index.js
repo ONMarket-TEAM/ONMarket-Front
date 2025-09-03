@@ -57,14 +57,16 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/user/updateBusiness',
-      component: () => import('@/pages/User/UpdateBusiness.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
       path: '/user/mybusiness',
       component: () => import('@/pages/User/MyBusiness.vue'),
       meta: { requiresAuth: true },
+    },
+    {
+      path: '/user/mybusiness/:businessId/edit',
+      name: 'UpdateBusiness',
+      component: () => import('@/pages/User/UpdateBusiness.vue'),
+      meta: { requiresAuth: true },
+      props: (route) => ({ businessId: Number(route.params.businessId) }),
     },
 
     // 대출 상품 페이지 (인증 필요)

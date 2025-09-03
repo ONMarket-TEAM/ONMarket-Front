@@ -2,7 +2,7 @@
   <div class="step-content">
     <div class="region-selector-row">
       <div class="form-group">
-        <label for="province" class="form-label">시도</label>
+        <label for="province" class="form-label">사업 지역</label>
         <div class="form-control">
           <select
             id="province"
@@ -126,7 +126,7 @@ watch(
 
 /* 폼 그룹 - 시도 선택용  */
 .form-group {
-  display: contents; 
+  display: contents;
 }
 
 /* 라벨 없는 폼 그룹 - 시군구 선택용 */
@@ -137,7 +137,7 @@ watch(
 .step-content {
   width: 100%;
   max-width: 800px;
-  margin: 0 auto; 
+  margin: 0 auto;
 }
 
 /* 라벨 스타일 - 다른 컴포넌트와 일치 */
@@ -146,7 +146,7 @@ watch(
   font-size: 0.9rem;
   color: #333;
   text-align: left;
-  padding-top: 0.9rem; 
+  padding-top: 0.9rem;
   line-height: 1.2;
 }
 
@@ -200,3 +200,4 @@ watch(
   color: #dc3545;
 }
 </style>
+
