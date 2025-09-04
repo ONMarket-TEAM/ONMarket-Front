@@ -95,7 +95,9 @@
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useToastStore } from '@/stores/useToastStore';
+import { useSnsStore } from '@/stores/useSnsStore';
 import instagramLogo from '@/assets/Instagram_logo.png';
+
 const props = defineProps({
   visible: { type: Boolean, default: false },
   closeOnOverlayClick: { type: Boolean, default: true },
@@ -111,6 +113,8 @@ const showPassword = ref(false);
 const isLoading = ref(false);
 const errors = ref({});
 const toastStore = useToastStore();
+const snsStore = useSnsStore();
+
 const isFormValid = computed(() => {
   return loginForm.value.username.length > 0 && loginForm.value.password.length > 5;
 });
@@ -145,23 +149,23 @@ function validateForm() {
 
 async function handleLogin() {
   if (!validateForm()) return;
+
   isLoading.value = true;
+  errors.value = {};
+
   try {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    emit('login-success', {
+    const res = await snsStore.loginInstagram({
       username: loginForm.value.username,
-      timestamp: new Date().toISOString(),
+      password: loginForm.value.password,
     });
-    toastStore.success('로그인에 성공했습니다.');
-    closeModal();
-  } catch (e) {
-    toastStore.error('로그인에 실패했습니다. 다시 시도해주세요.');
-    errors.value.general = '로그인에 실패했습니다. 다시 시도해주세요.';
+    toastStore.success(res.message || 'Instagram 로그인 성공하였습니다.');
+  } catch (error) {
+    toastStore.error(error.message || 'Instagram 로그인 실패하였습니다.');
   } finally {
     isLoading.value = false;
+    closeModal();
   }
 }
-
 function handleForgotPassword() {
   emit('forgot-password');
   window.location.href = 'https://www.instagram.com/accounts/password/reset/';
