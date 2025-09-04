@@ -82,11 +82,6 @@
           </div>
         </div>
 
-        <!-- 메시지 표시 -->
-        <div v-if="message" :class="['message', messageType]">
-          {{ message }}
-        </div>
-
         <!-- 인증 완료 버튼 -->
         <div class="button-wrapper">
           <button
@@ -137,11 +132,6 @@
               @code-sent="onCodeSent"
             />
           </div>
-        </div>
-
-        <!-- 메시지 표시 -->
-        <div v-if="message" :class="['message', messageType]">
-          {{ message }}
         </div>
 
         <!-- 다음 단계 버튼 -->
@@ -202,11 +192,6 @@
           </div>
         </div>
 
-        <!-- 메시지 표시 -->
-        <div v-if="message" :class="['message', messageType]">
-          {{ message }}
-        </div>
-
         <!-- 비밀번호 변경 버튼 -->
         <div class="button-wrapper">
           <!-- 버튼 클릭시 로그인 페이지로 -->
@@ -247,18 +232,18 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import SmsVerification from '@/components/signup/SmsVerification.vue';
 import EmailVerification from '@/components/signup/EmailVerification.vue';
 import { useRouter } from 'vue-router';
+import { useToastStore } from '@/stores/useToastStore';
 
 const authStore = useAuthStore();
+const toastStore = useToastStore();
 const router = useRouter();
 
 // 상태
-const currentStep = ref('method'); // method, sms-auth, email-auth, reset-password, result
+const currentStep = ref('method');
 const selectedMethod = ref('');
 const smsVerificationRef = ref(null);
-const emailVerificationRef = ref(null); // 수정: 별도 ref 생성
+const emailVerificationRef = ref(null);
 const isLoading = ref(false);
-const message = ref('');
-const messageType = ref('');
 const passwordResetSuccess = ref(false);
 const verifiedEmail = ref('');
 const errorTitle = ref('');
@@ -326,7 +311,6 @@ const goToAuthStep = () => {
   } else if (selectedMethod.value === 'email') {
     currentStep.value = 'email-auth';
   }
-  message.value = '';
 };
 
 // SMS 인증 이벤트들
@@ -336,18 +320,14 @@ const onSmsVerified = (data) => {
     phone: data.phone,
     codeSent: true,
   };
-  message.value = '휴대폰 인증이 완료되었습니다.';
-  messageType.value = 'success';
 };
 
 const onSmsError = (error) => {
-  message.value = error.message || '인증 중 오류가 발생했습니다.';
-  messageType.value = 'error';
+  toastStore.error(error.message || '인증 중 오류가 발생했습니다.');
 };
 
 const onCodeSent = () => {
-  message.value = '인증번호가 발송되었습니다.';
-  messageType.value = 'success';
+  toastStore.success('인증번호가 발송되었습니다.');
 };
 
 // 수정: 이메일 인증 완료 처리
@@ -358,21 +338,18 @@ const onEmailVerified = (data) => {
     codeSent: true,
   };
 
-  message.value = '이메일 인증이 완료되었습니다. 이제 비밀번호를 재설정할 수 있습니다.';
-  messageType.value = 'success';
+  toastStore.success('이메일 인증이 완료되었습니다.');
 };
 
 // SMS 인증 처리
 const handleSmsAuth = async () => {
   if (!smsVerificationStatus.value.isVerified) {
-    message.value = '휴대폰 인증을 완료해주세요.';
-    messageType.value = 'error';
+    toastStore.error('휴대폰 인증을 완료해주세요.');
     return;
   }
 
   try {
     isLoading.value = true;
-    message.value = '';
 
     // findIdByPhone API로 계정 확인 및 이메일 획득
     const result = await authStore.findIdByPhone({
@@ -383,7 +360,6 @@ const handleSmsAuth = async () => {
     if (result.success && result.emails?.length > 0) {
       verifiedEmail.value = result.emails[0].actualEmail || result.emails[0].maskedEmail;
       currentStep.value = 'reset-password';
-      message.value = '';
     } else {
       errorTitle.value = '계정을 찾을 수 없습니다';
       errorMessage.value = '입력하신 정보와 일치하는 계정이 없습니다.';
@@ -399,37 +375,33 @@ const handleSmsAuth = async () => {
   }
 };
 
-// 수정: 비밀번호 재설정 화면으로 이동 (단순화)
+// 비밀번호 재설정 화면으로 이동
 const goToPasswordReset = () => {
   if (!emailVerificationStatus.value.isVerified) {
-    message.value = '이메일 인증을 완료해주세요.';
-    messageType.value = 'error';
+    toastStore.error('이메일 인증을 완료해주세요.');
     return;
   }
 
   if (!emailForm.name.trim()) {
-    message.value = '이름을 입력해주세요.';
-    messageType.value = 'error';
+    toastStore.error('이름을 입력해주세요.');
     return;
   }
 
   // 이메일 인증이 성공했다는 것은 해당 이메일이 등록된 계정이라는 의미
   verifiedEmail.value = emailForm.email;
   currentStep.value = 'reset-password';
-  message.value = '';
 };
 
 // 수정: 비밀번호 재설정 처리 (이름 정보도 함께 전송)
 const handlePasswordReset = async () => {
   if (!isPasswordFormValid.value) {
-    message.value = '비밀번호를 올바르게 입력해주세요.';
-    messageType.value = 'error';
+    toastStore.error('비밀번호를 올바르게 입력해주세요.');
     return;
   }
 
   try {
     isLoading.value = true;
-    message.value = '';
+    toastStore.error('인증 중 오류가 발생했습니다.');
 
     // 이메일과 이름 정보를 함께 전송
     const resetData = {
@@ -466,6 +438,7 @@ const handlePasswordReset = async () => {
 };
 
 const goToLogin = () => {
+  toastStore.success('비밀번호가 변경되었습니다.');
   router.push('/login');
 };
 
@@ -475,12 +448,11 @@ const resetForm = () => {
   selectedMethod.value = '';
   smsForm.name = '';
   smsForm.phone = '';
-  emailForm.name = ''; // 수정: name 필드 추가
+  emailForm.name = '';
   emailForm.email = '';
   emailForm.code = '';
   passwordForm.newPassword = '';
   passwordForm.confirmNewPassword = '';
-  message.value = '';
   verifiedEmail.value = '';
   passwordResetSuccess.value = false;
   errorTitle.value = '';
@@ -491,7 +463,6 @@ const resetForm = () => {
   if (smsVerificationRef.value) {
     smsVerificationRef.value.reset();
   }
-  // 수정: 이메일 ref도 초기화
   if (emailVerificationRef.value) {
     emailVerificationRef.value.reset();
   }
@@ -691,28 +662,6 @@ const resetForm = () => {
 
 .check-message.error {
   color: #dc3545;
-}
-
-/* 메시지 박스 */
-.message {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  text-align: center;
-  font-weight: 500;
-}
-
-.message.success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.message.error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
 }
 
 /* 버튼 */

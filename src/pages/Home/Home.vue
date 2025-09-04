@@ -48,7 +48,7 @@
           class="dot"
           :class="{ active: i === currentIndex }"
           @click="go(i)"
-          aria-label="slide-dot"
+          :aria-label="`slide ${i + 1}`"
         />
       </div>
     </section>
@@ -59,7 +59,7 @@
         <article
           class="data-card"
           v-for="(item, i) in hotTop5"
-          :key="i"
+          :key="item.id"
           @click="$router.push(`/loans/${item.id}`)"
         >
           <div class="thumb-wrapper">
@@ -84,7 +84,7 @@
         <article
           class="data-card"
           v-for="(item, i) in recommendProducts"
-          :key="i"
+          :key="item.id"
           @click="$router.push(`/loans/${item.id}`)"
         >
           <div class="thumb-wrapper"></div>
@@ -136,7 +136,6 @@ import p5Illustration from '@/assets/poster5.png' // 사람 일러스트
 import instaIcon from '@/assets/insta.png'
 import likeIcon from '@/assets/like.png'
 
-
 const slides = ref([
   {
     bgStyle: {
@@ -144,7 +143,7 @@ const slides = ref([
         'linear-gradient(180deg, #e7f4ff 0%, #e9f7ff 30%, #ffffff 100%)'
     },
     titleHTML:
-      '카드뉴스로<br/>간편하게<br/>맞춤형<br/>대출 상품 · 정부 지원금을<br/>확인해보세요',
+      '카드뉴스로<br/>간편하게<br/>맞춤형 정부 지원금을<br/>확인해보세요',
     ctaLabel: '정부 지원금 바로가기',
     ctaRoute: '/policies',
     images: [
@@ -188,35 +187,138 @@ const currentIndex = ref(0)
 const activeSlide = computed(() => slides.value[currentIndex.value])
 
 const go = (i) => (currentIndex.value = i)
-const goRoute = (path) => path && router.push(path)
+const goRoute = (path) => {
+  if (path) {
+    router.push(path)
+  }
+}
 
 // 자동재생
 const intervalMs = 3800
 let timer = null
-const next = () => (currentIndex.value = (currentIndex.value + 1) % slides.value.length)
-const play = () => { stop(); timer = setInterval(next, intervalMs) }
-const pause = () => stop()
-const stop = () => { if (timer) { clearInterval(timer); timer = null } }
 
-onMounted(play)
-onBeforeUnmount(stop)
+const next = () => {
+  currentIndex.value = (currentIndex.value + 1) % slides.value.length
+}
+
+const play = () => {
+  stop()
+  timer = setInterval(next, intervalMs)
+}
+
+const pause = () => stop()
+
+const stop = () => {
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+}
+
+onMounted(() => {
+  play()
+})
+
+onBeforeUnmount(() => {
+  stop()
+})
 
 // HOT TOP5 더미 (API로 대체 가능)
 const hotTop5 = ref([
-  { id: 101, title: '청년 소상공인 정책자금', agency: '중기부', region: '전국', period: '2025.08.01 ~ 09.30', category: '공공지원금', categoryClass: 'public' },
-  { id: 102, title: '미소금융 창업자금', agency: '서민금융진흥원', type: '신용대출', rate: '4.5%', category: '대출', categoryClass: 'loan' },
-  { id: 103, title: '초기창업 마케팅 지원', agency: '창업진흥원', region: '부산', period: '예산 소진 시', category: '공공지원금', categoryClass: 'public' },
-  { id: 104, title: 'IBK 소상공인 특례보증', agency: 'IBK기업은행', type: '보증대출', rate: '3.8%', category: '대출', categoryClass: 'loan' },
-  { id: 105, title: '스마트공장 구축사업', agency: '산업부', region: '경기', period: '2025.01.15 ~ 12.31', category: '공공지원금', categoryClass: 'public' }
+  {
+    id: 101,
+    title: '청년 소상공인 정책자금',
+    agency: '중기부',
+    region: '전국',
+    period: '2025.08.01 ~ 09.30',
+    category: '공공지원금',
+    categoryClass: 'public'
+  },
+  {
+    id: 102,
+    title: '미소금융 창업자금',
+    agency: '서민금융진흥원',
+    type: '신용대출',
+    rate: '4.5%',
+    category: '대출',
+    categoryClass: 'loan'
+  },
+  {
+    id: 103,
+    title: '초기창업 마케팅 지원',
+    agency: '창업진흥원',
+    region: '부산',
+    period: '예산 소진 시',
+    category: '공공지원금',
+    categoryClass: 'public'
+  },
+  {
+    id: 104,
+    title: 'IBK 소상공인 특례보증',
+    agency: 'IBK기업은행',
+    type: '보증대출',
+    rate: '3.8%',
+    category: '대출',
+    categoryClass: 'loan'
+  },
+  {
+    id: 105,
+    title: '스마트공장 구축사업',
+    agency: '산업부',
+    region: '경기',
+    period: '2025.01.15 ~ 12.31',
+    category: '공공지원금',
+    categoryClass: 'public'
+  }
 ])
 
 // 추천 상품 더미 (API로 대체 가능)
 const recommendProducts = ref([
-  { id: 201, title: '소상공인 경영개선자금', agency: '소상공인시장진흥공단', type: '정책자금', rate: '3.0%', category: '대출', categoryClass: 'loan' },
-  { id: 202, title: '혁신성장 바우처', agency: '중기부', region: '전국', period: '2025.07.01 ~ 11.30', category: '공공지원금', categoryClass: 'public' },
-  { id: 203, title: '신용보증재단 창업자금', agency: '서울신용보증재단', type: '보증대출', rate: '4.2%', category: '대출', categoryClass: 'loan' },
-  { id: 204, title: '중소기업 R&D 지원사업', agency: '중기부', region: '전국', period: '2025.03.01 ~ 06.30', category: '공공지원금', categoryClass: 'public' },
-  { id: 205, title: '햇살론 유스', agency: '서민금융진흥원', type: '신용대출', rate: '8.5%', category: '대출', categoryClass: 'loan' }
+  {
+    id: 201,
+    title: '소상공인 경영개선자금',
+    agency: '소상공인시장진흥공단',
+    type: '정책자금',
+    rate: '3.0%',
+    category: '대출',
+    categoryClass: 'loan'
+  },
+  {
+    id: 202,
+    title: '혁신성장 바우처',
+    agency: '중기부',
+    region: '전국',
+    period: '2025.07.01 ~ 11.30',
+    category: '공공지원금',
+    categoryClass: 'public'
+  },
+  {
+    id: 203,
+    title: '신용보증재단 창업자금',
+    agency: '서울신용보증재단',
+    type: '보증대출',
+    rate: '4.2%',
+    category: '대출',
+    categoryClass: 'loan'
+  },
+  {
+    id: 204,
+    title: '중소기업 R&D 지원사업',
+    agency: '중기부',
+    region: '전국',
+    period: '2025.03.01 ~ 06.30',
+    category: '공공지원금',
+    categoryClass: 'public'
+  },
+  {
+    id: 205,
+    title: '햇살론 유스',
+    agency: '서민금융진흥원',
+    type: '신용대출',
+    rate: '8.5%',
+    category: '대출',
+    categoryClass: 'loan'
+  }
 ])
 </script>
 

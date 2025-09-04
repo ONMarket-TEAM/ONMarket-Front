@@ -107,7 +107,8 @@
 import { ref, reactive } from 'vue';
 import { useAuthStore } from '@/stores/useAuthStore';
 import SmsVerification from '@/components/signup/SmsVerification.vue';
-
+import { useToastStore } from '@/stores/useToastStore';
+const toastStore = useToastStore();
 const authStore = useAuthStore();
 
 // 상태
@@ -138,17 +139,14 @@ const onSmsVerified = (data) => {
     phone: data.phone,
     codeSent: true,
   };
-  message.value = '휴대폰 인증이 완료되었습니다.';
-  messageType.value = 'success';
 };
 
 const onSmsError = (error) => {
-  message.value = error.message || '인증 중 오류가 발생했습니다.';
-  messageType.value = 'error';
+  toastStore.error(error.message || '인증 중 오류가 발생했습니다.');
 };
 
 const onCodeSent = (data) => {
-  console.log('인증번호 발송 완료:', data);
+  toastStore.success('인증번호가 발송되었습니다.');
 };
 
 // 날짜 포맷
@@ -169,8 +167,7 @@ const formatDate = (dateString) => {
 // 아이디 찾기 실행
 const handleFindId = async () => {
   if (!smsVerificationStatus.value.isVerified) {
-    message.value = '휴대폰 인증을 완료해주세요.';
-    messageType.value = 'error';
+    toastStore.error('휴대폰 인증을 완료해주세요.');
     return;
   }
 
@@ -187,15 +184,13 @@ const handleFindId = async () => {
     if (result.success && result.emails?.length > 0) {
       foundEmails.value = result.emails;
     } else {
-      message.value = result.message || '일치하는 계정을 찾을 수 없습니다.';
-      messageType.value = 'error';
+      toastStore.error(result.message || '일치하는 계정을 찾을 수 없습니다.');
     }
 
     isResultPage.value = true;
   } catch (error) {
     console.error('Find ID error:', error);
-    message.value = '아이디 찾기 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
-    messageType.value = 'error';
+    toastStore.error('아이디 찾기 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
   } finally {
     isLoading.value = false;
   }
@@ -206,7 +201,6 @@ const resetForm = () => {
   findForm.name = '';
   findForm.phone = '';
   foundEmails.value = [];
-  message.value = '';
   smsVerificationStatus.value = { isVerified: false, phone: '', codeSent: false };
   isResultPage.value = false;
 

@@ -65,11 +65,6 @@
         </label>
       </div>
 
-      <!-- 메시지 -->
-      <div v-if="message" :class="['message', messageType]">
-        {{ message }}
-      </div>
-
       <!-- 버튼 -->
       <div class="button-wrapper">
         <button type="submit" class="next-button" :disabled="!isFormValid">다음 단계</button>
@@ -80,12 +75,9 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue';
-
+import { useToastStore } from '@/stores/useToastStore';
+const toastStore = useToastStore();
 const emit = defineEmits(['next']);
-
-// 메시지
-const message = ref('');
-const messageType = ref('');
 
 // 폼 데이터
 const signupForm = reactive({
@@ -118,8 +110,7 @@ const scrollTo = (id) => {
 // 다음 단계
 const handleNext = () => {
   if (!isFormValid.value) {
-    message.value = '필수 약관에 동의해주세요.';
-    messageType.value = 'error';
+    toastStore.error('필수 약관에 동의해주세요.');
     return;
   }
 
@@ -215,27 +206,6 @@ const handleNext = () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-/* 메시지 */
-.message {
-  margin-bottom: 1rem;
-  padding: 0.8rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-.message.error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-.message.success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
 }
 
 /* 버튼 */

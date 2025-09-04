@@ -62,11 +62,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 로그인 성공/실패 메시지 -->
-      <div v-if="message" :class="['message', messageType]">
-        {{ message }}
-      </div>
     </div>
   </div>
 </template>
@@ -75,14 +70,14 @@
 import { ref, reactive } from 'vue';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useRouter } from 'vue-router';
-import { businessAPI } from '@/api/business'; // ✅ 추가
+import { businessAPI } from '@/api/business';
+import { useToastStore } from '@/stores/useToastStore';
 
 const authStore = useAuthStore();
+const toastStore = useToastStore();
 const router = useRouter();
 
 const isLoading = ref(false);
-const message = ref('');
-const messageType = ref('');
 
 const loginForm = reactive({
   email: '',
@@ -94,14 +89,12 @@ const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const handleLogin = async () => {
   if (!loginForm.email || !loginForm.password) {
-    message.value = '이메일과 비밀번호를 입력하세요.';
-    messageType.value = 'error';
+    authStore.error('이메일과 비밀번호를 입력하세요.');
     return;
   }
 
   if (!isValidEmail(loginForm.email)) {
-    message.value = '올바른 이메일 형식이 아닙니다.';
-    messageType.value = 'error';
+    authStore.error('올바른 이메일 형식이 아닙니다.');
     return;
   }
 
@@ -110,11 +103,8 @@ const handleLogin = async () => {
     const result = await authStore.login(loginForm.email, loginForm.password);
 
     if (result.success) {
-      message.value = '로그인 성공!';
-      messageType.value = 'success';
-
-      // ✅ 로그인 성공 직후 사업장 조회
-      const businessResult = await businessAPI.getAll();
+      // 로그인 성공 직후 사업장 조회
+      const businessResult = await businessAPI.getMyBusinessList();
 
       if (!businessResult.success && businessResult.message.includes('사업장을 찾을 수 없습니다')) {
         // 신규 사용자 → 사업장 등록 페이지로
@@ -125,12 +115,9 @@ const handleLogin = async () => {
         await router.push(redirectTo);
       }
     } else {
-      message.value = result.message;
-      messageType.value = 'error';
     }
   } catch (error) {
-    message.value = error.message || '로그인 중 오류가 발생했습니다.';
-    messageType.value = 'error';
+    toastStore.error('로그인 중 오류가 발생했습니다.');
   } finally {
     isLoading.value = false;
   }
@@ -299,26 +286,6 @@ const handleLogin = async () => {
 .find-link:hover {
   color: var(--color-main);
   text-decoration: underline;
-}
-
-.message {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-.message.success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.message.error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
 }
 </style>
 
