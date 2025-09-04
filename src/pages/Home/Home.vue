@@ -140,10 +140,10 @@ const slides = ref([
   {
     bgStyle: {
       background:
-        'linear-gradient(180deg, #e7f4ff 0%, #e9f7ff 30%, #ffffff 100%)'
+        'linear-gradient(180deg, #FDF4EE 0%, #FFE3DF 100%)'
     },
     titleHTML:
-      '카드뉴스로<br/>간편하게<br/>맞춤형 정부 지원금을<br/>확인해보세요',
+      '카드뉴스로<br/>간편하게<br/>맞춤형<br/>대출 상품 · 정부 지원금을<br/>확인해보세요',
     ctaLabel: '정부 지원금 바로가기',
     ctaRoute: '/policies',
     images: [
@@ -156,7 +156,7 @@ const slides = ref([
     chip: '',
     bgStyle: {
       background:
-        'linear-gradient(180deg, #ffe9e2 0%, #fff0ee 35%, #ffffff 100%)'
+        'linear-gradient(180deg, #EEF9FD 0%, #DAF3FF 100%)'
     },
     titleHTML:
       '소상공인을 위한<br/>대출 상품<br/>지금 바로 확인하세요!',
@@ -172,7 +172,7 @@ const slides = ref([
     chip: '',
     bgStyle: {
       background:
-        'linear-gradient(180deg, #fff8d7 0%, #fff2b6 25%, #ffffff 100%)'
+        'linear-gradient(180deg, #F2EEFD 0%, #DEDAFF 100%)'
     },
     titleHTML:
       '내 가게 홍보가<br/>어려우신가요?<br/>사진만 올려주시면<br/>도와드릴게요!',
@@ -356,9 +356,13 @@ h2{
 @media(max-width:960px){.hero-title{font-size:32px}}
 .cta{
   border:0;background:#fff;color:#333;padding:12px 24px;border-radius:999px;box-shadow:0 4px 12px rgba(0,0,0,.08);
-  cursor:pointer;font-weight:600;font-size:16px;transition:transform .2s ease, box-shadow .2s ease
+  cursor:pointer;font-weight:600;font-size:16px;transition:transform .2s ease, box-shadow .2s ease;
+  display:flex;align-items:center;gap:8px;justify-content:center;
 }
 .cta:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12)}
+.cta-icon{
+  width:20px;height:20px;object-fit:contain;
+}
 
 .hero-right{
   display:flex;
@@ -370,7 +374,7 @@ h2{
 .poster-stage{
   position:relative;
   width:min(450px,100%); /* 슬라이드 전체 폭 늘림 */
-  aspect-ratio: 1 / 1.0; /* 세로 비율을 정사각형에 가깝게 조정 */
+  aspect-ratio: 1 / 0.8; /* 세로 비율을 정사각형에 가깝게 조정 */
   overflow:hidden;
   display: flex;
   justify-content: center;
@@ -381,7 +385,7 @@ h2{
   position:absolute;
   inset:auto;
   transition:transform .45s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity .45s ease;
-  width:75%; /* 사진 크기 더 키움 */
+  width:50%; /* 사진 크기 더 키움 */
   height:auto;
   object-fit:cover;
   border-radius:8px;
@@ -390,13 +394,13 @@ h2{
 /* 포스터 위치 조정 - 간격을 더 넓히고 크기 키움 */
 .poster.pos-0{
   left: 5%; /* 왼쪽 포스터를 더 왼쪽으로 */
-  top: -5%; /* 포스터를 더 위로 올림 */
-  transform: rotate(8deg); /* 회전각 약간 늘림 */
+  top: 2%; /* 포스터를 더 위로 올림 */
+  transform: rotate(5deg); /* 회전각 약간 늘림 */
   z-index: 2;
 }
 .poster.pos-1{
-  right: 5%; /* 오른쪽 포스터를 더 오른쪽으로 */
-  top: 5%; /* 포스터를 더 위로 올림 */
+  right: 15%; /* 오른쪽 포스터를 더 오른쪽으로 */
+  top: 7%; /* 포스터를 더 위로 올림 */
   transform: rotate(-8deg); /* 회전각 약간 늘림 */
   z-index: 1;
 }
@@ -423,6 +427,7 @@ h2{
   height: auto;
   transform: rotate(-10deg);
   filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+  display: none; /* 세 번째 슬라이드에서는 버튼 안으로 이동했으므로 숨김 */
 }
 .icon-like {
   position: absolute;
