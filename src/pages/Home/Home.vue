@@ -7,6 +7,7 @@
             <span v-if="activeSlide.chip" class="chip">{{ activeSlide.chip }}</span>
             <h1 class="hero-title" v-html="activeSlide.titleHTML"></h1>
             <button class="cta" @click="goRoute(activeSlide.ctaRoute)">
+              <img v-if="activeSlide.ctaRoute === '/cards'" :src="instaIcon" alt="Instagram Icon" class="cta-icon">
               {{ activeSlide.ctaLabel }}
             </button>
           </div>
@@ -32,7 +33,6 @@
             <transition name="fade" mode="out-in" v-else>
               <div class="illustration-wrap" :key="currentIndex">
                 <img :src="activeSlide.mainImage.src" :alt="activeSlide.mainImage.alt" class="main-illustration">
-                <img :src="instaIcon" alt="Instagram Icon" class="icon-insta">
                 <img :src="likeIcon" alt="Like Icon" class="icon-like">
               </div>
             </transition>
@@ -40,7 +40,6 @@
         </div>
       </div>
 
-      <!-- 점들을 hero 섹션 하단으로 이동 -->
       <div class="dots">
         <button
           v-for="(s, i) in slides"
@@ -54,8 +53,8 @@
     </section>
 
     <section class="hot-section">
-      <h2>🔥 HOT한 정책/대출 TOP5</h2>
-      <div class="card-grid">
+      <h2>HOT한 정책/대출 TOP5</h2>
+      <div class="hot-card-grid">
         <article
           class="data-card"
           v-for="(item, i) in hotTop5"
@@ -63,7 +62,6 @@
           @click="$router.push(`/loans/${item.id}`)"
         >
           <div class="thumb-wrapper">
-            <span class="rank-badge">{{ i + 1 }}</span>
           </div>
           <div class="meta">
             <div class="meta-header">
@@ -79,7 +77,7 @@
     </section>
 
     <section class="recommend-section">
-      <h2>✨ 사용자 맞춤 추천 상품</h2>
+      <h2>사용자 맞춤 추천 상품</h2>
       <div class="card-grid">
         <article
           class="data-card"
@@ -120,11 +118,10 @@
   </div>
 </template>
 
+
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-
-const router = useRouter()
 
 // 슬라이드 포스터 이미지들
 import p1 from '@/assets/poster.png'
@@ -132,9 +129,11 @@ import p2 from '@/assets/poster2.png'
 import p3 from '@/assets/poster3.png'
 import p4 from '@/assets/poster4.png'
 // 세 번째 슬라이드용 일러스트 및 아이콘
-import p5Illustration from '@/assets/poster5.png' // 사람 일러스트
+import p5Illustration from '@/assets/poster5.png'
 import instaIcon from '@/assets/insta.png'
 import likeIcon from '@/assets/like.png'
+
+const router = useRouter()
 
 const slides = ref([
   {
@@ -143,14 +142,14 @@ const slides = ref([
         'linear-gradient(180deg, #FDF4EE 0%, #FFE3DF 100%)'
     },
     titleHTML:
-      '카드뉴스로<br/>간편하게<br/>맞춤형<br/>대출 상품 · 정부 지원금을<br/>확인해보세요',
+      '카드뉴스로<br/><span class="highlight">간편하게</span><br/><span class="highlight">맞춤형</span><br/>대출 상품 · 정부 지원금을<br/>확인해보세요',
     ctaLabel: '정부 지원금 바로가기',
     ctaRoute: '/policies',
     images: [
-      { src: p1, alt: '대출 포스터 1' }, // 이게 앞 (소상공인 지원금)
-      { src: p2, alt: '대출 포스터 2' } // 이게 뒤 (우리도 소상공인입니다!)
+      { src: p1, alt: '대출 포스터 1' },
+      { src: p2, alt: '대출 포스터 2' }
     ],
-    mainImage: null // 세 번째 슬라이드용 데이터는 null로 설정
+    mainImage: null
   },
   {
     chip: '',
@@ -159,14 +158,14 @@ const slides = ref([
         'linear-gradient(180deg, #EEF9FD 0%, #DAF3FF 100%)'
     },
     titleHTML:
-      '소상공인을 위한<br/>대출 상품<br/>지금 바로 확인하세요!',
+      '<span class="highlight">소상공인</span>을 위한<br/><span class="highlight">대출 상품</span><br/>지금 바로 확인하세요!',
     ctaLabel: '대출 상품 바로가기',
     ctaRoute: '/loans',
     images: [
       { src: p3, alt: '지원금 포스터 A' },
       { src: p4, alt: '지원금 포스터 B' }
     ],
-    mainImage: null // 세 번째 슬라이드용 데이터는 null로 설정
+    mainImage: null
   },
   {
     chip: '',
@@ -175,11 +174,11 @@ const slides = ref([
         'linear-gradient(180deg, #F2EEFD 0%, #DEDAFF 100%)'
     },
     titleHTML:
-      '내 가게 홍보가<br/>어려우신가요?<br/>사진만 올려주시면<br/>도와드릴게요!',
+      '내 가게 <span class="highlight">홍보</span>가<br/>어려우신가요?<br/><span class="highlight">사진만</span> 올려주시면<br/>도와드릴게요!',
     ctaLabel: '게시글 올리기',
     ctaRoute: '/cards',
-    images: [], // 이미지 배열은 비워둠
-    mainImage: { src: p5Illustration, alt: '사람 일러스트' } // 단일 이미지 사용
+    images: [],
+    mainImage: { src: p5Illustration, alt: '사람 일러스트' }
   }
 ])
 
@@ -223,7 +222,6 @@ onBeforeUnmount(() => {
   stop()
 })
 
-// HOT TOP5 더미 (API로 대체 가능)
 const hotTop5 = ref([
   {
     id: 101,
@@ -272,7 +270,6 @@ const hotTop5 = ref([
   }
 ])
 
-// 추천 상품 더미 (API로 대체 가능)
 const recommendProducts = ref([
   {
     id: 201,
@@ -338,8 +335,8 @@ h2{
 
 /* ===== HERO ===== */
 .hero{
-  padding: 48px 24px 24px; /* 하단 패딩 추가하여 점들을 위한 공간 확보 */
-  position: relative; /* dots 위치 잡기 위해 relative 설정 */
+  padding: 48px 24px 24px;
+  position: relative;
 }
 .hero-inner{
   max-width:1200px;margin:0 auto;display:grid;gap:32px;
@@ -353,15 +350,24 @@ h2{
 .hero-title{
   font-weight:800;line-height:1.08;letter-spacing:-.02em;font-size:44px;margin:0 0 24px
 }
+.hero-title .highlight {
+  color: #ff6f61; /* 강조 텍스트 색상 */
+}
 @media(max-width:960px){.hero-title{font-size:32px}}
 .cta{
   border:0;background:#fff;color:#333;padding:12px 24px;border-radius:999px;box-shadow:0 4px 12px rgba(0,0,0,.08);
   cursor:pointer;font-weight:600;font-size:16px;transition:transform .2s ease, box-shadow .2s ease;
-  display:flex;align-items:center;gap:8px;justify-content:center;
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  justify-content:center;
 }
 .cta:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12)}
 .cta-icon{
-  width:20px;height:20px;object-fit:contain;
+  width:20px;
+  height:20px;
+  object-fit:contain;
+  margin-right:2px;
 }
 
 .hero-right{
@@ -373,8 +379,8 @@ h2{
 }
 .poster-stage{
   position:relative;
-  width:min(450px,100%); /* 슬라이드 전체 폭 늘림 */
-  aspect-ratio: 1 / 0.8; /* 세로 비율을 정사각형에 가깝게 조정 */
+  width:min(450px,100%);
+  aspect-ratio: 1 / 0.8;
   overflow:hidden;
   display: flex;
   justify-content: center;
@@ -385,27 +391,25 @@ h2{
   position:absolute;
   inset:auto;
   transition:transform .45s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity .45s ease;
-  width:50%; /* 사진 크기 더 키움 */
+  width:50%;
   height:auto;
   object-fit:cover;
   border-radius:8px;
   box-shadow:0 8px 20px rgba(0,0,0,.1);
 }
-/* 포스터 위치 조정 - 간격을 더 넓히고 크기 키움 */
 .poster.pos-0{
-  left: 5%; /* 왼쪽 포스터를 더 왼쪽으로 */
-  top: 2%; /* 포스터를 더 위로 올림 */
-  transform: rotate(5deg); /* 회전각 약간 늘림 */
+  left: 5%;
+  top: 2%;
+  transform: rotate(4deg);
   z-index: 2;
 }
 .poster.pos-1{
-  right: 15%; /* 오른쪽 포스터를 더 오른쪽으로 */
-  top: 7%; /* 포스터를 더 위로 올림 */
-  transform: rotate(-8deg); /* 회전각 약간 늘림 */
+  right: 15%;
+  top: 7%;
+  transform: rotate(-5deg);
   z-index: 1;
 }
 
-/* 세 번째 슬라이드 일러스트 및 아이콘 스타일 */
 .illustration-wrap {
   position: relative;
   width: 100%;
@@ -420,14 +424,7 @@ h2{
   object-fit: contain;
 }
 .icon-insta {
-  position: absolute;
-  top: 15%;
-  left: 60%;
-  width: 60px;
-  height: auto;
-  transform: rotate(-10deg);
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
-  display: none; /* 세 번째 슬라이드에서는 버튼 안으로 이동했으므로 숨김 */
+  display: none;
 }
 .icon-like {
   position: absolute;
@@ -439,12 +436,11 @@ h2{
   filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
 }
 
-/* Dots를 hero 섹션 하단 중앙에 고정 위치 */
 .dots{
   position: absolute;
-  bottom: 24px; /* hero 섹션 하단에서 24px 위 */
+  bottom: 24px;
   left: 50%;
-  transform: translateX(-50%); /* 정확한 가운데 정렬 */
+  transform: translateX(-50%);
   display:flex;
   justify-content: center;
   gap:8px;
@@ -466,11 +462,9 @@ h2{
   border-radius: 999px;
 }
 
-/* 페이드(왼쪽 텍스트/배경 교체에 사용) */
 .fade-enter-active,.fade-leave-active{transition:opacity .28s ease}
 .fade-enter-from,.fade-leave-to{opacity:0}
 
-/* 포스터 등장 슬라이드(오른쪽) */
 .slide-x-enter-active, .slide-x-leave-active{transition:all .4s ease-in-out;}
 .slide-x-enter-from{opacity:0;transform:translateX(12px) !important;}
 .slide-x-leave-to{
@@ -481,20 +475,46 @@ h2{
   transition-duration: .2s;
 }
 
-/* ===== 공통 카드 스타일 ===== */
 .hot-section,.recommend-section{max-width:1200px;margin:40px auto;padding:0 24px}
-.card-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:20px}
-@media(max-width:1200px){.card-grid{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:768px){.card-grid{grid-template-columns:1fr}}
+
+.hot-card-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 1fr);
+  gap: 20px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 20px;
+}
+
+.card-grid{
+  display:grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 1fr);
+  gap:20px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 20px;
+}
+.card-grid > * {
+  scroll-snap-align: start;
+}
+
 .data-card{
-  border-radius:12px;overflow:hidden;background:#fff;
-  box-shadow:0 4px 12px rgba(0,0,0,.04);cursor:pointer;
-  transition:transform 160ms ease, box-shadow 160ms ease;
-  display: flex;
-  flex-direction: column;
+  background:#fff;
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 4px 12px rgba(0,0,0,.05);
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 .data-card:hover{
-  transform:translateY(-4px);box-shadow:0 8px 20px rgba(0,0,0,.08);
+  transform:translateY(-5px);
+  box-shadow:0 12px 24px rgba(0,0,0,.1);
 }
 .thumb-wrapper{
   position:relative;
