@@ -111,6 +111,7 @@ function resetErrors() {
 async function load() {
   if (!businessId.value) {
     error.value = 'businessId가 없습니다.';
+    toast.error('잘못된 접근입니다.');
     loading.value = false;
     return;
   }
@@ -118,27 +119,36 @@ async function load() {
   loading.value = true;
   error.value = '';
 
-  const res = await businessAPI.getMyBusiness(businessId.value);
-  if (!res.success || !res.data) {
-    error.value = res.message || '사업장 정보를 불러오지 못했습니다.';
+  try {
+    const res = await businessAPI.getMyBusiness(businessId.value);
+
+    if (!res.success || !res.data) {
+      error.value = res.message || '사업장 정보를 불러오지 못했습니다.';
+      toast.error(error.value);
+      loading.value = false;
+      return;
+    }
+
+    // 백엔드 응답값 폼에 주입
+    const d = res.data;
+    Object.assign(businessForm, {
+      businessName: d.businessName ?? '',
+      industry: d.industry ?? '',
+      businessType: d.businessType ?? '',
+      regionCodeId: d.regionCodeId ?? '',
+      establishedYear: d.establishedYear ?? null,
+      annualRevenue: d.annualRevenue ?? '',
+      employeeCount: d.employeeCount ?? null,
+    });
+
+    // 원본 저장
+    original.value = { ...businessForm };
+  } catch (e) {
+    error.value = '사업장 정보를 불러오지 못했습니다.';
+    toast.error(error.value);
+  } finally {
     loading.value = false;
-    return;
   }
-
-  // 백엔드 응답값 폼에 주입
-  const d = res.data;
-  businessForm.businessName = d.businessName ?? '';
-  businessForm.industry = d.industry ?? '';
-  businessForm.businessType = d.businessType ?? '';
-  businessForm.regionCodeId = d.regionCodeId ?? '';
-  businessForm.establishedYear = d.establishedYear ?? null; // readonly
-  businessForm.annualRevenue = d.annualRevenue ?? '';
-  businessForm.employeeCount = d.employeeCount ?? null;
-
-  // 원본 저장
-  original.value = { ...businessForm };
-
-  loading.value = false;
 }
 
 function validate() {
@@ -146,15 +156,15 @@ function validate() {
   let ok = true;
 
   if (!businessForm.businessName) {
-    errors.businessName = '가게명을 입력하세요.';
+    errors.businessName = '사업명을 입력하세요.';
     ok = false;
   }
   if (!businessForm.industry) {
-    errors.industry = '업종을 선택하세요.';
+    errors.industry = '산업분야를 선택하세요.';
     ok = false;
   }
   if (!businessForm.businessType) {
-    errors.businessType = '사업 형태를 선택하세요.';
+    errors.businessType = '사업장 유형을 선택하세요.';
     ok = false;
   }
   if (!businessForm.regionCodeId) {
@@ -182,8 +192,8 @@ function buildDiffPayload(curr, base) {
     'regionCodeId',
     'annualRevenue',
     'employeeCount',
-  ].forEach((k) => {
-    if (curr[k] !== base[k]) payload[k] = curr[k];
+  ].forEach((field) => {
+    if (curr[field] !== base[field]) payload[field] = curr[field];
   });
   // establishedYear 는 읽기 전용이라 보내지 않음
   return payload;
@@ -202,18 +212,26 @@ async function handleSave() {
   }
 
   saving.value = true;
-  const res = await businessAPI.updateMyBusiness(businessId.value, payload);
-  saving.value = false;
+  try {
+    const res = await businessAPI.updateMyBusiness(businessId.value, payload);
 
-  if (!res.success) {
-    toast.error(res.message || '수정 중 오류가 발생했습니다.');
-    return;
+    if (!res.success) {
+      toast.error(res.message || '수정 중 오류가 발생했습니다.');
+      return;
+    }
+
+    toast.success('사업 정보가 변경되었습니다.');
+    // 원본 갱신
+    original.value = { ...businessForm };
+
+    setTimeout(() => {
+      router.push('/user/mybusiness');
+    }, 1000);
+  } catch (e) {
+    toast.error('사업정보 수정 중 오류가 발생했습니다.');
+  } finally {
+    saving.value = false;
   }
-
-  toast.success('사업장 정보가 변경되었습니다.');
-  // 원본 갱신
-  original.value = { ...businessForm };
-  router.push('/user/mybusiness');
 }
 
 function goBack() {

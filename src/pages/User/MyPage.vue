@@ -92,7 +92,7 @@
           </div>
 
           <p class="hint">
-            영문 대소문자, 숫자, 특수문자를 2가지 이상 조합해 8자 이상 20자 이하로 입력해주세요.
+            영문 대/소문자, 숫자, 특수문자를 모두 포함해 8자 이상 20자 이하로 입력해주세요.
           </p>
 
           <div class="row-actions">
@@ -119,11 +119,6 @@
     >
       에러: {{ error }}
     </div>
-
-    <div v-if="imageUploading" class="upload-loading">
-      <div class="upload-spinner"></div>
-      <p>이미지 업로드 중...</p>
-    </div>
   </div>
 </template>
 
@@ -134,6 +129,7 @@ import { useRouter } from 'vue-router';
 import { useToastStore } from '@/stores/useToastStore';
 import { useSnsStore } from '@/stores/useSnsStore';
 import InstagramLoginModal from '@/components/sns/insta/InstagramLoginModal.vue';
+import default_image from '@/assets/default_avatar.png';
 
 const me = ref(null);
 const loading = ref(true);
@@ -145,11 +141,11 @@ const snsStore = useSnsStore();
 const profileImageUrl = ref(null);
 const showImageMenu = ref(false);
 const fileInput = ref(null);
-const imageUploading = ref(false);
 const avatarVersion = ref(0);
 const showInstagramModal = ref(false);
 const instagramLoginModal = ref(null);
-// 1) helper 추가
+
+// Signed URL 확인 헬퍼
 const isSignedUrl = (url) => {
   try {
     const u = new URL(url);
@@ -163,6 +159,7 @@ const isSignedUrl = (url) => {
     return false;
   }
 };
+
 const openInstagramLoginModal = () => {
   showInstagramModal.value = true;
 };
@@ -176,7 +173,8 @@ const handleInstagramLoginSuccess = async ({ username }) => {
     toast.error('Instagram 연동에 실패했습니다.');
   }
 };
-// 2) currentAvatar 교체
+
+// 현재 아바타 URL 계산
 const currentAvatar = computed(() => {
   const base = profileImageUrl.value || me.value?.profileImage || DEFAULT_AVATAR;
   if (!base) return DEFAULT_AVATAR;
@@ -252,15 +250,13 @@ const setDefaultImage = async () => {
   closeImageMenu();
 
   try {
-    imageUploading.value = true;
     await member.deleteProfileImage();
     profileImageUrl.value = null;
     if (me.value) me.value = { ...me.value, profileImage: null };
     avatarVersion.value++;
+    toast.success('기본 이미지로 변경되었습니다.');
   } catch (e) {
     error.value = '기본 이미지로 변경하는데 실패했습니다.';
-  } finally {
-    imageUploading.value = false;
   }
 };
 
@@ -269,20 +265,17 @@ const handleFileSelect = async (event) => {
   if (!file) return;
 
   if (file.size > 5 * 1024 * 1024) {
-    error.value = '파일 크기는 5MB 이하만 가능합니다.';
+    toast.error('파일 크기는 5MB 이하만 가능합니다.');
     event.target.value = '';
     return;
   }
   if (!file.type.startsWith('image/')) {
-    error.value = '이미지 파일만 업로드 가능합니다.';
+    toast.error('이미지 파일만 업로드 가능합니다.');
     event.target.value = '';
     return;
   }
 
   try {
-    imageUploading.value = true;
-    error.value = '';
-
     // 1) Presigned URL 발급 (백엔드)
     const presign = await member.getProfileImagePresignUrl(file.name, file.type);
 
@@ -292,18 +285,16 @@ const handleFileSelect = async (event) => {
     // 3) 서버에 업로드 확정(키 등록/DB 반영) 후 최종 공개 URL 받기
     const confirm = await member.confirmProfileImage(presign.key);
 
-    // 카드처럼 "응답받은 최종 URL"을 상태에 즉시 반영
+    // 상태 업데이트
     const newImageUrl = confirm.url; // 백엔드가 주는 최종 이미지 URL
     profileImageUrl.value = newImageUrl;
     if (me.value) me.value = { ...me.value, profileImage: newImageUrl };
-
-    // 캐시 우회 + <img> 리마운트
     avatarVersion.value++;
+
+    toast.success('프로필 이미지가 변경되었습니다.');
   } catch (e) {
-    toast.error('이미지 업로드에 실패했습니다.');
-    error.value = '이미지 업로드에 실패했습니다. 다시 시도해주세요.';
+    toast.error('이미지 업로드에 실패했습니다. 다시 시도해주세요.');
   } finally {
-    imageUploading.value = false;
     if (fileInput.value) fileInput.value.value = '';
   }
 };
@@ -314,7 +305,7 @@ const loadProfileImage = async () => {
     profileImageUrl.value = imageData?.url || null;
     avatarVersion.value++;
   } catch (e) {
-    toast.error('프로필 이미지 조회 실패');
+    toast.error('프로필 이미지 조회에 실패했습니다.');
   }
 };
 
@@ -335,7 +326,10 @@ const loadInfo = async () => {
     me.value = await member.getMemberInfo();
     await snsStore.fetchInstagramStatus();
   } catch (e) {
-    error.value = e?.response?.data?.header?.message || '내 정보를 불러오지 못했습니다.';
+    const errorMessage = e?.response?.data?.header?.message || '내 정보를 불러오지 못했습니다.';
+    error.value = errorMessage;
+    toast.error(errorMessage);
+
     if (e?.response?.status === 401 || e?.response?.status === 403) {
       router.push('/login');
     }
@@ -344,13 +338,12 @@ const loadInfo = async () => {
   }
 };
 
-const DEFAULT_AVATAR =
-  'https://i.namu.wiki/i/ogxgdn15mcEUXbczxwIvS0WD_y44VJwOfHO2QEo9wraG4mOiyl4vhMeKfVaqw7hC1AXKe-oafjIlziyk1RGMciwrziPIHS_LhrS3k5fbAA5VLWsO3K5cZVdmkWnZr76YGmu3OLT5ZMJ3DknR3iqnBQ.webp';
+const DEFAULT_AVATAR = default_image;
 const onImgErr = (e) => {
   e.target.src = DEFAULT_AVATAR;
   profileImageUrl.value = null;
   if (me.value) me.value = { ...me.value, profileImage: null };
-  avatarVersion.value++; // ← 추가
+  avatarVersion.value++;
 };
 
 onMounted(() => {
