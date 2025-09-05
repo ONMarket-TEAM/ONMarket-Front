@@ -130,6 +130,7 @@ import { useToastStore } from '@/stores/useToastStore';
 import { useSnsStore } from '@/stores/useSnsStore';
 import InstagramLoginModal from '@/components/sns/insta/InstagramLoginModal.vue';
 import default_image from '@/assets/default_avatar.png';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 const me = ref(null);
 const loading = ref(true);
@@ -137,7 +138,7 @@ const error = ref('');
 const router = useRouter();
 const toast = useToastStore();
 const snsStore = useSnsStore();
-
+const authStore = useAuthStore();
 const profileImageUrl = ref(null);
 const showImageMenu = ref(false);
 const fileInput = ref(null);
@@ -347,8 +348,7 @@ const onImgErr = (e) => {
 };
 
 onMounted(() => {
-  const token = localStorage.getItem('accessToken');
-  if (!token) {
+  if (!authStore.isAuthenticated) {
     router.push('/login');
     return;
   }
