@@ -32,8 +32,6 @@ export const useAuthStore = defineStore('auth', () => {
         setTokens(loginData.accessToken, loginData.refreshToken);
         toastStore.success('로그인되었습니다');
 
-        // userInfo는 응답에 없으므로 여기선 세팅 안 함
-        // 필요하면 따로 API 호출해서 가져오기
 
         return { success: true, message: result.message };
       } else {

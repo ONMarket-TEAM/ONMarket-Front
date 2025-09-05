@@ -31,7 +31,6 @@ export const snsAPI = {
         message: response.data.header?.message || 'Instagram 로그인 성공',
       };
     } catch (error) {
-      console.error('Instagram login API error:', error);
       return {
         success: false,
         message: error.response?.data?.header?.message || 'Instagram 로그인 실패',
@@ -50,7 +49,6 @@ export const snsAPI = {
         message: response.data.header?.message || 'Instagram 로그아웃 성공',
       };
     } catch (error) {
-      console.error('Instagram logout API error:', error);
       return {
         success: false,
         message: error.response?.data?.header?.message || 'Instagram 로그아웃 실패',

@@ -47,6 +47,7 @@ const userData = ref({
   confirmPassword: '',
   phone: '',
   profileImage: '',
+  profileImageKey: '',
   birthDate: '',
   gender: '',
   phoneVerified: false,
@@ -86,6 +87,7 @@ const handleComplete = async (data) => {
     const signupData = {
       ...termsData.value,
       ...userData.value,
+      profileImage: userData.value.profileImageKey,
     };
 
     // 회원가입 API 호출
@@ -97,9 +99,7 @@ const handleComplete = async (data) => {
 
     // 완료 → 환영 페이지 이동
     router.push('/welcome');
-  } catch (error) {
-    console.error('회원가입 완료 처리 오류:', error);
-  }
+  } catch (error) {}
 };
 </script>
 
