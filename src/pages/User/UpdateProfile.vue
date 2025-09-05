@@ -16,41 +16,50 @@
         />
 
         <!-- 새 비밀번호 -->
-        <label class="label">변경할 비밀번호</label>
-        <div class="input-pwd">
-          <input
-            class="input"
-            :type="showPassword ? 'text' : 'password'"
-            v-model="newPassword"
-            placeholder="비밀번호를 입력해주세요."
-          />
-          <button type="button" class="icon-btn" @click="togglePassword">
-            <i :class="showPassword ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
-          </button>
+        <div>
+          <label class="label">변경할 비밀번호</label>
+          <div class="input-pwd">
+            <input
+              class="input"
+              :type="showPassword ? 'text' : 'password'"
+              v-model="newPassword"
+              placeholder="변경할 비밀번호를 입력해주세요."
+              @input="
+                validatePassword();
+                validatePasswordConfirm();
+              "
+            />
+            <button type="button" class="icon-btn" @click="togglePassword">
+              <i :class="showPassword ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
+            </button>
+          </div>
+          <small class="text-danger hint" v-if="passwordError">{{ passwordError }}</small>
         </div>
 
         <!-- 새 비밀번호 확인 -->
-        <label class="label mt-4">변경할 비밀번호 확인</label>
-        <div class="input-pwd">
-          <input
-            class="input"
-            :type="showPasswordConfirm ? 'text' : 'password'"
-            v-model="confirmNewPassword"
-            placeholder="비밀번호를 다시 한 번 입력해주세요."
-          />
-          <button type="button" class="icon-btn" @click="togglePasswordConfirm">
-            <i :class="showPasswordConfirm ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
-          </button>
+        <div>
+          <label class="label mt-4">변경할 비밀번호 확인</label>
+          <div class="input-pwd">
+            <input
+              class="input"
+              :type="showPasswordConfirm ? 'text' : 'password'"
+              v-model="confirmNewPassword"
+              placeholder="변경할 비밀번호를 다시 한 번 입력해주세요."
+              @input="validatePasswordConfirm()"
+            />
+            <button type="button" class="icon-btn" @click="togglePasswordConfirm">
+              <i :class="showPasswordConfirm ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
+            </button>
+          </div>
+          <small class="text-danger hint" v-if="passwordConfirmError">
+            {{ passwordConfirmError }}
+          </small>
         </div>
 
         <!-- 안내문 -->
-        <p class="hint">
-          영문 대소문자, 숫자, 특수문자를 2가지 이상 조합해 8자 이상 20자 이하로 입력해주세요.
-        </p>
-
-        <!-- 에러/성공 -->
-        <p v-if="error" class="error">{{ error }}</p>
-        <p v-if="success" class="success">{{ success }}</p>
+        <!-- <p class="hint">
+          영문 대소문자, 숫자, 특수문자를 모두 포함해 8자 이상 20자 이하로 입력해주세요.
+        </p> -->
 
         <!-- 버튼 -->
         <div class="actions">
@@ -69,47 +78,72 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useToastStore } from '@/stores/useToastStore';
 import member from '@/api/member';
 
 // 상태
 const router = useRouter();
+const toast = useToastStore();
 const me = ref(null);
 const meLoaded = ref(false);
 const loading = ref(false);
-const error = ref('');
-const success = ref('');
-const showPassword = ref(false);
-const togglePassword = () => {
-  showPassword.value = !showPassword.value;
-};
-const showPasswordConfirm = ref(false);
-const togglePasswordConfirm = () => {
-  showPasswordConfirm.value = !showPasswordConfirm.value;
-};
 
 // 폼
 const nickname = ref('');
 const newPassword = ref('');
 const confirmNewPassword = ref('');
 
-// 유효성
-const pwLenOK = computed(
-  () =>
-    newPassword.value.length === 0 ||
-    (newPassword.value.length >= 8 && newPassword.value.length <= 20)
-);
-const pwKindsOK = computed(() => {
-  if (!newPassword.value) return true; // 비번 변경 안 할 때는 통과
-  const s = newPassword.value;
-  let kinds = 0;
-  if (/[a-z]/.test(s) || /[A-Z]/.test(s)) kinds++; // 영문
-  if (/[0-9]/.test(s)) kinds++; // 숫자
-  if (/[^A-Za-z0-9]/.test(s)) kinds++; // 특수문자
-  return kinds >= 2;
+// 비밀번호
+const showPassword = ref(false);
+const togglePassword = () => {
+  showPassword.value = !showPassword.value;
+};
+const passwordError = ref('');
+const validatePassword = () => {
+  if (newPassword.value === '') {
+    passwordError.value = '';
+    return;
+  }
+
+  const passwordRegex =
+    /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,20}$/;
+
+  if (!passwordRegex.test(newPassword.value)) {
+    passwordError.value = '영문, 숫자, 특수문자를 모두 포함하여 8~20자로 입력해주세요.';
+  } else {
+    passwordError.value = '';
+  }
+};
+const showPasswordConfirm = ref(false);
+const togglePasswordConfirm = () => {
+  showPasswordConfirm.value = !showPasswordConfirm.value;
+};
+const passwordConfirmError = ref('');
+const validatePasswordConfirm = () => {
+  if (confirmNewPassword.value === '') {
+    passwordConfirmError.value = '';
+    return;
+  }
+
+  if (confirmNewPassword.value !== newPassword.value) {
+    passwordConfirmError.value = '비밀번호가 일치하지 않습니다.';
+  } else {
+    passwordConfirmError.value = '';
+  }
+};
+
+// 유효성 검사 computed
+const isPasswordValid = computed(() => {
+  if (newPassword.value === '') return true; // 비밀번호 변경하지 않는 경우
+  const passwordRegex =
+    /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,20}$/;
+  return passwordRegex.test(newPassword.value);
 });
-const pwMatch = computed(
-  () => !newPassword.value || newPassword.value === confirmNewPassword.value
-);
+
+const isPasswordMatch = computed(() => {
+  if (newPassword.value === '') return true;
+  return newPassword.value === confirmNewPassword.value;
+});
 
 // 제출 비활성화 조건
 const submitDisabled = computed(() => {
@@ -119,14 +153,13 @@ const submitDisabled = computed(() => {
     newPassword.value === '' &&
     confirmNewPassword.value === '';
 
-  return nothingChanged || !pwLenOK.value || !pwKindsOK.value || !pwMatch.value;
+  const passwordInvalid = !isPasswordValid.value || !isPasswordMatch.value;
+
+  return nothingChanged || passwordInvalid;
 });
 
 // 제출
 const onSubmit = async () => {
-  error.value = '';
-  success.value = '';
-
   if (submitDisabled.value) return;
 
   // payload 구성
@@ -144,24 +177,41 @@ const onSubmit = async () => {
   }
 
   loading.value = true;
+
   try {
     const updated = await member.updateMember(payload);
-    success.value = '회원정보가 수정되었습니다.';
+
     // 닉네임 즉시 반영
     me.value = updated || me.value;
-    // 비밀번호 관련 필드/세션 정리
+    // 비밀번호 관련 폼 초기화
     newPassword.value = '';
     confirmNewPassword.value = '';
+    passwordError.value = '';
+    passwordConfirmError.value = '';
+
+    toast.success('회원정보가 성공적으로 수정되었습니다.');
 
     // 1초 후 마이페이지로 이동
     setTimeout(() => {
       router.push('/user/mypage');
     }, 1000);
   } catch (e) {
-    error.value = e?.response?.data?.header?.message || '회원정보 수정에 실패했습니다.';
+    const errorMessage = e?.response?.data?.header?.message || '회원정보 수정에 실패했습니다.';
+    const errorCode = e?.response?.data?.body?.data?.code;
+
+    if (errorCode === 'SAME_AS_CURRENT_PASSWORD') {
+      toast.error('변경하려는 비밀번호가 현재 비밀번호와 동일합니다.');
+    } else {
+      toast.error(errorMessage);
+    }
   } finally {
     loading.value = false;
   }
+};
+
+// 뒤로가기
+const goBack = () => {
+  router.back();
 };
 
 // 초기 로딩
@@ -169,18 +219,13 @@ onMounted(async () => {
   try {
     me.value = await member.getMemberInfo();
   } catch (e) {
-    // 인증 만료 등
+    toast.error('회원정보를 불러오는데 실패했습니다.');
     router.push('/login');
     return;
   } finally {
     meLoaded.value = true;
   }
 });
-
-// 뒤로가기
-const goBack = () => {
-  router.back();
-};
 </script>
 
 <style scoped>
