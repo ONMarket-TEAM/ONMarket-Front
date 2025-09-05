@@ -7,7 +7,7 @@
             <span v-if="activeSlide.chip" class="chip">{{ activeSlide.chip }}</span>
             <h1 class="hero-title" v-html="activeSlide.titleHTML"></h1>
             <button class="cta" @click="goRoute(activeSlide.ctaRoute)">
-              <img v-if="activeSlide.ctaRoute === '/cards'" :src="instaIcon" alt="Instagram Icon" class="cta-icon">
+              <img v-if="activeSlide.ctaRoute === '/caption'" :src="instaIcon" alt="Instagram Icon" class="cta-icon">
               {{ activeSlide.ctaLabel }}
             </button>
           </div>
@@ -174,9 +174,9 @@ const slides = ref([
         'linear-gradient(180deg, #F2EEFD 0%, #DEDAFF 100%)'
     },
     titleHTML:
-      '내 가게 <span class="highlight">홍보</span>가<br/>어려우신가요?<br/><span class="highlight">사진만</span> 올려주시면<br/>도와드릴게요!',
+      '가게 <span class="highlight">홍보</span>가<br/>어려우신가요?<br/><span class="highlight">사진만</span> 올려주시면<br/>도와드릴게요!',
     ctaLabel: '게시글 올리기',
-    ctaRoute: '/cards',
+    ctaRoute: '/caption', 
     images: [],
     mainImage: { src: p5Illustration, alt: '사람 일러스트' }
   }
