@@ -94,6 +94,11 @@ const router = createRouter({
       component: () => import('@/pages/Post/PolicyDetail.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/caption',
+      component: () => import('@/pages/SNS/caption.vue'),
+      meta: { requiresAuth: true},
+    },
 
     /* 404 not found 페이지 */
     {
