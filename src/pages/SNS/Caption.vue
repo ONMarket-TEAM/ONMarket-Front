@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <!-- Stepper -->
+    <!-- 진행 스텝 -->
     <section class="stepper" aria-label="progress">
       <div class="stepper__item" :class="{ 'is-active': currentStep >= 1 }">
         <div class="dot">1</div>
@@ -23,13 +23,13 @@
       </div>
     </section>
 
-    <!-- Title -->
+    <!-- 타이틀 -->
     <h1 class="title" v-if="currentStep === 1">1단계: 사진을 업로드해주세요</h1>
     <h1 class="title" v-else-if="currentStep === 2">2단계: 표현하고 싶은 문구를 입력해주세요</h1>
     <h1 class="title" v-else-if="currentStep === 3">3단계: 업로드 전에 편집해주세요</h1>
     <h1 class="title" v-else-if="currentStep === 4">4단계: 완성된걸 업로드하세요</h1>
 
-    <!-- STEP 1: Upload area -->
+    <!-- STEP 1: 업로드 -->
     <section class="upload-section" v-if="currentStep === 1">
       <div class="upload-drop" @drop.prevent="handleDrop" @dragover.prevent>
         <input
@@ -50,14 +50,14 @@
           >
             <path
               d="M7 18h10a4 4 0 0 0 0-8 6 6 0 0 0-11.31-2A4.5 4.5 0 0 0 5 18"
-              stroke="#9AA0A6"
+              :stroke="gray600"
               stroke-width="1.6"
               stroke-linecap="round"
               stroke-linejoin="round"
             />
             <path
               d="M12 13v6m0-6-2.5 2.5M12 13l2.5 2.5"
-              stroke="#9AA0A6"
+              :stroke="gray600"
               stroke-width="1.6"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -70,12 +70,11 @@
       </div>
     </section>
 
-    <!-- STEP 2: Caption input + live preview (two-column) -->
+    <!-- STEP 2: 입력 + 미리보기 -->
     <section class="step2" v-if="currentStep === 2">
       <div class="step2__grid">
-        <!-- Left column -->
+        <!-- 왼쪽 -->
         <div class="col-left">
-          <!-- Uploaded info box -->
           <div class="uploaded-box">
             <div class="uploaded-box__header">
               <span class="check-dot" aria-hidden>•</span>
@@ -95,7 +94,6 @@
             </div>
           </div>
 
-          <!-- Caption input -->
           <div class="field">
             <label class="field__label">문구 입력 <span class="required">*</span></label>
             <div class="textarea-wrap">
@@ -121,33 +119,30 @@
             </div>
           </div>
 
-          <!-- Tips -->
           <div class="tips">
             <div class="tips__title">작성 팁</div>
             <ul class="tips__list">
               <li>감정이나 상황을 간단히 표현해보세요</li>
               <li>너무 길지 않게 핵심만 담아주세요</li>
-              <li>AI가 이틀 배운으로 매력적인 콘텐츠를 생성합니다</li>
+              <li>AI가 문구를 다듬어 더 매력적으로 만듭니다</li>
               <li>개인적인 취향이나 느낌을 포함하면 더 좋아요</li>
             </ul>
           </div>
         </div>
 
-        <!-- Right column: live preview -->
+        <!-- 오른쪽 -->
         <div class="col-right">
           <div class="preview-card">
             <div class="preview-card__title">
               <span class="eye" aria-hidden>👁️</span> 실시간 미리보기
             </div>
             <div class="preview-canvas">
-              <div class="preview-badge">?????</div>
+              <div class="preview-badge">PREVIEW</div>
             </div>
             <div class="preview-footer">
               <div class="preview-label">입력한 문구:</div>
               <div class="preview-text">{{ userCaption || '안녕하세요!!!!!' }}</div>
-              <p class="preview-help">
-                AI가 이 문구를 바탕으로 매력적인 인스타그램 콘텐츠를 생성합니다
-              </p>
+              <p class="preview-help">AI가 이 문구를 바탕으로 매력적인 콘텐츠를 생성합니다</p>
             </div>
           </div>
         </div>
@@ -156,7 +151,6 @@
 
     <!-- STEP 3: AI 문구 확인/편집 -->
     <section class="step3" v-if="currentStep === 3">
-      <!-- top summary card for steps 1-2 -->
       <div class="step3-topbox">
         <div class="left">
           <div class="badge-line">
@@ -168,9 +162,7 @@
               <img :src="uploadedUrls[0]" alt="업로드된 사진" />
             </div>
             <div class="thumb thumb--ph" v-else>썸네일</div>
-            <div class="meta">
-              <div class="meta-title">업로드된 사진</div>
-            </div>
+            <div class="meta"><div class="meta-title">업로드된 사진</div></div>
           </div>
         </div>
         <div class="right">
@@ -208,10 +200,8 @@
     </section>
 
     <!-- STEP 4: 최종 결과 -->
-     <br>
     <section class="step4" v-if="currentStep === 4">
       <div class="step4__grid">
-        <!-- Left: Final content card -->
         <div class="final-left">
           <div class="final-box">
             <div class="final-box__title"><span class="red-icon" /> 최종 생성된 콘텐츠</div>
@@ -245,17 +235,13 @@
               </div>
             </div>
           </div>
-
           <div class="other-style"><span class="star">★</span> 다른 스타일 버전</div>
         </div>
 
-        <!-- Right: Final preview & download -->
         <div class="final-right">
           <div class="result-card">
             <div class="result-card__title"><span class="eye" /> 최종 결과물</div>
-            <div class="result-canvas">
-              <div class="canvas-ph"></div>
-            </div>
+            <div class="result-canvas"><div class="canvas-ph"></div></div>
             <div class="result-footer">
               <div class="orig-label">원본 문구:</div>
               <div class="orig-value link">{{ userCaption || '오늘의 특별한 순간' }}</div>
@@ -275,7 +261,7 @@
       </div>
     </section>
 
-    <!-- Footer -->
+    <!-- 하단 버튼 -->
     <div class="footer">
       <button v-if="currentStep === 1" class="next-btn" @click="goToStep2">다음</button>
       <button v-else-if="currentStep === 2" class="next-btn" @click="goToStep3">다음</button>
@@ -283,7 +269,7 @@
       <button v-else class="next-btn" disabled>업로드하기</button>
     </div>
 
-    <!-- Edit Modal -->
+    <!-- 편집 모달 -->
     <div v-if="showEditModal" class="modal-overlay" @click.self="closeEditModal">
       <div class="modal">
         <div class="modal-header">
@@ -309,22 +295,41 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import { useToastStore } from '@/stores/useToastStore'; // Pinia 토스트 스토어
 
+// 상태
 const currentStep = ref(1);
-const uploadedUrls = ref([]); // 여러 장 지원 대비
+const uploadedUrls = ref([]);
 const fileInput = ref(null);
 const userCaption = ref('안녕하세요!!!!!');
-
 const generatedText = ref('');
 const originalGeneratedText = ref('');
 const showEditModal = ref(false);
 const editBuffer = ref('');
 
+// 색상: main.css 변수에서 회색값만 읽어와 아이콘 선색에 사용
+const gray600 = ref('#9AA0A6');
+onMounted(() => {
+  const v = getComputedStyle(document.documentElement).getPropertyValue('--color-gray-600');
+  if (v) gray600.value = v.trim();
+});
+
+// 토스트
+const toast = useToastStore();
+const toastSuccess = (message, title = '완료') =>
+  toast.addToast({ type: 'success', message, title, duration: 2400 });
+const toastWarn = (message, title = '안내') =>
+  toast.addToast({ type: 'warning', message, title, duration: 2600 });
+const toastError = (message, title = '오류') =>
+  toast.addToast({ type: 'error', message, title, duration: 3000 });
+const toastInfo = (message, title = '안내') =>
+  toast.addToast({ type: 'info', message, title, duration: 2400 });
+
+// 파일 선택/드래그
 function openPicker() {
   fileInput.value?.click();
 }
-
 function handleFileChange(e) {
   const file = e.target.files?.[0];
   if (file) uploadTemp(file);
@@ -335,54 +340,76 @@ function handleDrop(e) {
   if (file) uploadTemp(file);
 }
 
+// presign / 생성 API 훅(프로젝트 내 실제 함수로 대체)
+async function getTempPresign(name, type) {
+  if (typeof window.$presign !== 'function') throw new Error('presign 함수가 정의되지 않았어요.');
+  return window.$presign(name, type); // { url, publicUrl }
+}
+async function createCaptionsFromUrls(payload) {
+  if (typeof window.$createCaptions !== 'function')
+    throw new Error('캡션 생성 함수가 정의되지 않았어요.');
+  return window.$createCaptions(payload);
+}
+
+// 업로드
 async function uploadTemp(file) {
   try {
-    if (!/image\/(jpeg|png)/.test(file.type)) return alert('JPG, PNG만 업로드 가능');
-    if (file.size > 10 * 1024 * 1024) return alert('최대 10MB까지 가능');
+    if (!/image\/(jpeg|png)/.test(file.type)) return toastWarn('JPG, PNG만 업로드할 수 있어요.');
+    if (file.size > 10 * 1024 * 1024) return toastWarn('최대 10MB까지 업로드할 수 있어요.');
 
-    const presign = await getTempPresign(file.name, file.type); // { url, key, publicUrl }
-    const putRes = await fetch(presign.url, {
+    const presign = await getTempPresign(file.name, file.type);
+    const res = await fetch(presign.url, {
       method: 'PUT',
       headers: { 'Content-Type': file.type },
       body: file,
     });
-    if (!putRes.ok) throw new Error(`S3 업로드 실패: ${putRes.status}`);
+    if (!res.ok) throw new Error(`S3 업로드 실패 (${res.status})`);
 
     const finalUrl = presign.publicUrl ?? presign.url.split('?')[0];
     uploadedUrls.value.push(finalUrl);
-    alert('임시 업로드 완료!');
-  } catch (e) {
-    console.error(e);
-    alert('업로드 실패');
+    toastSuccess('이미지가 임시 저장되었어요.');
+  } catch (err) {
+    toastError(err?.message || '업로드 중 문제가 발생했어요.');
   }
 }
 
+// 네비게이션
 function goToStep2() {
+  if (!uploadedUrls.value.length) {
+    toastWarn('이미지를 먼저 올려주세요.');
+    return;
+  }
   currentStep.value = 2;
 }
-
 function backToUpload() {
   currentStep.value = 1;
 }
-
 function goToStep3() {
   currentStep.value = 3;
   if (!generatedText.value) {
     const t = buildAiText(userCaption.value);
     generatedText.value = t;
     originalGeneratedText.value = t;
+    toastInfo('AI 초안이 준비됐어요.');
   }
 }
-
 function goToStep4() {
   currentStep.value = 4;
 }
 
+// 텍스트 유틸
 function buildAiText(caption) {
   const seed = caption && caption.trim() ? caption.trim() : '오늘의 특별한 순간';
-  return `✨ ${seed} ✨\n\n매일 반복되는 일상 속에서도 이런 특별한 순간들이 있어서 참 감사해요! 작은 것에서 행복을 찾는 하루하루가 소중하다는 걸 다시 한번 느껴봅니다😊\n\n여러분도 오늘 어떤 특별한 순간을 만났나요? 댓글로 공유해주세요!\n\n#오늘의특별한순간 #일상 #소중한순간 #행복 #감사 #데일리 #좋은하루`;
+  return `✨ ${seed} ✨
+
+매일 반복되는 일상 속에서도 이런 특별한 순간들이 있어서 참 감사해요! 작은 것에서 행복을 찾는 하루하루가 소중하다는 걸 다시 한번 느껴봅니다😊
+
+여러분도 오늘 어떤 특별한 순간을 만났나요? 댓글로 공유해주세요!
+
+#오늘의특별한순간 #일상 #소중한순간 #행복 #감사 #데일리 #좋은하루`;
 }
 
+// 모달
 function openEditModal() {
   editBuffer.value = generatedText.value;
   showEditModal.value = true;
@@ -393,15 +420,18 @@ function closeEditModal() {
 function saveEdit() {
   generatedText.value = editBuffer.value;
   showEditModal.value = false;
+  toastSuccess('수정 내용을 저장했어요.');
 }
 function restoreOriginal() {
   generatedText.value = originalGeneratedText.value;
+  toastInfo('원본으로 되돌렸어요.');
 }
 
+// (선택) 실제 생성 호출
 async function generate() {
-  if (!uploadedUrls.value.length) return alert('이미지를 먼저 올려주세요.');
+  if (!uploadedUrls.value.length) return toastWarn('이미지를 먼저 올려주세요.');
   try {
-    const result = await createCaptionsFromUrls({
+    await createCaptionsFromUrls({
       s3Urls: uploadedUrls.value,
       options: {
         language: 'ko',
@@ -411,20 +441,26 @@ async function generate() {
         maxChars: 200,
       },
     });
-    console.log('캡션 결과:', result);
-  } catch (e) {
-    console.error(e);
-    alert('캡션 생성 실패');
+    toastSuccess('캡션 생성이 완료됐어요.');
+  } catch {
+    toastError('캡션 생성에 실패했어요.');
   }
 }
 </script>
 
 <style scoped>
-/* Global layout */
+/* 페이지 루트: main.css 변수만 참조 → 로컬 별칭으로 매핑 */
 .page {
+  --accent: var(--color-sub);
+  --accent-weak: var(--color-main);
+  --bg-1: var(--color-light-1);
+  --bg-2: var(--color-light-2);
+  --bg-3: var(--color-light-3);
+  --white: var(--color-white);
+
   width: 100%;
   min-height: 100vh;
-  background: #ffffff;
+  background: var(--white);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -433,13 +469,12 @@ async function generate() {
   color: #202124;
 }
 
-/* Stepper */
+/* 스텝퍼 */
 .stepper {
   margin-top: 40px;
   display: grid;
   grid-template-columns: auto 80px auto 80px auto 80px auto;
   align-items: center;
-  gap: 0;
 }
 .stepper .connector {
   height: 2px;
@@ -467,11 +502,11 @@ async function generate() {
   color: #6f7275;
 }
 .stepper__item.is-active .dot {
-  background: #ff6b6b;
+  background: var(--accent);
   color: #fff;
 }
 
-/* Title */
+/* 타이틀 */
 .title {
   margin-top: 36px;
   font-size: 28px;
@@ -479,7 +514,7 @@ async function generate() {
   letter-spacing: -0.3px;
 }
 
-/* Upload section */
+/* 업로드 */
 .upload-section {
   width: 940px;
   max-width: calc(100% - 48px);
@@ -492,10 +527,9 @@ async function generate() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: var(--white);
 }
 .upload-inner {
-  appearance: none;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -519,10 +553,10 @@ async function generate() {
 .upload-text-3 {
   margin: 12px 0 0 0;
   font-size: 14px;
-  color: #ff6b6b;
+  color: var(--accent);
 }
 
-/* STEP2 Grid */
+/* STEP2 */
 .step2 {
   width: 940px;
   max-width: calc(100% - 48px);
@@ -535,10 +569,10 @@ async function generate() {
   align-items: start;
 }
 
-/* Uploaded info box */
+/* 업로드 정보 박스 */
 .uploaded-box {
-  border: 1px solid #f2d7cc;
-  background: #fff7f3;
+  border: 1px solid var(--bg-1);
+  background: var(--bg-3);
   border-radius: 8px;
   padding: 16px;
 }
@@ -556,7 +590,7 @@ async function generate() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #ff6b6b;
+  background: var(--accent);
   color: #fff;
   font-weight: 700;
 }
@@ -570,8 +604,8 @@ async function generate() {
   height: 44px;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid #f0e0da;
-  background: #fff;
+  border: 1px solid var(--bg-1);
+  background: var(--white);
   flex: 0 0 auto;
 }
 .thumb img {
@@ -600,17 +634,16 @@ async function generate() {
   color: #666;
 }
 .link-change {
-  appearance: none;
   background: none;
   border: none;
-  color: #ff6b6b;
+  color: var(--accent);
   font-size: 12px;
   text-decoration: underline;
   cursor: pointer;
   padding: 0;
 }
 
-/* Field */
+/* 입력 필드 */
 .field {
   margin-top: 24px;
 }
@@ -619,7 +652,7 @@ async function generate() {
   font-weight: 600;
 }
 .required {
-  color: #ff6b6b;
+  color: var(--accent);
 }
 .textarea-wrap {
   position: relative;
@@ -641,7 +674,7 @@ async function generate() {
   height: 28px;
   border-radius: 999px;
   border: 1px solid #e5e7eb;
-  background: #fff;
+  background: var(--white);
   cursor: pointer;
 }
 .field__meta {
@@ -655,7 +688,7 @@ async function generate() {
 .field__meta .dot {
   width: 6px;
   height: 6px;
-  background: #ff6b6b;
+  background: var(--accent);
   display: inline-block;
   border-radius: 999px;
   margin-right: 6px;
@@ -664,11 +697,11 @@ async function generate() {
   color: #9aa0a6;
 }
 
-/* Tips */
+/* 팁 */
 .tips {
   margin-top: 16px;
-  border: 1px solid #f2d7cc;
-  background: #fff7f3;
+  border: 1px solid var(--bg-1);
+  background: var(--bg-3);
   border-radius: 8px;
   padding: 14px;
 }
@@ -687,19 +720,17 @@ async function generate() {
   color: #5f6368;
 }
 
-/* Preview card */
-.col-right {
-}
+/* 미리보기 */
 .preview-card {
-  border: 1px solid #f2d7cc;
-  background: #fff;
+  border: 1px solid var(--bg-1);
+  background: var(--white);
   border-radius: 8px;
   overflow: hidden;
 }
 .preview-card__title {
   padding: 10px 12px;
-  border-bottom: 1px solid #f2d7cc;
-  background: #fff7f3;
+  border-bottom: 1px solid var(--bg-1);
+  background: var(--bg-3);
   font-size: 13px;
   font-weight: 700;
   display: flex;
@@ -708,22 +739,22 @@ async function generate() {
 }
 .preview-canvas {
   height: 420px;
-  background: #f6e6db;
+  background: var(--bg-2);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .preview-badge {
-  font-size: 28px;
-  letter-spacing: 6px;
+  font-size: 20px;
+  letter-spacing: 4px;
   padding: 6px 10px;
-  border: 2px solid #ff9f8a;
-  color: #ff695d;
+  border: 2px solid var(--accent-weak);
+  color: var(--accent);
   border-radius: 4px;
 }
 .preview-footer {
   padding: 12px;
-  border-top: 1px solid #f2d7cc;
+  border-top: 1px solid var(--bg-1);
 }
 .preview-label {
   font-size: 12px;
@@ -732,7 +763,7 @@ async function generate() {
 }
 .preview-text {
   font-weight: 700;
-  color: #ff6b6b;
+  color: var(--accent);
 }
 .preview-help {
   margin-top: 6px;
@@ -740,7 +771,7 @@ async function generate() {
   color: #9aa0a6;
 }
 
-/* Footer button */
+/* 하단 버튼 */
 .footer {
   width: 100%;
   display: flex;
@@ -767,17 +798,15 @@ async function generate() {
   width: 940px;
   max-width: calc(100% - 48px);
   margin-top: 16px;
-  font-family: 'Noto Sans KR', sans-serif;
 }
 .step3-topbox {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  border: 1.2px solid #fbd2c6;
-  background: #fff8f6;
+  border: 1.2px solid var(--accent-weak);
+  background: var(--bg-3);
   border-radius: 12px;
   padding: 20px;
-  font-family: 'Noto Sans KR', sans-serif;
 }
 .step3-topbox .badge-line {
   display: flex;
@@ -789,7 +818,7 @@ async function generate() {
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  background: #ff6b6b;
+  background: var(--accent);
   color: #fff;
   display: inline-flex;
   align-items: center;
@@ -807,8 +836,8 @@ async function generate() {
   height: 44px;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid #f0e0da;
-  background: #fff;
+  border: 1px solid var(--bg-1);
+  background: var(--white);
   flex: 0 0 auto;
 }
 .step3-topbox .thumb--ph {
@@ -831,7 +860,6 @@ async function generate() {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: 'Noto Sans KR', sans-serif;
 }
 .input-preview .label {
   font-size: 12px;
@@ -839,24 +867,22 @@ async function generate() {
   margin-right: 2px;
 }
 .input-preview .bubble {
-  background: #fff;
-  border: 1.2px solid #ff6b6b;
+  background: var(--white);
+  border: 1.2px solid var(--accent);
   font-size: 14px;
   padding: 6px 10px;
   border-radius: 8px;
   font-weight: 600;
-  color: #ff6b6b;
-  font-family: 'Noto Sans KR', sans-serif;
+  color: var(--accent);
   line-height: 1.5;
-  box-sizing: border-box;
 }
 .h3 {
   margin: 18px 0;
   font-size: 18px;
   font-weight: 700;
-  font-family: 'Noto Sans KR', sans-serif;
 }
 
+/* AI 카드 */
 .ai-card-wrapper {
   position: relative;
 }
@@ -867,42 +893,36 @@ async function generate() {
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  border: 1.2px solid #fbd2c6;
-  background: #fff;
+  border: 1.2px solid var(--accent-weak);
+  background: var(--white);
   cursor: pointer;
-  font-family: 'Noto Sans KR', sans-serif;
 }
 .ai-card {
   border: 1.2px solid #eaeaea;
   border-radius: 12px;
-  background: #fff;
+  background: var(--white);
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-  font-family: 'Noto Sans KR', sans-serif;
 }
 .ai-card__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 14px 16px;
-  border-bottom: 1px solid #f2d7cc;
-  background: #fff;
+  border-bottom: 1px solid var(--bg-1);
+  background: var(--white);
   font-size: 15px;
   font-weight: 700;
-  font-family: 'Noto Sans KR', sans-serif;
 }
 .ai-card__header .title {
-  font-weight: 700;
-  font-size: 15px;
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: 'Noto Sans KR', sans-serif;
 }
 .red-dot {
   width: 8px;
   height: 8px;
-  background: #ff6b6b;
+  background: var(--accent);
   display: inline-block;
   border-radius: 999px;
 }
@@ -911,44 +931,39 @@ async function generate() {
   gap: 8px;
 }
 .btn-edit {
-  background: #ff6b6b;
+  background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 6px;
   font-size: 13px;
   padding: 6px 12px;
-  font-family: 'Noto Sans KR', sans-serif;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.12s;
 }
 .btn-edit:hover,
 .btn-edit:focus {
-  background: #ff4545;
+  filter: brightness(0.95);
 }
 .btn-restore {
-  background: #fff;
+  background: var(--white);
   border: 1px solid #ccc;
   color: #666;
   border-radius: 6px;
   font-size: 13px;
   padding: 6px 12px;
-  font-family: 'Noto Sans KR', sans-serif;
   font-weight: 500;
   cursor: pointer;
-  transition: border 0.12s;
 }
 .btn-restore:hover,
 .btn-restore:focus {
-  border-color: #ff6b6b;
-  color: #ff6b6b;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .ai-card__body {
-  padding: 18px 18px 18px 18px;
-  background: #fff;
+  padding: 18px;
 }
 .ai-output {
-  background: #fff;
+  background: var(--white);
   border: 1px solid #eee;
   border-radius: 8px;
   padding: 18px;
@@ -956,126 +971,23 @@ async function generate() {
   line-height: 1.8;
   color: #333;
   white-space: pre-wrap;
-  font-family: 'Noto Sans KR', sans-serif;
-  box-sizing: border-box;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
 }
 .ai-card__foot {
   padding: 12px 16px;
-  border-top: none;
   background: #fafafa;
   font-size: 12px;
   color: #999;
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: 'Noto Sans KR', sans-serif;
 }
 .warn-dot {
   width: 8px;
   height: 8px;
-  background: #ff6b6b;
+  background: var(--accent);
   display: inline-block;
   border-radius: 999px;
-}
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  font-family: 'Noto Sans KR', sans-serif;
-}
-.modal {
-  width: 720px;
-  background: #fff;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  font-family: 'Noto Sans KR', sans-serif;
-}
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #eee;
-  font-family: 'Noto Sans KR', sans-serif;
-}
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-}
-.modal-body {
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 12px;
-  padding: 16px;
-  font-family: 'Noto Sans KR', sans-serif;
-}
-.modal-img {
-  border: 1px solid #f0e0da;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #fff7f3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.modal-img img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.modal-img-ph {
-  color: #9aa0a6;
-  font-size: 12px;
-  padding: 20px;
-}
-.modal-form {
-}
-.modal-textarea {
-  width: 100%;
-  height: 240px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 12px;
-  resize: vertical;
-  font-size: 14px;
-  line-height: 1.6;
-  font-family: 'Noto Sans KR', sans-serif;
-  color: #222;
-}
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid #eee;
-}
-.btn-primary {
-  background: #ff6b6b;
-  color: #fff;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: 'Noto Sans KR', sans-serif;
-}
-.btn-secondary {
-  background: #f3f4f6;
-  color: #333;
-  border: 1px solid #e5e7eb;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: 'Noto Sans KR', sans-serif;
 }
 
 /* STEP4 */
@@ -1093,9 +1005,9 @@ async function generate() {
   align-items: start;
 }
 .final-box {
-  border: 1.2px solid #f3bfb2;
+  border: 1.2px solid var(--accent-weak);
   border-radius: 12px;
-  background: #fff;
+  background: var(--white);
   overflow: hidden;
 }
 .final-box__title {
@@ -1106,12 +1018,12 @@ async function generate() {
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid #f3d9cf;
-  background: #fff;
+  background: var(--white);
 }
 .red-icon {
   width: 10px;
   height: 10px;
-  background: #ff6b6b;
+  background: var(--accent);
   border-radius: 999px;
   display: inline-block;
 }
@@ -1120,7 +1032,7 @@ async function generate() {
 }
 .final-caption {
   border: 1px solid #f3d9cf;
-  background: #fff7f3;
+  background: var(--bg-3);
   border-radius: 8px;
 }
 .final-caption__header {
@@ -1135,7 +1047,7 @@ async function generate() {
 .green-dot {
   width: 8px;
   height: 8px;
-  background: #ff9f8a;
+  background: var(--accent-weak);
   border-radius: 999px;
   display: inline-block;
 }
@@ -1167,13 +1079,13 @@ async function generate() {
 .hash-icon {
   width: 8px;
   height: 8px;
-  background: #ff6b6b;
+  background: var(--accent);
   display: inline-block;
   border-radius: 999px;
 }
 .hash-bubble {
   border: 1px solid #f3d9cf;
-  background: #fff;
+  background: var(--white);
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 13px;
@@ -1187,7 +1099,7 @@ async function generate() {
 }
 .metric {
   border: 1px solid #f3d9cf;
-  background: #fff7f3;
+  background: var(--bg-3);
   border-radius: 8px;
   padding: 10px 12px;
 }
@@ -1207,7 +1119,7 @@ async function generate() {
 .spark-icon {
   width: 10px;
   height: 10px;
-  background: #ff6b6b;
+  background: var(--accent);
   display: inline-block;
   border-radius: 999px;
 }
@@ -1217,19 +1129,19 @@ async function generate() {
   font-size: 14px;
 }
 .other-style .star {
-  color: #ff6b6b;
+  color: var(--accent);
   margin-right: 6px;
 }
 .result-card {
   border: 1px solid #f3d9cf;
   border-radius: 12px;
-  background: #fff;
+  background: var(--white);
   overflow: hidden;
 }
 .result-card__title {
   padding: 10px 12px;
   border-bottom: 1px solid #f3d9cf;
-  background: #fff;
+  background: var(--white);
   font-weight: 700;
   font-size: 13px;
   display: flex;
@@ -1248,7 +1160,7 @@ async function generate() {
 .result-footer {
   padding: 12px;
   border-top: 1px solid #f3d9cf;
-  background: #fff6f2;
+  background: var(--bg-2);
 }
 .orig-label {
   font-size: 12px;
@@ -1256,7 +1168,7 @@ async function generate() {
 }
 .orig-value {
   margin-top: 4px;
-  color: #ff6b6b;
+  color: var(--accent);
   font-weight: 700;
 }
 .orig-value.link {
@@ -1273,7 +1185,7 @@ async function generate() {
 .info-icon {
   width: 10px;
   height: 10px;
-  background: #ff9f8a;
+  background: var(--accent-weak);
   border-radius: 999px;
   display: inline-block;
 }
@@ -1292,14 +1204,13 @@ async function generate() {
 .dl-icon {
   width: 10px;
   height: 10px;
-  background: #ff6b6b;
+  background: var(--accent);
   border-radius: 999px;
   display: inline-block;
 }
 .download-btn {
-  appearance: none;
   border: none;
-  background: #ef6d65;
+  background: var(--accent);
   color: #fff;
   border-radius: 10px;
   padding: 12px 18px;
@@ -1309,7 +1220,7 @@ async function generate() {
 .download-btn .btn-icon {
   width: 10px;
   height: 10px;
-  background: #fff;
+  background: var(--white);
   border-radius: 999px;
   display: inline-block;
   margin-right: 6px;
