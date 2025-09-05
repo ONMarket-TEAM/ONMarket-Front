@@ -14,6 +14,7 @@
     <ul class="navbar-menu">
       <li><RouterLink to="/loans">대출 상품 보기</RouterLink></li>
       <li><RouterLink to="/policies">정부 지원금 보기</RouterLink></li>
+      <li><RouterLink to="/caption">내 가게 알리기</RouterLink></li>
 
       <!-- 로그인 여부에 따라 메뉴 구분 -->
       <template v-if="authStore.isAuthenticated">
