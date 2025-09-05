@@ -16,10 +16,7 @@
           v-for="b in businesses"
           :key="b.businessId"
           class="card"
-          role="button"
-          tabindex="0"
           @click="goToUpdate(b.businessId)"
-          @keydown.enter="goToUpdate(b.businessId)"
         >
           <div class="card-top">
             <span class="badge">{{ toBusinessType(b.businessType) }}</span>
@@ -74,18 +71,18 @@ const load = async () => {
       businesses.value = result.data;
     } else {
       // API에서 반환하는 에러 메시지 사용
-      error.value = result.message;
-      businesses.value = []; // 실패 시 빈 배열로 초기화
+      error.value = result.message || '사업장 목록을 불러오지 못했습니다.';
+      toast.error(error.value);
     }
   } catch (e) {
     // 네트워크 에러 등 에러
-    error.value = e?.message || '사업장 목록을 불러오지 못했습니다.';
-    businesses.value = [];
+    error.value = '사업장 목록을 불러오지 못했습니다.';
+    toast.error(error.value);
 
     // 인증 만료 등 특정 상태 코드에 따른 처리
     if (e?.response?.status === 401) {
       // 로그인 페이지로 이동 처리
-      toast.warn('인증이 만료되었습니다.');
+      toast.warning('인증이 만료되었습니다.');
       router.push('/login');
     }
   } finally {
@@ -110,20 +107,11 @@ const goToRegister = () => {
 
 /** 표시용 매핑 (백엔드 enum → 한글) */
 const toBusinessType = (v) => {
-  if (!v) return '유형미상';
-  const key = String(v).toUpperCase();
-  const map = {
-    INDIVIDUAL: '개인',
-    CORPORATE: '법인',
-    개인: '개인',
-    법인: '법인',
-  };
-  return map[key] || v;
+  const map = { INDIVIDUAL: '개인', CORPORATE: '법인' };
+  return map[v] || '유형미상';
 };
 
 const toIndustry = (v) => {
-  if (!v) return '업종';
-  const key = String(v).toUpperCase();
   const map = {
     FNB: '음식업',
     RETAIL: '소매업',
@@ -131,7 +119,7 @@ const toIndustry = (v) => {
     MANUFACTURING: '제조업',
     ETC: '기타',
   };
-  return map[key] || v;
+  return map[v] || '업종';
 };
 
 // 지역코드 매핑
@@ -202,9 +190,6 @@ const toRegion = (code) => {
   transform: translateY(-0.125rem);
   box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
   background: var(--color-light-2);
-}
-.card:active {
-  transform: translateY(0);
 }
 
 /** 상단 배지 - 개인/법인 */
