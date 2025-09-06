@@ -403,11 +403,5 @@ const handleLogin = async () => {
 .icon-btn:hover {
   color: #333;
 }
-
-/* 비밀번호 입력칸 focus 시 */
-.input-pwd .form-input:focus {
-  border-color: #4a90e2;
-  box-shadow: 0 0 4px rgba(74, 144, 226, 0.3);
-}
 </style>
 

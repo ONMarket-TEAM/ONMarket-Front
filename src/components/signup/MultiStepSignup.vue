@@ -98,7 +98,7 @@ const handleComplete = async (data) => {
     }
 
     // 완료 → 환영 페이지 이동
-    router.push('/welcome');
+    router.push('/login');
   } catch (error) {}
 };
 </script>

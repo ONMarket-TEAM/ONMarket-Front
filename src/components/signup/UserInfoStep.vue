@@ -207,7 +207,9 @@
 
       <!-- 다음 단계 버튼 -->
       <div class="button-wrapper">
-        <button type="submit" class="next-button">회원가입 완료</button>
+        <button type="submit" class="next-button" :class="{ active: isFormValid }">
+          회원가입 완료
+        </button>
       </div>
     </form>
   </div>
@@ -231,12 +233,32 @@ const props = defineProps({
 
 const emit = defineEmits(['next', 'complete']);
 
+const isFormValid = computed(() => {
+  return (
+    signupForm.username.trim() &&
+    signupForm.nickname.trim() &&
+    isValidNickname(signupForm.nickname) &&
+    nicknameCheck.value.isChecked &&
+    nicknameCheck.value.isAvailable &&
+    signupForm.email.trim() &&
+    isValidEmail(signupForm.email) &&
+    emailCheck.value.isChecked &&
+    emailCheck.value.isAvailable &&
+    smsVerificationStatus.value.isVerified &&
+    signupForm.password &&
+    isValidPassword(signupForm.password) &&
+    signupForm.password === signupForm.confirmPassword &&
+    signupForm.birthDate &&
+    signupForm.gender
+  );
+});
+
 // Refs
 const smsVerificationRef = ref(null);
 
 // SMS 인증 상태
 const smsVerificationStatus = ref({
-  isVerified: false,
+  isVerified: true,
   phone: '',
   codeSent: false,
 });
@@ -801,6 +823,9 @@ onMounted(() => {
 .next-button:hover:not(:disabled) {
   box-shadow: 0 15px 35px var(--color-light-3);
   transform: translateY(-2px);
+}
+.next-button.active {
+  background-color: var(--color-sub);
 }
 </style>
 
