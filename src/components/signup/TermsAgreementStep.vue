@@ -170,7 +170,9 @@
 
       <!-- 버튼 -->
       <div class="button-wrapper">
-        <button type="submit" class="next-button">다음 단계</button>
+        <button type="submit" class="next-button" :class="{ active: isRequiredChecked }">
+          다음 단계
+        </button>
       </div>
     </form>
   </div>
@@ -179,6 +181,11 @@
 <script setup>
 import { ref, reactive, watch } from 'vue';
 import { useToastStore } from '@/stores/useToastStore';
+import { computed } from 'vue';
+
+const isRequiredChecked = computed(() => {
+  return signupForm.agreeTerms && signupForm.agreePrivacy;
+});
 
 const toastStore = useToastStore();
 const emit = defineEmits(['next']);
@@ -471,7 +478,9 @@ const handleNext = () => {
   cursor: pointer;
   transition: all 0.3s ease;
 }
-
+.next-button.active {
+  background-color: var(--color-sub);
+}
 .next-button:hover {
   box-shadow: 0 15px 35px var(--color-light-3);
   transform: translateY(-2px);

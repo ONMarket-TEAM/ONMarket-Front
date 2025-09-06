@@ -5,7 +5,7 @@
       <p class="step-subtitle">사업장 정보를 입력하시면 더 맞춤형 서비스를 제공받을 수 있습니다</p>
     </div>
 
-    <form @submit.prevent="handleComplete" class="step-form">
+    <form @submit.prevent="handleComplete" class="step-form" novalidate>
       <!-- 산업 분야 -->
       <IndustrySelect v-model="businessForm.industry" :error="errors.industry" />
 
@@ -32,7 +32,12 @@
       <!-- 버튼 그룹 -->
       <div class="button-group">
         <button type="button" @click="handleSkip" class="skip-button">나중에 하기</button>
-        <button type="submit" class="complete-button" :disabled="isLoading">
+        <button
+          type="submit"
+          class="complete-button"
+          :class="{ active: isFormValid }"
+          :disabled="isLoading"
+        >
           <span v-if="isLoading">완료 중...</span>
           <span v-else>사업장 등록</span>
         </button>
@@ -53,6 +58,21 @@ import EmployeeCountInput from '@/components/business/EmployeeCountInput.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { businessAPI } from '@/api/business';
 import { useToastStore } from '@/stores/useToastStore';
+import { computed } from 'vue';
+
+const isFormValid = computed(() => {
+  return (
+    businessForm.industry &&
+    businessForm.businessType &&
+    businessForm.businessName &&
+    businessForm.regionCodeId &&
+    businessForm.establishedYear &&
+    businessForm.establishedYear <= new Date().getFullYear() &&
+    businessForm.annualRevenue &&
+    businessForm.employeeCount &&
+    businessForm.employeeCount >= 1
+  );
+});
 
 const props = defineProps({
   businessData: {
@@ -96,47 +116,32 @@ const validateForm = () => {
   let isValid = true;
   Object.keys(errors).forEach((key) => (errors[key] = ''));
 
-  const hasAnyInput = Object.values(businessForm).some(
-    (value) => value !== '' && value !== null && value !== undefined
-  );
-
-  if (!hasAnyInput) return true;
-
   if (!businessForm.industry) {
-    errors.industry = '산업 분야를 선택해주세요.';
     isValid = false;
   }
   if (!businessForm.businessType) {
-    errors.businessType = '사업장 유형을 선택해주세요.';
     isValid = false;
   }
   if (!businessForm.businessName) {
-    errors.businessName = '사업장 이름을 입력해주세요.';
     isValid = false;
   }
   if (!businessForm.regionCodeId) {
-    errors.regionCodeId = '지역을 선택해주세요.';
     isValid = false;
   }
   if (!businessForm.establishedYear) {
-    errors.establishedYear = '설립 연도를 선택해주세요.';
     isValid = false;
   } else {
     const currentYear = new Date().getFullYear();
     if (businessForm.establishedYear > currentYear) {
-      errors.establishedYear = '설립 연도는 현재 연도를 초과할 수 없습니다.';
       isValid = false;
     }
   }
   if (!businessForm.annualRevenue) {
-    errors.annualRevenue = '연 매출 범위를 선택해주세요.';
     isValid = false;
   }
   if (!businessForm.employeeCount) {
-    errors.employeeCount = '직원 수를 입력해주세요.';
     isValid = false;
   } else if (businessForm.employeeCount < 1) {
-    errors.employeeCount = '직원 수는 1명 이상이어야 합니다.';
     isValid = false;
   }
 
@@ -159,30 +164,49 @@ const handleSkip = () => {
 
 // 사업장 등록 API 호출
 const handleComplete = async () => {
-  if (!validateForm()) {
-    toastStore.error('입력 정보를 확인해주세요.');
+  // 유효성 검증
+  const isValid = validateForm();
+  if (!isValid) {
+    // 첫 번째 에러 메시지를 찾아서 보여주기
+    const firstError = Object.values(errors).find((msg) => msg);
+    if (firstError) {
+      toastStore.error(firstError);
+    } else {
+      toastStore.error('입력 정보를 확인해주세요.');
+    }
     return;
   }
 
   try {
     isLoading.value = true;
-
     const result = await businessAPI.register(businessForm);
 
     if (result) {
       toastStore.success('사업장이 성공적으로 등록되었습니다.');
 
-      // 부모 컴포넌트에도 알림 (필요시)
+      // 부모 컴포넌트 알림
       emit('complete', result);
 
-      // 메인 페이지 혹은 이전 페이지로 이동
+      // 리다이렉트
       const returnTo = route.query.returnTo;
       router.push(returnTo && ALLOWED_RETURN_PATHS.includes(returnTo) ? returnTo : '/');
     } else {
-      toastStore.error('사업장 등록에 실패했습니다.');
+      toastStore.error('사업장 등록에 실패했습니다. 다시 시도해주세요.');
     }
   } catch (error) {
-    toastStore.error('처리 중 오류가 발생했습니다.');
+    console.error('사업장 등록 오류:', error);
+
+    if (error.message && error.message.includes('Network')) {
+      toastStore.error('네트워크 연결을 확인해주세요.');
+    } else if (error.message && error.message.includes('timeout')) {
+      toastStore.error('요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+    } else if (error.response && error.response.status === 429) {
+      toastStore.error('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
+    } else if (error.response && error.response.status >= 500) {
+      toastStore.error('서버에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    } else {
+      toastStore.error('처리 중 알 수 없는 오류가 발생했습니다.');
+    }
   } finally {
     isLoading.value = false;
   }
@@ -265,6 +289,9 @@ onMounted(() => {
 .complete-button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+.complete-button.active {
+  background-color: var(--color-sub);
 }
 </style>
 
