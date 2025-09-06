@@ -5,19 +5,63 @@
       <img class="navbar-logo" src="@/assets/로고 가로.png" alt="OnMarket" />
     </div>
 
+    <!-- 햄버거 버튼 -->
+    <button class="hamburger-btn" @click="toggleMobileMenu" :class="{ active: showMobileMenu }">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </button>
+
     <!-- 메인 네비게이션 -->
-    <div class="navbar-menu">
-      <RouterLink to="/loans" class="menu-item">
+    <div class="navbar-menu" :class="{ 'mobile-open': showMobileMenu }">
+      <RouterLink to="/loans" class="menu-item" @click="closeMobileMenu">
         <i class="bi bi-credit-card"></i>
         <span>대출 상품</span>
       </RouterLink>
-      <RouterLink to="/policies" class="menu-item">
+      <RouterLink to="/policies" class="menu-item" @click="closeMobileMenu">
         <i class="bi bi-building"></i>
         <span>정부 지원금</span>
       </RouterLink>
+      <RouterLink to="/promote" class="menu-item" @click="closeMobileMenu">
+        <i class="bi bi-megaphone"></i>
+        <span>내 가게 알리기</span>
+      </RouterLink>
+
+      <!-- 모바일에서만 보이는 사용자 메뉴 -->
+      <div class="mobile-user-menu" v-if="showMobileMenu">
+        <template v-if="authStore.isAuthenticated">
+          <div class="mobile-user-info">
+            <div class="mobile-profile">
+              <img
+                :src="currentAvatar"
+                :alt="currentName"
+                class="mobile-profile-image"
+                @error="onImgErr"
+              />
+              <span class="mobile-user-name">{{ currentName }}</span>
+            </div>
+          </div>
+          <div class="mobile-menu-divider"></div>
+          <RouterLink to="/user/mypage" class="mobile-menu-item" @click="closeMobileMenu">
+            <i class="bi bi-person"></i>
+            <span>마이페이지</span>
+          </RouterLink>
+          <button class="mobile-menu-item logout-item" @click="handleMobileLogout">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>로그아웃</span>
+          </button>
+        </template>
+        <template v-else>
+          <div class="mobile-menu-divider"></div>
+          <RouterLink to="/login" class="mobile-menu-item" @click="closeMobileMenu">
+            <i class="bi bi-box-arrow-in-right"></i>
+            <span>로그인</span>
+          </RouterLink>
+        </template>
+      </div>
     </div>
 
-    <!-- 우측 사용자 영역 -->
+    <!-- 우측 사용자 영역 (데스크톱) -->
     <div class="navbar-actions">
       <!-- 로그인 상태일 때 -->
       <template v-if="authStore.isAuthenticated">
@@ -56,20 +100,12 @@
         <!-- 사용자 프로필 -->
         <div class="user-profile-wrapper">
           <button class="user-profile-btn" @click="toggleUserMenu">
-            <img
-              v-if="authStore.user?.profileImage"
-              :src="authStore.user.profileImage"
-              :alt="authStore.user.name"
-              class="profile-image"
-            />
-            <div v-else class="profile-placeholder">
-              <i class="bi bi-person-circle"></i>
-            </div>
-            <span class="user-name">{{ authStore.user?.name || '사용자' }}</span>
+            <img :src="currentAvatar" :alt="currentName" class="profile-image" @error="onImgErr" />
+            <span class="user-name">{{ currentName }}</span>
             <i class="bi bi-chevron-down dropdown-arrow" :class="{ rotated: showUserMenu }"></i>
           </button>
 
-          <!-- 사용자 드롭다운 메뉴 -->
+          <!-- 드롭다운 -->
           <div v-if="showUserMenu" class="user-dropdown">
             <RouterLink to="/user/mypage" class="dropdown-item" @click="closeUserMenu">
               <i class="bi bi-person"></i>
@@ -84,7 +120,7 @@
         </div>
       </template>
 
-      <!-- 비로그인 상태일 때 -->
+      <!-- 비로그인 상태 -->
       <template v-else>
         <RouterLink to="/login" class="auth-btn login-btn">
           <i class="bi bi-box-arrow-in-right"></i>
@@ -96,12 +132,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/useAuthStore';
+import memberApi from '@/api/member';
+import { useToastStore } from '@/stores/useToastStore';
+import default_image from '@/assets/default_avatar.png';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const toast = useToastStore();
+
+const DEFAULT_AVATAR = default_image;
+const me = ref(null);
 
 // 알림 관련 상태
 const showNotifications = ref(false);
@@ -119,25 +162,54 @@ const unreadCount = ref(2);
 // 사용자 메뉴 관련 상태
 const showUserMenu = ref(false);
 
-// 메서드들
+// 모바일 메뉴 상태
+const showMobileMenu = ref(false);
+
+// 현재 아바타
+const currentAvatar = computed(() => {
+  return me.value?.profileImage || DEFAULT_AVATAR;
+});
+
+// 현재 이름
+const currentName = computed(() => {
+  return me.value?.nickname || me.value?.username || '사용자';
+});
+
+// 이미지 에러 핸들러
+const onImgErr = (e) => {
+  e.target.src = DEFAULT_AVATAR;
+  if (me.value) me.value.profileImage = null;
+};
+
+// 라우터 이동
 const navigateTo = (path) => {
   router.push(path);
 };
 
+// 토글 관련
+const toggleMobileMenu = () => {
+  showMobileMenu.value = !showMobileMenu.value;
+  showNotifications.value = false;
+  showUserMenu.value = false;
+};
+const closeMobileMenu = () => {
+  showMobileMenu.value = false;
+};
 const toggleNotifications = () => {
   showNotifications.value = !showNotifications.value;
-  showUserMenu.value = false; // 다른 드롭다운 닫기
+  showUserMenu.value = false;
+  showMobileMenu.value = false;
 };
-
 const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value;
-  showNotifications.value = false; // 다른 드롭다운 닫기
+  showNotifications.value = false;
+  showMobileMenu.value = false;
 };
-
 const closeUserMenu = () => {
   showUserMenu.value = false;
 };
 
+// 알림 모두 읽음
 const markAllAsRead = () => {
   notifications.value.forEach((notification) => {
     notification.read = true;
@@ -145,6 +217,7 @@ const markAllAsRead = () => {
   unreadCount.value = 0;
 };
 
+// 알림 시간 포맷
 const formatTime = (date) => {
   const now = new Date();
   const diff = now - date;
@@ -157,9 +230,15 @@ const formatTime = (date) => {
   return date.toLocaleDateString();
 };
 
+// 로그아웃
 const handleLogout = () => {
   authStore.logout();
   showUserMenu.value = false;
+  router.push('/');
+};
+const handleMobileLogout = () => {
+  authStore.logout();
+  showMobileMenu.value = false;
   router.push('/');
 };
 
@@ -171,10 +250,30 @@ const handleClickOutside = (event) => {
   if (!event.target.closest('.user-profile-wrapper')) {
     showUserMenu.value = false;
   }
+  if (!event.target.closest('.navbar-menu') && !event.target.closest('.hamburger-btn')) {
+    showMobileMenu.value = false;
+  }
 };
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
+
+  // 로그인된 경우 회원정보 + 프로필 이미지 불러오기
+  if (authStore.isAuthenticated) {
+    (async () => {
+      try {
+        const info = await memberApi.getMemberInfo();
+        me.value = info;
+
+        const imageData = await memberApi.getCurrentProfileImage();
+        if (imageData?.url) {
+          me.value.profileImage = imageData.url;
+        }
+      } catch (err) {
+        toast.error('회원 정보 불러오기 실패');
+      }
+    })();
+  }
 });
 
 onUnmounted(() => {
@@ -187,8 +286,11 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100vw; /* 100%에서 100vw로 변경 */
-  padding: 0 400px;
+  flex-wrap: nowrap;
+  width: 100vw;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 10rem;
   height: 70px;
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
@@ -196,8 +298,42 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 1000;
-  margin: 0; /* 기본 마진 제거 */
-  box-sizing: border-box; /* 패딩 포함해서 계산 */
+  box-sizing: border-box;
+}
+
+/* 햄버거 버튼 */
+.hamburger-btn {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  gap: 4px;
+}
+
+.hamburger-line {
+  width: 24px;
+  height: 2px;
+  background-color: #374151;
+  transition: all 0.3s ease;
+  transform-origin: center;
+}
+
+.hamburger-btn.active .hamburger-line:nth-child(1) {
+  transform: rotate(45deg) translate(6px, 6px);
+}
+
+.hamburger-btn.active .hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-btn.active .hamburger-line:nth-child(3) {
+  transform: rotate(-45deg) translate(6px, -6px);
 }
 
 /* 로고 영역 */
@@ -233,6 +369,77 @@ onUnmounted(() => {
 .menu-item.router-link-active {
   color: #333;
   border-bottom: 2px solid var(--color-sub);
+}
+
+/* 모바일 메뉴 스타일 */
+.mobile-user-menu {
+  display: none;
+}
+
+.mobile-menu-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 1rem 0;
+}
+
+.mobile-user-info {
+  padding: 1rem 0;
+}
+
+.mobile-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mobile-profile-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.mobile-profile-placeholder {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 50%;
+  color: #9ca3af;
+}
+
+.mobile-profile-placeholder i {
+  font-size: 1.5rem;
+}
+
+.mobile-user-name {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.mobile-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  text-decoration: none;
+  color: #374151;
+  font-size: 1rem;
+  font-weight: 500;
+  border: none;
+  background: none;
+  width: 100%;
+  cursor: pointer;
+}
+
+.mobile-menu-item.logout-item {
+  color: #dc2626;
+}
+
+.mobile-overlay {
+  display: none;
 }
 
 /* 우측 액션 영역 */
@@ -481,6 +688,96 @@ onUnmounted(() => {
 .login-btn {
   color: #333;
   border: 1px solid #333;
+}
+
+/* 태블릿 및 모바일 반응형 */
+@media (max-width: 1300px) {
+  .navbar {
+    padding: 0 2rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .navbar {
+    padding: 0 1rem;
+    position: relative;
+  }
+
+  .hamburger-btn {
+    display: flex;
+    order: 3;
+  }
+
+  .navbar-brand {
+    order: 1;
+  }
+
+  .navbar-actions {
+    order: 2;
+    margin-right: auto;
+    margin-left: 1rem;
+  }
+
+  .navbar-menu {
+    position: fixed;
+    top: 70px;
+    left: -100%;
+    width: 280px;
+    height: calc(100vh - 70px);
+    background: white;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 2rem 1.5rem;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    transition: left 0.3s ease;
+    z-index: 999;
+    overflow-y: auto;
+  }
+
+  .navbar-menu.mobile-open {
+    left: 0;
+  }
+
+  .menu-item {
+    padding: 1rem 0;
+    justify-content: flex-start;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 1rem;
+  }
+
+  .menu-item.router-link-active {
+    border-bottom: 1px solid var(--color-sub);
+  }
+
+  .mobile-user-menu {
+    display: block;
+    margin-top: 1rem;
+  }
+
+  .mobile-overlay {
+    display: block;
+    position: fixed;
+    top: 70px;
+    left: 0;
+    width: 100vw;
+    height: calc(100vh - 70px);
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+  }
+
+  /* 모바일에서 데스크톱 사용자 메뉴 숨김 */
+  .user-profile-wrapper {
+    display: none;
+  }
+
+  .notification-wrapper {
+    display: none;
+  }
+
+  .auth-btn {
+    display: none;
+  }
 }
 </style>
 
