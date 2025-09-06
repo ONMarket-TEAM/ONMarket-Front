@@ -132,7 +132,6 @@ const handleLogin = async () => {
           await router.push(redirectTo);
         }
       } catch (businessError) {
-        console.error('사업장 조회 오류:', businessError);
         toastStore.error('사업장 정보를 불러오는 중 오류가 발생했습니다.');
         // 오류가 있어도 메인 페이지로 이동
         const redirectTo = router.currentRoute.value.query.redirect || '/';
@@ -142,15 +141,12 @@ const handleLogin = async () => {
       // 로그인 실패 시 구체적인 오류 메시지
       if (result.message) {
         if (result.message.includes('이메일')) {
-          toastStore.error('등록되지 않은 이메일입니다.');
         } else if (result.message.includes('비밀번호')) {
           toastStore.error('비밀번호가 일치하지 않습니다.');
         } else if (result.message.includes('계정')) {
           toastStore.error('계정이 비활성화되어 있습니다. 고객센터에 문의해주세요.');
         } else if (result.message.includes('잠금')) {
           toastStore.error('계정이 잠겨있습니다. 잠시 후 다시 시도해주세요.');
-        } else {
-          toastStore.error(result.message);
         }
       } else {
         toastStore.error('이메일 또는 비밀번호를 확인해주세요.');
