@@ -5,7 +5,7 @@
       <p class="step-subtitle">회원가입을 위한 기본 정보를 입력해주세요</p>
     </div>
 
-    <form @submit.prevent="handleNext" class="step-form">
+    <form @submit.prevent="handleNext" class="step-form" novalidate>
       <div class="form-group">
         <label for="username" class="form-label">이름</label>
         <div class="form-control">
@@ -146,6 +146,8 @@
             v-model="signupForm.birthDate"
             type="date"
             class="form-input"
+            min="1900-01-01"
+            :max="new Date().toISOString().split('T')[0]"
             required
           />
         </div>
@@ -205,7 +207,9 @@
 
       <!-- 다음 단계 버튼 -->
       <div class="button-wrapper">
-        <button type="submit" class="next-button" :disabled="!isFormValid">회원가입 완료</button>
+        <button type="submit" class="next-button" :class="{ active: isFormValid }">
+          회원가입 완료
+        </button>
       </div>
     </form>
   </div>
@@ -216,6 +220,8 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import SmsVerification from '@/components/signup/SmsVerification.vue';
 import { validationAPI } from '@/api/validation';
 import { useToastStore } from '@/stores/useToastStore';
+import { s3API } from '@/api/s3';
+
 const toastStore = useToastStore();
 
 const props = defineProps({
@@ -226,6 +232,26 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['next', 'complete']);
+
+const isFormValid = computed(() => {
+  return (
+    signupForm.username.trim() &&
+    signupForm.nickname.trim() &&
+    isValidNickname(signupForm.nickname) &&
+    nicknameCheck.value.isChecked &&
+    nicknameCheck.value.isAvailable &&
+    signupForm.email.trim() &&
+    isValidEmail(signupForm.email) &&
+    emailCheck.value.isChecked &&
+    emailCheck.value.isAvailable &&
+    smsVerificationStatus.value.isVerified &&
+    signupForm.password &&
+    isValidPassword(signupForm.password) &&
+    signupForm.password === signupForm.confirmPassword &&
+    signupForm.birthDate &&
+    signupForm.gender
+  );
+});
 
 // Refs
 const smsVerificationRef = ref(null);
@@ -260,6 +286,7 @@ const signupForm = reactive({
   confirmPassword: '',
   phone: '',
   profileImage: '',
+  profileImageKey: '',
   birthDate: '',
   gender: '',
 });
@@ -279,25 +306,6 @@ const canCheckNickname = computed(() => {
 
 const canCheckEmail = computed(() => {
   return signupForm.email && isValidEmail(signupForm.email) && !emailCheck.value.isChecking;
-});
-
-const isFormValid = computed(() => {
-  return (
-    signupForm.username &&
-    signupForm.nickname &&
-    signupForm.email &&
-    signupForm.password &&
-    signupForm.confirmPassword &&
-    signupForm.birthDate &&
-    signupForm.gender &&
-    isValidPassword(signupForm.password) &&
-    signupForm.password === signupForm.confirmPassword &&
-    smsVerificationStatus.value.isVerified &&
-    nicknameCheck.value.isChecked &&
-    nicknameCheck.value.isAvailable &&
-    emailCheck.value.isChecked &&
-    emailCheck.value.isAvailable
-  );
 });
 
 const confirmPasswordMessage = computed(() => {
@@ -343,7 +351,6 @@ const checkNicknameDuplicate = async () => {
       nicknameCheck.value.message = '이미 사용중인 닉네임입니다.';
     }
   } catch (error) {
-    console.error('닉네임 중복 확인 오류:', error);
     nicknameCheck.value.message = '중복 확인 중 오류가 발생했습니다.';
     nicknameCheck.value.isAvailable = false;
   } finally {
@@ -370,7 +377,6 @@ const checkEmailDuplicate = async () => {
       emailCheck.value.message = '이미 사용중인 이메일입니다.';
     }
   } catch (error) {
-    console.error('이메일 중복 확인 오류:', error);
     emailCheck.value.message = '중복 확인 중 오류가 발생했습니다.';
     emailCheck.value.isAvailable = false;
   } finally {
@@ -397,44 +403,125 @@ const onCodeSent = () => {
 };
 
 // 프로필 이미지 업로드 처리
-const handleProfileImageUpload = (event) => {
+const handleProfileImageUpload = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
 
+  // 파일 크기 제한
   if (file.size > 5 * 1024 * 1024) {
     toastStore.error('파일 크기는 5MB 이하여야 합니다.');
+    event.target.value = ''; // 파일 입력 초기화
     return;
   }
 
+  // 이미지 파일만 허용
   if (!file.type.startsWith('image/')) {
     toastStore.error('이미지 파일만 업로드 가능합니다.');
+    event.target.value = ''; // 파일 입력 초기화
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    signupForm.profileImage = e.target.result;
-  };
-  reader.readAsDataURL(file);
+  try {
+    // (1) Presigned URL 발급
+    const presign = await s3API.getPresignedPutUrl('user-uploads', file.name, file.type);
+
+    // (2) S3에 직접 업로드
+    await s3API.uploadToS3(presign.uploadUrl, file, file.type);
+
+    // (3) 미리보기용 DataURL 생성
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      signupForm.profileImage = e.target.result;
+    };
+    reader.readAsDataURL(file);
+
+    // (4) 회원가입 시 서버에 보낼 key 저장
+    signupForm.profileImageKey = presign.key;
+
+    toastStore.success('프로필 이미지가 업로드되었습니다.');
+  } catch (error) {
+    toastStore.error('이미지 업로드 중 오류가 발생했습니다.');
+    event.target.value = '';
+  }
 };
 
 const removeProfileImage = () => {
   signupForm.profileImage = '';
+  signupForm.profileImageKey = '';
   const fileInput = document.getElementById('profileImage');
   if (fileInput) fileInput.value = '';
 };
 
 // 다음 단계로
 const handleNext = () => {
-  if (!isFormValid.value) {
-    toastStore.error('모든 필수 항목을 입력해주세요.');
+  // 각 필드별로 상세한 검증 및 메시지 제공
+  const validationErrors = [];
+
+  // 1. 기본 필드 검증
+  if (!signupForm.username.trim()) {
+    validationErrors.push('이름을 입력해주세요.');
+  }
+
+  if (!signupForm.nickname.trim()) {
+    validationErrors.push('닉네임을 입력해주세요.');
+  } else if (!isValidNickname(signupForm.nickname)) {
+    validationErrors.push('닉네임은 2-20자 사이여야 합니다.');
+  } else if (!nicknameCheck.value.isChecked) {
+    validationErrors.push('닉네임 중복확인을 해주세요.');
+  } else if (!nicknameCheck.value.isAvailable) {
+    validationErrors.push('사용할 수 없는 닉네임입니다. 다른 닉네임을 선택해주세요.');
+  }
+
+  if (!signupForm.email.trim()) {
+    validationErrors.push('이메일을 입력해주세요.');
+  } else if (!isValidEmail(signupForm.email)) {
+    validationErrors.push('올바른 이메일 형식으로 입력해주세요.');
+  } else if (!emailCheck.value.isChecked) {
+    validationErrors.push('이메일 중복확인을 해주세요.');
+  } else if (!emailCheck.value.isAvailable) {
+    validationErrors.push('사용할 수 없는 이메일입니다. 다른 이메일을 입력해주세요.');
+  }
+
+  // 2. 휴대폰 인증 검증
+  if (!smsVerificationStatus.value.isVerified) {
+    validationErrors.push('휴대폰 번호 인증을 완료해주세요.');
+  }
+
+  // 3. 비밀번호 검증
+  if (!signupForm.password) {
+    validationErrors.push('비밀번호를 입력해주세요.');
+  } else if (!isValidPassword(signupForm.password)) {
+    validationErrors.push('비밀번호는 8자 이상, 영문, 숫자, 특수문자를 포함해야 합니다.');
+  }
+
+  if (!signupForm.confirmPassword) {
+    validationErrors.push('비밀번호 확인을 입력해주세요.');
+  } else if (signupForm.password !== signupForm.confirmPassword) {
+    validationErrors.push('비밀번호가 일치하지 않습니다.');
+  }
+
+  // 4. 생년월일 검증
+  if (!signupForm.birthDate) {
+    validationErrors.push('생년월일을 선택해주세요.');
+  }
+
+  // 5. 성별 검증
+  if (!signupForm.gender) {
+    validationErrors.push('성별을 선택해주세요.');
+  }
+
+  // 검증 실패 시 첫 번째 오류 메시지 표시
+  if (validationErrors.length > 0) {
+    toastStore.error(validationErrors[0]); // 첫 번째 오류만 표시
     return;
   }
 
-  // 부모 컴포넌트로 데이터 전달
+  // 모든 검증 통과 시 다음 단계로
   emit('complete', {
     ...signupForm,
     phoneVerified: smsVerificationStatus.value.isVerified,
+    profileImage: undefined,
+    profileImageKey: signupForm.profileImageKey,
   });
 };
 
@@ -737,4 +824,8 @@ onMounted(() => {
   box-shadow: 0 15px 35px var(--color-light-3);
   transform: translateY(-2px);
 }
+.next-button.active {
+  background-color: var(--color-sub);
+}
 </style>
+

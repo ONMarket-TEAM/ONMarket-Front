@@ -3,38 +3,38 @@ import { ref, computed } from 'vue';
 import { authAPI } from '@/api/auth';
 import { mailAPI } from '@/api/mail';
 import { useToastStore } from '@/stores/useToastStore';
-// import { memberAPI } from '@/api/member';
 
 export const useAuthStore = defineStore('auth', () => {
-  // 상태 - 기존 코드 유지
-  const user = ref(JSON.parse(localStorage.getItem('userInfo')) || null);
-  const accessToken = ref(localStorage.getItem('accessToken') || null);
-  const refreshToken = ref(localStorage.getItem('refreshToken') || null);
+  // 상태 정의
+  const user = ref(null);
+  const accessToken = ref(null);
+  const refreshToken = ref(null);
   const isLoading = ref(false);
   const toastStore = useToastStore();
-  // Getters - 기존 코드 + 추가
+
+  // Computed
   const isAuthenticated = computed(() => !!accessToken.value);
   const userInfo = computed(() => user.value);
   const userName = computed(() => user.value?.name || '');
   const userEmail = computed(() => user.value?.email || '');
 
-  // 로그인 액션 - 기존 코드 유지
-  const login = async (email, password) => {
+  // 로그인
+  const login = async (email, password, rememberMe = false) => {
     isLoading.value = true;
 
     try {
-      const result = await authAPI.login(email, password);
+      const result = await authAPI.login(email, password, rememberMe);
 
       if (result.success) {
         const loginData = result.data;
 
-        // 토큰 저장
-        setTokens(loginData.accessToken, loginData.refreshToken);
+        // 사용자 정보 설정
+        user.value = loginData.user || { email };
+
+        // 토큰 저장 (rememberMe에 따라 localStorage 또는 sessionStorage)
+        setTokens(loginData.accessToken, loginData.refreshToken, rememberMe);
+
         toastStore.success('로그인되었습니다');
-
-        // userInfo는 응답에 없으므로 여기선 세팅 안 함
-        // 필요하면 따로 API 호출해서 가져오기
-
         return { success: true, message: result.message };
       } else {
         toastStore.error(result.message);
@@ -103,14 +103,13 @@ export const useAuthStore = defineStore('auth', () => {
       const result = await authAPI.findIdByPhone({ name, phone });
 
       if (result.success) {
-        // result.data는 이메일 문자열이므로 배열로 변환
         const email = result.data;
         const emailData = email
           ? [
               {
                 id: 1,
                 maskedEmail: maskEmail(email),
-                joinDate: new Date().toISOString(), // 또는 실제 가입일이 있다면 사용
+                joinDate: new Date().toISOString(),
               },
             ]
           : [];
@@ -141,7 +140,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  // 이메일 마스킹 함수 추가
+  // 이메일 마스킹
   const maskEmail = (email) => {
     if (!email) return '';
 
@@ -154,20 +153,47 @@ export const useAuthStore = defineStore('auth', () => {
       username[0] + '*'.repeat(username.length - 2) + username[username.length - 1];
     return `${maskedUsername}@${domain}`;
   };
-  // 토큰 설정 - 기존 코드 유지
-  const setTokens = (newAccessToken, newRefreshToken) => {
+
+  // 토큰 설정 (rememberMe에 따라 localStorage 또는 sessionStorage 사용)
+  const setTokens = (newAccessToken, newRefreshToken, rememberMe = false) => {
     if (newAccessToken) {
       accessToken.value = newAccessToken;
-      localStorage.setItem('accessToken', newAccessToken);
+
+      if (rememberMe) {
+        localStorage.setItem('accessToken', newAccessToken);
+        sessionStorage.removeItem('accessToken');
+      } else {
+        sessionStorage.setItem('accessToken', newAccessToken);
+        localStorage.removeItem('accessToken');
+      }
     }
 
     if (newRefreshToken) {
       refreshToken.value = newRefreshToken;
-      localStorage.setItem('refreshToken', newRefreshToken);
+
+      if (rememberMe) {
+        localStorage.setItem('refreshToken', newRefreshToken);
+        sessionStorage.removeItem('refreshToken');
+      } else {
+        sessionStorage.setItem('refreshToken', newRefreshToken);
+        localStorage.removeItem('refreshToken');
+      }
+    }
+
+    // 사용자 정보도 같은 방식으로 저장
+    if (user.value) {
+      const userInfoStr = JSON.stringify(user.value);
+      if (rememberMe) {
+        localStorage.setItem('userInfo', userInfoStr);
+        sessionStorage.removeItem('userInfo');
+      } else {
+        sessionStorage.setItem('userInfo', userInfoStr);
+        localStorage.removeItem('userInfo');
+      }
     }
   };
 
-  // 비밀번호 재설정 (이메일 인증 후)
+  // 비밀번호 재설정
   const resetPasswordByEmail = async ({ email, newPassword, confirmNewPassword }) => {
     isLoading.value = true;
 
@@ -199,22 +225,24 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  // 로그아웃 - 새로 추가 (기존 스타일에 맞춰서)
+  // 로그아웃
   const logout = () => {
     user.value = null;
     accessToken.value = null;
     refreshToken.value = null;
 
-    // 기존 방식대로 localStorage 전체 클리어
     localStorage.clear();
+    sessionStorage.clear();
     toastStore.success('로그아웃되었습니다.');
   };
 
-  // 인증 초기화 - 새로 추가 (기존 스타일에 맞춰서)
+  // 인증 초기화 (localStorage와 sessionStorage 모두 확인)
   const initializeAuth = () => {
-    const savedUserInfo = localStorage.getItem('userInfo');
-    const savedAccessToken = localStorage.getItem('accessToken');
-    const savedRefreshToken = localStorage.getItem('refreshToken');
+    let savedUserInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
+    let savedAccessToken =
+      localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+    let savedRefreshToken =
+      localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
 
     try {
       if (savedUserInfo) {
@@ -227,16 +255,15 @@ export const useAuthStore = defineStore('auth', () => {
         refreshToken.value = savedRefreshToken;
       }
     } catch (error) {
-      toastStore.error('네트워크 연결을 확인해주세요.');
-      // 잘못된 데이터가 있으면 초기화
       localStorage.clear();
+      sessionStorage.clear();
       user.value = null;
       accessToken.value = null;
       refreshToken.value = null;
     }
   };
 
-  // 프로필 업데이트 - 새로 추가 (기존 API 방식으로 수정)
+  // 프로필 업데이트
   const updateProfile = async (profileData) => {
     isLoading.value = true;
 
@@ -244,9 +271,14 @@ export const useAuthStore = defineStore('auth', () => {
       const result = await authAPI.updateProfile(profileData);
 
       if (result.success) {
-        // 사용자 정보 업데이트
         user.value = { ...user.value, ...result.data };
-        localStorage.setItem('userInfo', JSON.stringify(user.value));
+
+        // 현재 저장 위치 확인 후 업데이트
+        if (localStorage.getItem('userInfo')) {
+          localStorage.setItem('userInfo', JSON.stringify(user.value));
+        } else {
+          sessionStorage.setItem('userInfo', JSON.stringify(user.value));
+        }
 
         toastStore.success(result.message || '프로필이 업데이트되었습니다.');
         return { success: true, message: result.message || '프로필이 업데이트되었습니다.' };
@@ -262,6 +294,79 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
+  // 사용자 프로필 정보만 업데이트 (API 호출 없이 로컬 상태만 업데이트)
+  const updateUserProfile = (profileData) => {
+    if (!user.value) return;
+
+    // 기존 사용자 정보와 새 프로필 데이터 병합
+    user.value = { ...user.value, ...profileData };
+
+    // 스토리지에도 업데이트
+    const userInfoStr = JSON.stringify(user.value);
+    if (localStorage.getItem('userInfo')) {
+      localStorage.setItem('userInfo', userInfoStr);
+    } else if (sessionStorage.getItem('userInfo')) {
+      sessionStorage.setItem('userInfo', userInfoStr);
+    }
+  };
+
+  // 사용자 정보 강제 새로고침 (외부에서 호출 가능)
+  const refreshUserInfo = async () => {
+    if (!isAuthenticated.value) return null;
+
+    try {
+      // memberApi를 동적으로 import하여 사용
+      const memberApi = await import('@/api/member');
+      const info = await memberApi.default.getMemberInfo();
+
+      if (info) {
+        // 사용자 정보 업데이트
+        user.value = { ...user.value, ...info };
+
+        // 프로필 이미지도 함께 가져오기
+        try {
+          const imageData = await memberApi.default.getCurrentProfileImage();
+          if (imageData?.url) {
+            user.value.profileImage = imageData.url;
+          }
+        } catch (imgErr) {
+          console.warn('프로필 이미지 로드 실패:', imgErr);
+        }
+
+        // 스토리지에도 업데이트
+        const userInfoStr = JSON.stringify(user.value);
+        if (localStorage.getItem('userInfo')) {
+          localStorage.setItem('userInfo', userInfoStr);
+        } else if (sessionStorage.getItem('userInfo')) {
+          sessionStorage.setItem('userInfo', userInfoStr);
+        }
+
+        return user.value;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('사용자 정보 새로고침 실패:', error);
+      return null;
+    }
+  };
+
+  // 사용자 정보 완전 초기화
+  const clearUserData = () => {
+    user.value = null;
+    accessToken.value = null;
+    refreshToken.value = null;
+  };
+
+  // 로그인 상태 변경 이벤트 (외부에서 감지할 수 있도록)
+  const onAuthStateChange = (callback) => {
+    // computed를 watch하는 방식으로 구현 가능
+    return () => callback(isAuthenticated.value, user.value);
+  };
+
+  // 스토어 생성 시 자동 초기화
+  initializeAuth();
+
   return {
     // 상태
     user,
@@ -269,30 +374,27 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken,
     isLoading,
 
-    // Getters
+    // Computed
     isAuthenticated,
     userInfo,
     userName,
     userEmail,
 
-    // 액션
+    // 기존 메서드
     login,
-    signup, // 새로 추가
-    forgotPassword, // 새로 추가
-    findIdByPhone, // 새로 추가
-    logout, // 새로 추가
-    initializeAuth, // 새로 추가
-    updateProfile, // 새로 추가
+    signup,
+    forgotPassword,
+    findIdByPhone,
+    logout,
+    initializeAuth,
+    updateProfile,
     setTokens,
     resetPasswordByEmail,
-    // 기존 주석처리된 함수들은 필요시 추가
-    // logout,
-    // withdraw,
-    // refreshUser,
-    // clearAuthData,
-    // initialize,
-    // hasValidTokens,
-    // shouldValidateTokenOnInit,
+
+    // 새로 추가된 메서드
+    updateUserProfile,
+    refreshUserInfo,
+    clearUserData,
+    onAuthStateChange,
   };
 });
-

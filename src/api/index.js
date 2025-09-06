@@ -11,7 +11,7 @@ const api = axios.create({
 // 요청 인터셉터: 모든 요청에 자동으로 토큰 추가
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -21,7 +21,6 @@ api.interceptors.request.use(
     return Promise.reject(error);
   }
 );
-
 // 응답 인터셉터: 401 에러 시 토큰 새로고침
 api.interceptors.response.use(
   (response) => {
@@ -36,7 +35,8 @@ api.interceptors.response.use(
       try {
         console.log('토큰 만료 - 새로고침 시도');
 
-        const refreshToken = localStorage.getItem('refreshToken');
+        const refreshToken =
+          localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
         if (refreshToken) {
           const response = await axios.post('/api/auth/refresh', {
             refreshToken: refreshToken,
@@ -44,8 +44,15 @@ api.interceptors.response.use(
 
           const newAccessToken = response.data.body.data.accessToken;
           const newRefreshToken = response.data.body.data.refreshToken;
-          localStorage.setItem('accessToken', newAccessToken);
-          localStorage.setItem('refreshToken', newRefreshToken);
+
+          // 기존 토큰이 어디에 저장되어 있었는지 확인하고 같은 곳에 저장
+          if (localStorage.getItem('accessToken')) {
+            localStorage.setItem('accessToken', newAccessToken);
+            localStorage.setItem('refreshToken', newRefreshToken);
+          } else {
+            sessionStorage.setItem('accessToken', newAccessToken);
+            sessionStorage.setItem('refreshToken', newRefreshToken);
+          }
 
           console.log('토큰 새로고침 성공');
 
@@ -53,11 +60,14 @@ api.interceptors.response.use(
           return api(originalRequest);
         }
       } catch (refreshError) {
+        // 두 곳 모두 클리어
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('userInfo');
+        sessionStorage.removeItem('accessToken');
+        sessionStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('userInfo');
 
-        // 로그인 페이지로 리다이렉트
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
@@ -68,3 +78,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+

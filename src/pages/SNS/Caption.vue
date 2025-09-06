@@ -31,7 +31,7 @@
 
     <!-- STEP 1: 업로드 -->
     <section class="upload-section" v-if="currentStep === 1">
-      <div class="upload-drop" @drop.prevent="handleDrop" @dragover.prevent>
+      <div class="upload-drop" :class="{ 'has-image': uploadedImageUrl }" @drop.prevent="handleDrop" @dragover.prevent>
         <input
           type="file"
           ref="fileInput"
@@ -39,7 +39,26 @@
           @change="handleFileChange"
           hidden
         />
-        <button class="upload-inner" type="button" @click="openPicker" :disabled="isUploading">
+
+        <!-- 이미지가 업로드된 경우 -->
+        <div v-if="uploadedImageUrl" class="uploaded-preview">
+          <img :src="uploadedImageUrl" alt="업로드된 이미지" class="preview-img" />
+          <div class="upload-overlay">
+            <div class="upload-actions">
+              <button class="change-btn" type="button" @click="openPicker" :disabled="isUploading">
+                <span v-if="isUploading">업로드 중...</span>
+                <span v-else>다른 사진 선택</span>
+              </button>
+            </div>
+            <div class="upload-status">
+              <p v-if="isUploading">새 이미지 업로드 중...</p>
+              <p v-else>업로드 완료! 다른 사진을 선택하거나 다음 단계로 진행하세요.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 이미지가 업로드되지 않은 경우 -->
+        <button v-else class="upload-inner" type="button" @click="openPicker" :disabled="isUploading">
           <div v-if="isUploading" class="loading-spinner"></div>
           <svg
             v-else
