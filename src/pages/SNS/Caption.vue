@@ -130,7 +130,6 @@
               <li>상호명/지역/이벤트/가격/URL 등을 입력해보세요</li>
               <li>너무 길지 않게 핵심만 담아주세요</li>
               <li>AI가 문구를 다듬어 더 매력적으로 만듭니다</li>
-
             </ul>
           </div>
         </div>
@@ -376,7 +375,7 @@ function handleDrop(e) {
   if (file) uploadFile(file);
 }
 
-// 파일 업로드 함수 (axios 버전)
+// 파일 업로드 함수 (수정된 버전)
 async function uploadFile(file) {
   try {
     // 파일 검증
@@ -392,16 +391,14 @@ async function uploadFile(file) {
     // 파일명과 contentType 유효성 확인 및 정리
     const sanitizeFilename = (name) => {
       if (!name || !name.trim()) return `image_${Date.now()}.jpg`;
-      // 한글, 특수문자 제거하고 안전한 파일명으로 변경
       return name.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 100);
     };
 
     const normalizeContentType = (type) => {
       if (!type || !type.trim()) return 'image/jpeg';
-      // MIME 타입 정규화
       if (type.includes('jpeg') || type.includes('jpg')) return 'image/jpeg';
       if (type.includes('png')) return 'image/png';
-      return 'image/jpeg'; // 기본값
+      return 'image/jpeg';
     };
 
     const filename = sanitizeFilename(file.name);
@@ -422,7 +419,6 @@ async function uploadFile(file) {
 
     console.log('실제 요청 데이터:', requestData);
 
-    // axios 대신 fetch 사용해보기 (더 확실한 제어)
     const response = await fetch('/api/captions/presign', {
       method: 'POST',
       headers: {
@@ -433,7 +429,6 @@ async function uploadFile(file) {
     });
 
     console.log('Response status:', response.status);
-    console.log('Response headers:', response.headers);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -442,17 +437,27 @@ async function uploadFile(file) {
     }
 
     const presignData = await response.json();
-
     console.log('presigned URL 응답:', presignData);
 
-    // 2. S3에 직접 업로드
+    if (!presignData.key) {
+      throw new Error('presigned URL 응답에 key가 없습니다');
+    }
+
+    // 2. S3에 실제 파일 업로드 (이 부분이 누락되어 있었음!)
     console.log('S3 업로드 시작:', presignData.url);
 
-    await axios.put(presignData.url, file, {
+    const uploadResponse = await fetch(presignData.url, {
+      method: 'PUT',
       headers: {
         'Content-Type': contentType,
       },
+      body: file,
     });
+
+    if (!uploadResponse.ok) {
+      console.error('S3 업로드 실패:', uploadResponse.status, uploadResponse.statusText);
+      throw new Error(`S3 업로드 실패: ${uploadResponse.status}`);
+    }
 
     console.log('S3 업로드 성공');
 
@@ -460,12 +465,14 @@ async function uploadFile(file) {
     uploadedS3Key.value = presignData.key;
     uploadedImageUrl.value = presignData.publicUrl || presignData.url.split('?')[0];
 
+    console.log('저장된 S3 키:', uploadedS3Key.value);
+    console.log('이미지 URL:', uploadedImageUrl.value);
+
     toastSuccess('이미지가 성공적으로 업로드되었어요.');
 
   } catch (error) {
     console.error('업로드 오류:', error);
 
-    // 더 자세한 에러 정보 로깅
     if (error.response) {
       console.error('서버 응답 상태:', error.response.status);
       console.error('서버 응답 헤더:', error.response.headers);
@@ -476,7 +483,6 @@ async function uploadFile(file) {
       console.error('요청 설정 중 오류:', error.message);
     }
 
-    // fetch 에러의 경우
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
       console.error('네트워크 오류 또는 서버 연결 실패');
       toastError('서버에 연결할 수 없습니다. 백엔드가 실행 중인지 확인해주세요.');
@@ -488,8 +494,12 @@ async function uploadFile(file) {
   }
 }
 
-// AI 캡션 생성 (fetch 버전)
+// AI 캡션 생성 (수정된 버전 - try-catch 추가)
 async function generateCaption() {
+  console.log('AI 캡션 생성 시작');
+  console.log('업로드된 S3 키:', uploadedS3Key.value);
+  console.log('사용자 캡션:', userCaption.value);
+
   if (!uploadedS3Key.value || !userCaption.value.trim()) {
     toastWarn('이미지와 문구를 모두 입력해주세요.');
     return;
@@ -499,11 +509,11 @@ async function generateCaption() {
     isGenerating.value = true;
 
     const requestData = {
-      s3Key: uploadedS3Key.value,
+      s3Key: String(uploadedS3Key.value), // 명시적 형변환
       prompt: userCaption.value.trim(),
     };
 
-    console.log('캡션 생성 요청 데이터:', requestData);
+    console.log('전송할 요청 데이터:', requestData);
 
     const response = await fetch('/api/captions/generate-from-s3', {
       method: 'POST',
@@ -519,10 +529,11 @@ async function generateCaption() {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('캡션 생성 서버 응답 오류:', errorText);
-      throw new Error(`캡션 생성 요청 실패: ${response.status}`);
+      throw new Error(`캡션 생성 요청 실패: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('AI 응답 데이터:', data);
 
     // 생성된 데이터 저장
     generatedText.value = data.caption || '';
@@ -547,6 +558,8 @@ async function generateCaption() {
 
 // 네비게이션
 function goToStep2() {
+  console.log('Step 2로 이동 - S3 키 확인:', uploadedS3Key.value);
+
   if (!uploadedS3Key.value) {
     toastWarn('이미지를 먼저 업로드해주세요.');
     return;
@@ -559,8 +572,12 @@ function backToUpload() {
 }
 
 async function goToStep3() {
-  if (!userCaption.value.trim()) {
-    toastWarn('문구를 입력해주세요.');
+  console.log('Step 3로 이동 - 데이터 확인');
+  console.log('S3 키:', uploadedS3Key.value);
+  console.log('사용자 캡션:', userCaption.value);
+
+  if (!uploadedS3Key.value || !userCaption.value.trim()) {
+    toastWarn('이미지와 문구를 모두 입력해주세요.');
     return;
   }
 
