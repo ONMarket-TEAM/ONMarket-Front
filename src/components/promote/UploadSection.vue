@@ -90,7 +90,7 @@
         <p class="upload-text-2" v-if="!isUploading">JPG, PNG 파일 지원 (최대 10MB, 20장까지)</p>
         <p class="upload-text-3" v-if="!isUploading">제품, 음식, 풍경, 인물 등 모든 사진 가능</p>
         <p class="upload-text-4" v-if="!isUploading">
-          <span class="highlight">여러 장 선택 시 AI가 앞의 3장을 분석합니다</span>
+          <span class="highlight"> ※ 여러 장 선택 시 AI가 앞의 3장을 분석합니다</span>
         </p>
       </button>
     </div>
