@@ -21,14 +21,19 @@
 
         <div class="form-group">
           <label for="password" class="form-label">비밀번호</label>
-          <input
-            id="password"
-            v-model="loginForm.password"
-            type="password"
-            class="form-input"
-            placeholder="비밀번호를 입력하세요"
-            required
-          />
+          <div class="input-pwd">
+            <input
+              id="password"
+              v-model="loginForm.password"
+              :type="showPassword ? 'text' : 'password'"
+              class="form-input"
+              placeholder="비밀번호를 입력하세요"
+              required
+            />
+            <button type="button" class="icon-btn" @click="togglePassword">
+              <i :class="showPassword ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
+            </button>
+          </div>
         </div>
 
         <div class="form-options">
@@ -78,6 +83,7 @@ const toastStore = useToastStore();
 const router = useRouter();
 
 const isLoading = ref(false);
+const showPassword = ref(false);
 
 const loginForm = reactive({
   email: '',
@@ -87,6 +93,9 @@ const loginForm = reactive({
 
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
+const togglePassword = () => {
+  showPassword.value = !showPassword.value;
+};
 const handleLogin = async () => {
   // 상세한 검증 및 메시지 제공
   const validationErrors = [];
@@ -364,6 +373,41 @@ const handleLogin = async () => {
 .find-link:hover {
   color: var(--color-main);
   text-decoration: underline;
+}
+/* 비밀번호 입력 컨테이너 */
+.input-pwd {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+/* 입력창 */
+.input-pwd .form-input {
+  flex: 1;
+  padding-right: 40px; /* 버튼 겹치지 않게 여백 */
+}
+
+/* 아이콘 버튼 */
+.icon-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  font-size: 16px;
+  color: #666;
+  padding: 5px;
+}
+
+.icon-btn:hover {
+  color: #333;
+}
+
+/* 비밀번호 입력칸 focus 시 */
+.input-pwd .form-input:focus {
+  border-color: #4a90e2;
+  box-shadow: 0 0 4px rgba(74, 144, 226, 0.3);
 }
 </style>
 
