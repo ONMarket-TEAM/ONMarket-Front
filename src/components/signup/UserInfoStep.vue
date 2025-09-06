@@ -258,7 +258,7 @@ const smsVerificationRef = ref(null);
 
 // SMS 인증 상태
 const smsVerificationStatus = ref({
-  isVerified: true,
+  isVerified: false,
   phone: '',
   codeSent: false,
 });
