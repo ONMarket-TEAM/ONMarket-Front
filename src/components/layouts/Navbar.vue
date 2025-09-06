@@ -132,7 +132,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/useAuthStore';
 import memberApi from '@/api/member';
@@ -165,15 +165,67 @@ const showUserMenu = ref(false);
 // 모바일 메뉴 상태
 const showMobileMenu = ref(false);
 
-// 현재 아바타
+// 현재 아바타 - authStore와 me 모두 확인
 const currentAvatar = computed(() => {
-  return me.value?.profileImage || DEFAULT_AVATAR;
+  // me.value가 있으면 우선 사용, 없으면 authStore 확인
+  const profileImage = me.value?.profileImage || authStore.user?.profileImage;
+  return profileImage || DEFAULT_AVATAR;
 });
 
-// 현재 이름
+// 현재 이름 - authStore와 me 모두 확인
 const currentName = computed(() => {
-  return me.value?.nickname || me.value?.username || '사용자';
+  const name =
+    me.value?.nickname ||
+    me.value?.username ||
+    authStore.user?.nickname ||
+    authStore.user?.username ||
+    authStore.user?.name;
+  return name || '사용자';
 });
+
+// 사용자 정보를 가져오는 함수
+const fetchUserInfo = async () => {
+  if (!authStore.isAuthenticated) {
+    me.value = null;
+    return;
+  }
+
+  try {
+    const userInfo = await authStore.refreshUserInfo();
+    if (userInfo) {
+      me.value = userInfo;
+    }
+  } catch (err) {
+    console.error('회원 정보 불러오기 실패:', err);
+    toast.error('회원 정보 불러오기 실패');
+  }
+};
+
+// authStore의 로그인 상태 변화 감지
+watch(
+  () => authStore.isAuthenticated,
+  (newVal, oldVal) => {
+    if (newVal && !oldVal) {
+      // 로그인되었을 때
+      fetchUserInfo();
+    } else if (!newVal && oldVal) {
+      // 로그아웃되었을 때
+      me.value = null;
+    }
+  },
+  { immediate: false }
+);
+
+// authStore의 사용자 정보 변화 감지
+watch(
+  () => authStore.user,
+  (newUser) => {
+    if (newUser && !me.value) {
+      fetchUserInfo();
+    }
+  },
+  { immediate: false, deep: true }
+);
 
 // 이미지 에러 핸들러
 const onImgErr = (e) => {
@@ -230,13 +282,16 @@ const formatTime = (date) => {
   return date.toLocaleDateString();
 };
 
-// 로그아웃
+// 로그아웃 함수들 수정 - 사용자 정보 완전 초기화
 const handleLogout = () => {
+  me.value = null;
   authStore.logout();
   showUserMenu.value = false;
   router.push('/');
 };
+
 const handleMobileLogout = () => {
+  me.value = null;
   authStore.logout();
   showMobileMenu.value = false;
   router.push('/');
@@ -258,21 +313,8 @@ const handleClickOutside = (event) => {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
 
-  // 로그인된 경우 회원정보 + 프로필 이미지 불러오기
   if (authStore.isAuthenticated) {
-    (async () => {
-      try {
-        const info = await memberApi.getMemberInfo();
-        me.value = info;
-
-        const imageData = await memberApi.getCurrentProfileImage();
-        if (imageData?.url) {
-          me.value.profileImage = imageData.url;
-        }
-      } catch (err) {
-        toast.error('회원 정보 불러오기 실패');
-      }
-    })();
+    fetchUserInfo();
   }
 });
 

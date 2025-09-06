@@ -294,6 +294,76 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
+  // 사용자 프로필 정보만 업데이트 (API 호출 없이 로컬 상태만 업데이트)
+  const updateUserProfile = (profileData) => {
+    if (!user.value) return;
+
+    // 기존 사용자 정보와 새 프로필 데이터 병합
+    user.value = { ...user.value, ...profileData };
+
+    // 스토리지에도 업데이트
+    const userInfoStr = JSON.stringify(user.value);
+    if (localStorage.getItem('userInfo')) {
+      localStorage.setItem('userInfo', userInfoStr);
+    } else if (sessionStorage.getItem('userInfo')) {
+      sessionStorage.setItem('userInfo', userInfoStr);
+    }
+  };
+
+  // 사용자 정보 강제 새로고침 (외부에서 호출 가능)
+  const refreshUserInfo = async () => {
+    if (!isAuthenticated.value) return null;
+
+    try {
+      // memberApi를 동적으로 import하여 사용
+      const memberApi = await import('@/api/member');
+      const info = await memberApi.default.getMemberInfo();
+
+      if (info) {
+        // 사용자 정보 업데이트
+        user.value = { ...user.value, ...info };
+
+        // 프로필 이미지도 함께 가져오기
+        try {
+          const imageData = await memberApi.default.getCurrentProfileImage();
+          if (imageData?.url) {
+            user.value.profileImage = imageData.url;
+          }
+        } catch (imgErr) {
+          console.warn('프로필 이미지 로드 실패:', imgErr);
+        }
+
+        // 스토리지에도 업데이트
+        const userInfoStr = JSON.stringify(user.value);
+        if (localStorage.getItem('userInfo')) {
+          localStorage.setItem('userInfo', userInfoStr);
+        } else if (sessionStorage.getItem('userInfo')) {
+          sessionStorage.setItem('userInfo', userInfoStr);
+        }
+
+        return user.value;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('사용자 정보 새로고침 실패:', error);
+      return null;
+    }
+  };
+
+  // 사용자 정보 완전 초기화
+  const clearUserData = () => {
+    user.value = null;
+    accessToken.value = null;
+    refreshToken.value = null;
+  };
+
+  // 로그인 상태 변경 이벤트 (외부에서 감지할 수 있도록)
+  const onAuthStateChange = (callback) => {
+    // computed를 watch하는 방식으로 구현 가능
+    return () => callback(isAuthenticated.value, user.value);
+  };
+
   // 스토어 생성 시 자동 초기화
   initializeAuth();
 
@@ -310,7 +380,7 @@ export const useAuthStore = defineStore('auth', () => {
     userName,
     userEmail,
 
-    // 메서드
+    // 기존 메서드
     login,
     signup,
     forgotPassword,
@@ -320,6 +390,11 @@ export const useAuthStore = defineStore('auth', () => {
     updateProfile,
     setTokens,
     resetPasswordByEmail,
+
+    // 새로 추가된 메서드
+    updateUserProfile,
+    refreshUserInfo,
+    clearUserData,
+    onAuthStateChange,
   };
 });
-
