@@ -66,11 +66,27 @@
             <router-link to="/login/find-password" class="find-link"> 비밀번호 찾기 </router-link>
           </div>
         </div>
+
         <div class="social-login">
-          <button type="button" class="kakao-button" @click="redirectToKakao">
-            <img src="@/assets/kakao_logo.png" alt="kakao" class="kakao-logo" />
-            카카오로 로그인
-          </button>
+          <!-- 구분선 -->
+          <div class="divider">
+            <div class="line"></div>
+            <span class="divider-text">SNS LOGIN</span>
+            <div class="line"></div>
+          </div>
+
+          <!-- 버튼들 -->
+          <div class="social-buttons">
+            <!-- 카카오 -->
+            <button @click="login('kakao')" class="social-btn kakao">
+              <img src="@/assets/kakao_logo.png" alt="Kakao" />
+            </button>
+
+            <!-- 구글 -->
+            <button @click="login('google')" class="social-btn google">
+              <img src="@/assets/google_logo.png" alt="Google" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -185,8 +201,12 @@ const handleLogin = async () => {
   }
 };
 
-const redirectToKakao = () => {
-  window.location.href = 'http://localhost:8080/oauth2/authorization/kakao';
+const login = (provider) => {
+  if (provider === 'kakao') {
+    window.location.href = 'http://localhost:8080/oauth2/authorization/kakao';
+  } else if (provider === 'google') {
+    window.location.href = 'http://localhost:8080/oauth2/authorization/google';
+  }
 };
 </script>
 
@@ -414,32 +434,75 @@ const redirectToKakao = () => {
 
 .social-login {
   text-align: center;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
-.kakao-button {
-  width: 100%;
-  padding: 0.9rem;
-  background-color: #fee500; /* 카카오 옐로우 */
-  border: none;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
+/* SNS LOGIN 구분선 */
+.divider {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  transition: all 0.3s ease;
+  margin: 1.5rem 0;
 }
 
-.kakao-button:hover {
-  background-color: #fada0a;
+.line {
+  flex-grow: 1;
+  height: 1px;
+  background: #d1d5db; /* 회색 라인 */
 }
 
-.kakao-logo {
-  width: 20px;
-  height: 20px;
+.divider-text {
+  margin: 0 1rem;
+  color: #666;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* 버튼 영역 */
+.social-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+/* 공통 버튼 스타일 */
+.social-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.25rem;
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease;
+}
+
+.social-btn:hover {
+  transform: scale(1.05);
+}
+
+/* 플랫폼별 색상 */
+.kakao {
+  background: #fee500;
+}
+
+.kakao img {
+  width: 28px;
+  height: 28px;
+}
+
+.google {
+  background: #ffffff;
+  font-size: 1.4rem;
+}
+.google img {
+  width: 28px;
+  height: 28px;
 }
 </style>
 
