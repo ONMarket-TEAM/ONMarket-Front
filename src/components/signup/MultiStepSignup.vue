@@ -22,8 +22,10 @@ import StepIndicator from '@/components/signup/StepIndicator.vue';
 import TermsAgreementStep from '@/components/signup/TermsAgreementStep.vue';
 import UserInfoStep from '@/components/signup/UserInfoStep.vue';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useToastStore } from '@/stores/useToastStore';
 
 const router = useRouter();
+const toastStore = useToastStore();
 
 // 현재 단계
 const currentStep = ref(1);
@@ -99,7 +101,9 @@ const handleComplete = async (data) => {
 
     // 완료 → 환영 페이지 이동
     router.push('/login');
-  } catch (error) {}
+  } catch (error) {
+    toastStore.error('회원가입 중 오류가 발생했습니다.');
+  }
 };
 </script>
 

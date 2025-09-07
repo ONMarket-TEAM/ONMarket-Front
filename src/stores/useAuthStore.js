@@ -315,38 +315,33 @@ export const useAuthStore = defineStore('auth', () => {
     if (!isAuthenticated.value) return null;
 
     try {
-      // memberApi를 동적으로 import하여 사용
       const memberApi = await import('@/api/member');
       const info = await memberApi.default.getMemberInfo();
 
       if (info) {
-        // 사용자 정보 업데이트
         user.value = { ...user.value, ...info };
 
-        // 프로필 이미지도 함께 가져오기
+        // 프로필 이미지는 선택적으로 로드 (실패해도 진행)
         try {
           const imageData = await memberApi.default.getCurrentProfileImage();
           if (imageData?.url) {
             user.value.profileImage = imageData.url;
           }
-        } catch (imgErr) {
-          console.warn('프로필 이미지 로드 실패:', imgErr);
+        } catch (error) {
+          user.value.profileImage = null;
         }
 
-        // 스토리지에도 업데이트
+        // 스토리지 업데이트
         const userInfoStr = JSON.stringify(user.value);
         if (localStorage.getItem('userInfo')) {
           localStorage.setItem('userInfo', userInfoStr);
-        } else if (sessionStorage.getItem('userInfo')) {
-          sessionStorage.setItem('userInfo', userInfoStr);
         }
 
         return user.value;
       }
-
-      return null;
     } catch (error) {
-      console.error('사용자 정보 새로고침 실패:', error);
+      toastStore.error('네트워크 연결을 확인해주세요.');
+      logout();
       return null;
     }
   };
@@ -398,3 +393,4 @@ export const useAuthStore = defineStore('auth', () => {
     onAuthStateChange,
   };
 });
+
