@@ -14,7 +14,9 @@
             v-model="signupForm.username"
             type="text"
             class="form-input"
+            :class="{ readonly: isSocialSignup }"
             placeholder="이름을 입력하세요"
+            :readonly="isSocialSignup"
             required
           />
         </div>
@@ -26,7 +28,7 @@
           <SmsVerification
             ref="smsVerificationRef"
             v-model="signupForm.phone"
-            :disabled="smsVerificationStatus.isVerified"
+            :disabled="smsVerificationStatus.isVerified || isSocialSignup"
             @verified="onSmsVerified"
             @error="onSmsError"
             @code-sent="onCodeSent"
@@ -79,11 +81,13 @@
               v-model="signupForm.email"
               type="email"
               class="form-input"
-              placeholder="이메일을 입력하세요"
               :class="{
                 'input-success': emailCheck.isChecked && emailCheck.isAvailable,
                 'input-error': emailCheck.isChecked && !emailCheck.isAvailable,
+                readonly: isSocialSignup,
               }"
+              placeholder="이메일을 입력하세요"
+              :readonly="isSocialSignup"
               @input="onEmailInput"
               required
             />
@@ -91,7 +95,7 @@
               type="button"
               class="check-button"
               @click="checkEmailDuplicate"
-              :disabled="!canCheckEmail || emailCheck.isChecking"
+              :disabled="!canCheckEmail || emailCheck.isChecking || isSocialSignup"
             >
               <span v-if="emailCheck.isChecking">확인중...</span>
               <span v-else>중복확인</span>
@@ -114,8 +118,10 @@
             v-model="signupForm.password"
             type="password"
             class="form-input"
+            :class="{ readonly: isSocialSignup }"
             placeholder="비밀번호를 입력하세요"
-            required
+            :readonly="isSocialSignup"
+            :required="!isSocialSignup"
           />
           <div class="password-hint">최소 8자 이상, 영문, 숫자, 특수문자 포함</div>
         </div>
@@ -129,8 +135,10 @@
             v-model="signupForm.confirmPassword"
             type="password"
             class="form-input"
+            :class="{ readonly: isSocialSignup }"
             placeholder="비밀번호를 다시 입력하세요"
-            required
+            :readonly="isSocialSignup"
+            :required="!isSocialSignup"
           />
           <div v-if="confirmPasswordMessage" class="check-message error">
             {{ confirmPasswordMessage }}
@@ -146,8 +154,10 @@
             v-model="signupForm.birthDate"
             type="date"
             class="form-input"
+            :class="{ readonly: isSocialSignup }"
             min="1900-01-01"
             :max="new Date().toISOString().split('T')[0]"
+            :readonly="isSocialSignup"
             required
           />
         </div>
@@ -163,6 +173,7 @@
                 type="radio"
                 value="MALE"
                 class="radio-input"
+                :disabled="isSocialSignup"
                 required
               />
               <span class="radio-text">남성</span>
@@ -173,6 +184,7 @@
                 type="radio"
                 value="FEMALE"
                 class="radio-input"
+                :disabled="isSocialSignup"
                 required
               />
               <span class="radio-text">여성</span>
@@ -205,7 +217,6 @@
         </div>
       </div>
 
-      <!-- 다음 단계 버튼 -->
       <div class="button-wrapper">
         <button type="submit" class="next-button" :class="{ active: isFormValid }">
           회원가입 완료
@@ -217,11 +228,14 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import SmsVerification from '@/components/signup/SmsVerification.vue';
 import { validationAPI } from '@/api/validation';
 import { useToastStore } from '@/stores/useToastStore';
 import { s3API } from '@/api/s3';
+import { snsAPI } from '@/api/social';
 
+const router = useRouter();
 const toastStore = useToastStore();
 
 const props = defineProps({
@@ -233,37 +247,48 @@ const props = defineProps({
 
 const emit = defineEmits(['next', 'complete']);
 
+// 소셜 회원가입 관련
+const isSocialSignup = ref(false);
+const pendingMemberId = ref(null);
+
+// 폼 유효성 검사 (소셜 회원가입과 일반 회원가입 구분)
 const isFormValid = computed(() => {
-  return (
+  const baseValidation =
     signupForm.username.trim() &&
     signupForm.nickname.trim() &&
     isValidNickname(signupForm.nickname) &&
     nicknameCheck.value.isChecked &&
     nicknameCheck.value.isAvailable &&
-    signupForm.email.trim() &&
-    isValidEmail(signupForm.email) &&
-    emailCheck.value.isChecked &&
-    emailCheck.value.isAvailable &&
-    smsVerificationStatus.value.isVerified &&
-    signupForm.password &&
-    isValidPassword(signupForm.password) &&
-    signupForm.password === signupForm.confirmPassword &&
     signupForm.birthDate &&
-    signupForm.gender
-  );
+    signupForm.gender;
+
+  if (isSocialSignup.value) {
+    // 소셜 회원가입: 이메일 중복 체크와 SMS 인증 제외
+    return baseValidation;
+  } else {
+    // 일반 회원가입: 모든 검증 필요
+    return (
+      baseValidation &&
+      signupForm.email.trim() &&
+      isValidEmail(signupForm.email) &&
+      emailCheck.value.isChecked &&
+      emailCheck.value.isAvailable &&
+      smsVerificationStatus.value.isVerified &&
+      signupForm.password &&
+      isValidPassword(signupForm.password) &&
+      signupForm.password === signupForm.confirmPassword
+    );
+  }
 });
 
-// Refs
 const smsVerificationRef = ref(null);
 
-// SMS 인증 상태
 const smsVerificationStatus = ref({
   isVerified: false,
   phone: '',
   codeSent: false,
 });
 
-// 중복 체크 상태
 const nicknameCheck = ref({
   isChecked: false,
   isAvailable: false,
@@ -340,8 +365,11 @@ const checkNicknameDuplicate = async () => {
     nicknameCheck.value.isChecking = true;
     nicknameCheck.value.message = '';
 
-    const result = await validationAPI.checkNickname(signupForm.nickname);
+    // 소셜 회원가입의 경우 전용 API 사용
+    const urlParams = new URLSearchParams(window.location.search);
+    const memberId = urlParams.get('memberId');
 
+    const result = await validationAPI.checkNickname(signupForm.nickname, memberId);
     nicknameCheck.value.isChecked = true;
     nicknameCheck.value.isAvailable = result.isAvailable;
 
@@ -407,37 +435,29 @@ const handleProfileImageUpload = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
 
-  // 파일 크기 제한
   if (file.size > 5 * 1024 * 1024) {
     toastStore.error('파일 크기는 5MB 이하여야 합니다.');
-    event.target.value = ''; // 파일 입력 초기화
+    event.target.value = '';
     return;
   }
 
-  // 이미지 파일만 허용
   if (!file.type.startsWith('image/')) {
     toastStore.error('이미지 파일만 업로드 가능합니다.');
-    event.target.value = ''; // 파일 입력 초기화
+    event.target.value = '';
     return;
   }
 
   try {
-    // (1) Presigned URL 발급
     const presign = await s3API.getPresignedPutUrl('user-uploads', file.name, file.type);
-
-    // (2) S3에 직접 업로드
     await s3API.uploadToS3(presign.uploadUrl, file, file.type);
 
-    // (3) 미리보기용 DataURL 생성
     const reader = new FileReader();
     reader.onload = (e) => {
       signupForm.profileImage = e.target.result;
     };
     reader.readAsDataURL(file);
 
-    // (4) 회원가입 시 서버에 보낼 key 저장
     signupForm.profileImageKey = presign.key;
-
     toastStore.success('프로필 이미지가 업로드되었습니다.');
   } catch (error) {
     toastStore.error('이미지 업로드 중 오류가 발생했습니다.');
@@ -452,12 +472,32 @@ const removeProfileImage = () => {
   if (fileInput) fileInput.value = '';
 };
 
-// 다음 단계로
+// 소셜 회원가입 완료
+const completeSocialSignup = async () => {
+  try {
+    const result = await snsAPI.completeSocialSignup(pendingMemberId.value, {
+      nickname: signupForm.nickname,
+      profileImageKey: signupForm.profileImageKey,
+    });
+
+    if (result.success) {
+      // 토큰 저장
+      localStorage.setItem('accessToken', result.data.accessToken);
+      localStorage.setItem('refreshToken', result.data.refreshToken);
+
+      toastStore.success(result.message);
+      router.push('/');
+    } else {
+      toastStore.error(result.message);
+    }
+  } catch (error) {
+    toastStore.error('회원가입 완료 중 오류가 발생했습니다.');
+  }
+};
+// 폼 제출 처리
 const handleNext = () => {
-  // 각 필드별로 상세한 검증 및 메시지 제공
   const validationErrors = [];
 
-  // 1. 기본 필드 검증
   if (!signupForm.username.trim()) {
     validationErrors.push('이름을 입력해주세요.');
   }
@@ -472,65 +512,124 @@ const handleNext = () => {
     validationErrors.push('사용할 수 없는 닉네임입니다. 다른 닉네임을 선택해주세요.');
   }
 
-  if (!signupForm.email.trim()) {
-    validationErrors.push('이메일을 입력해주세요.');
-  } else if (!isValidEmail(signupForm.email)) {
-    validationErrors.push('올바른 이메일 형식으로 입력해주세요.');
-  } else if (!emailCheck.value.isChecked) {
-    validationErrors.push('이메일 중복확인을 해주세요.');
-  } else if (!emailCheck.value.isAvailable) {
-    validationErrors.push('사용할 수 없는 이메일입니다. 다른 이메일을 입력해주세요.');
-  }
-
-  // 2. 휴대폰 인증 검증
-  if (!smsVerificationStatus.value.isVerified) {
-    validationErrors.push('휴대폰 번호 인증을 완료해주세요.');
-  }
-
-  // 3. 비밀번호 검증
-  if (!signupForm.password) {
-    validationErrors.push('비밀번호를 입력해주세요.');
-  } else if (!isValidPassword(signupForm.password)) {
-    validationErrors.push('비밀번호는 8자 이상, 영문, 숫자, 특수문자를 포함해야 합니다.');
-  }
-
-  if (!signupForm.confirmPassword) {
-    validationErrors.push('비밀번호 확인을 입력해주세요.');
-  } else if (signupForm.password !== signupForm.confirmPassword) {
-    validationErrors.push('비밀번호가 일치하지 않습니다.');
-  }
-
-  // 4. 생년월일 검증
   if (!signupForm.birthDate) {
     validationErrors.push('생년월일을 선택해주세요.');
   }
 
-  // 5. 성별 검증
   if (!signupForm.gender) {
     validationErrors.push('성별을 선택해주세요.');
   }
 
-  // 검증 실패 시 첫 번째 오류 메시지 표시
-  if (validationErrors.length > 0) {
-    toastStore.error(validationErrors[0]); // 첫 번째 오류만 표시
-    return;
-  }
+  // 소셜 회원가입과 일반 회원가입 구분 검증
+  if (isSocialSignup.value) {
+    // 소셜 회원가입: 닉네임만 체크하면 됨
+    if (validationErrors.length > 0) {
+      toastStore.error(validationErrors[0]);
+      return;
+    }
+    completeSocialSignup();
+  } else {
+    // 일반 회원가입: 모든 필드 검증
+    if (!signupForm.email.trim()) {
+      validationErrors.push('이메일을 입력해주세요.');
+    } else if (!isValidEmail(signupForm.email)) {
+      validationErrors.push('올바른 이메일 형식으로 입력해주세요.');
+    } else if (!emailCheck.value.isChecked) {
+      validationErrors.push('이메일 중복확인을 해주세요.');
+    } else if (!emailCheck.value.isAvailable) {
+      validationErrors.push('사용할 수 없는 이메일입니다. 다른 이메일을 입력해주세요.');
+    }
 
-  // 모든 검증 통과 시 다음 단계로
-  emit('complete', {
-    ...signupForm,
-    phoneVerified: smsVerificationStatus.value.isVerified,
-    profileImage: undefined,
-    profileImageKey: signupForm.profileImageKey,
-  });
+    if (!smsVerificationStatus.value.isVerified) {
+      validationErrors.push('휴대폰 번호 인증을 완료해주세요.');
+    }
+
+    if (!signupForm.password) {
+      validationErrors.push('비밀번호를 입력해주세요.');
+    } else if (!isValidPassword(signupForm.password)) {
+      validationErrors.push('비밀번호는 8자 이상, 영문, 숫자, 특수문자를 포함해야 합니다.');
+    }
+
+    if (!signupForm.confirmPassword) {
+      validationErrors.push('비밀번호 확인을 입력해주세요.');
+    } else if (signupForm.password !== signupForm.confirmPassword) {
+      validationErrors.push('비밀번호가 일치하지 않습니다.');
+    }
+
+    if (validationErrors.length > 0) {
+      toastStore.error(validationErrors[0]);
+      return;
+    }
+    // 일반 회원가입 완료 처리
+    emit('complete', {
+      ...signupForm,
+      phoneVerified: smsVerificationStatus.value.isVerified,
+      profileImage: undefined,
+      profileImageKey: signupForm.profileImageKey,
+    });
+  }
 };
 
-// 컴포넌트 마운트 시 기존 데이터 복원
-onMounted(() => {
-  if (props.userData) {
+// 소셜 회원 정보 로드
+const loadSocialMemberInfo = async (memberId) => {
+  try {
+    const result = await snsAPI.getPendingMemberInfo(memberId);
+
+    if (result.success) {
+      const memberData = result.data;
+
+      // 폼에 소셜 정보 미리 채우기
+      signupForm.username = memberData.username || '';
+      signupForm.nickname = memberData.nickname || '';
+      signupForm.email = memberData.email || '';
+      signupForm.phone = memberData.phone || '';
+      signupForm.birthDate = memberData.birthDate || '';
+      signupForm.gender = memberData.gender || '';
+
+      // 소셜 로그인 플래그 설정
+      isSocialSignup.value = true;
+      pendingMemberId.value = memberId;
+
+      // 소셜 회원가입의 경우 이메일 중복 체크 필요 없음
+      if (memberData.email) {
+        emailCheck.value = {
+          isChecked: true,
+          isAvailable: true,
+          isChecking: false,
+        };
+      }
+
+      // 소셜 회원가입의 경우 휴대폰 번호 인증 필요 없음
+      if (memberData.phone) {
+        smsVerificationStatus.value = {
+          isVerified: true,
+          phone: memberData.phone,
+          codeSent: true,
+        };
+      }
+    } else {
+      toastStore.error(result.message);
+      router.push('/login');
+    }
+  } catch (error) {
+    toastStore.error('회원 정보 조회 중 오류가 발생했습니다.');
+    router.push('/login');
+  }
+};
+
+// 컴포넌트 마운트
+onMounted(async () => {
+  // URL에서 memberId 확인
+  const urlParams = new URLSearchParams(window.location.search);
+  const memberId = urlParams.get('memberId');
+
+  if (memberId) {
+    // 소셜 로그인 회원 정보 로드
+    await loadSocialMemberInfo(memberId);
+  } else if (props.userData) {
+    // 일반 회원가입에서 이전 단계 데이터 복원 (소셜 로그인 아닌 경우)
     Object.assign(signupForm, props.userData);
 
-    // SMS 인증 상태도 복원
     if (props.userData.phoneVerified) {
       smsVerificationStatus.value = {
         isVerified: true,
@@ -541,7 +640,6 @@ onMounted(() => {
   }
 });
 </script>
-
 <style scoped>
 .step-content {
   width: 100%;
@@ -654,10 +752,6 @@ onMounted(() => {
 }
 
 /* 입력 상태 */
-.input-success {
-  border-color: #28a745 !important;
-  box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1) !important;
-}
 
 .input-error {
   border-color: #dc3545 !important;
@@ -826,6 +920,43 @@ onMounted(() => {
 }
 .next-button.active {
   background-color: var(--color-sub);
+}
+
+.readonly {
+  background-color: #f5f5f5;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.readonly-hint {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.social-info-display {
+  background: #f9f9f9;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.social-profile-image {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  margin-bottom: 8px;
+}
+
+.social-email {
+  font-weight: 500;
+  color: #333;
+}
+
+.radio-input:disabled + .radio-text {
+  color: #999;
+  cursor: not-allowed;
 }
 </style>
 

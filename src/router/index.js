@@ -40,6 +40,10 @@ const router = createRouter({
       ],
     },
     {
+      path: '/auth/callback',
+      component: () => import('@/pages/AuthCallback.vue'),
+    },
+    {
       path: '/business/register',
       component: () => import('@/pages/Login/BusinessEdit.vue'),
       meta: { requiresAuth: true },
@@ -123,6 +127,23 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
 
+  // URL에서 소셜 로그인 토큰 확인 (추가)
+  const accessToken = to.query.accessToken;
+  const refreshToken = to.query.refreshToken;
+
+  if (accessToken && refreshToken) {
+    // 토큰을 localStorage에 저장
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+
+    // AuthStore에 토큰 설정
+    authStore.setTokens(accessToken, refreshToken);
+
+    // 쿼리 파라미터 제거하고 같은 경로로 리다이렉트
+    next({ path: to.path, query: {} });
+    return;
+  }
+
   // AuthStore 초기화
   authStore.initializeAuth();
 
@@ -137,7 +158,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.meta.hideForAuth && isAuthenticated) {
-    const redirectTo = from.query?.redirect || '/dashboard';
+    const redirectTo = from.query?.redirect || '/';
     next(redirectTo);
     return;
   }

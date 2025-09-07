@@ -55,4 +55,54 @@ export const snsAPI = {
       };
     }
   },
+
+  // 소셜 회원 정보 조회 (카카오/구글 등)
+  getPendingMemberInfo: async (memberId) => {
+    try {
+      const response = await api.get(`/api/oauth/pending-member/${memberId}`);
+
+      return {
+        success: true,
+        data: response.data.body?.data || {},
+        message: response.data.header?.message || '회원 정보 조회 성공',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.header?.message || '회원 정보를 불러올 수 없습니다.',
+        data: null,
+      };
+    }
+  },
+
+  // 소셜 회원가입 완료
+  completeSocialSignup: async (memberId, signupData) => {
+    try {
+      const requestBody = {
+        nickname: signupData.nickname,
+      };
+
+      // 프로필 이미지가 있다면 추가
+      if (signupData.profileImageKey) {
+        requestBody.profileImageKey = signupData.profileImageKey;
+      }
+
+      const response = await api.post(
+        `/api/oauth/complete-signup?memberId=${memberId}`,
+        requestBody
+      );
+
+      return {
+        success: true,
+        data: response.data.body?.data || {},
+        message: response.data.header?.message || '회원가입이 완료되었습니다!',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.header?.message || '회원가입 완료 중 오류가 발생했습니다.',
+        data: null,
+      };
+    }
+  },
 };

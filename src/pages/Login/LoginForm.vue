@@ -66,6 +66,12 @@
             <router-link to="/login/find-password" class="find-link"> 비밀번호 찾기 </router-link>
           </div>
         </div>
+        <div class="social-login">
+          <button type="button" class="kakao-button" @click="redirectToKakao">
+            <img src="@/assets/kakao_logo.png" alt="kakao" class="kakao-logo" />
+            카카오로 로그인
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -140,7 +146,7 @@ const handleLogin = async () => {
           const redirectTo = router.currentRoute.value.query.redirect || '/';
           await router.push(redirectTo);
         }
-      } catch (businessError) {
+      } catch (error) {
         toastStore.error('사업장 정보를 불러오는 중 오류가 발생했습니다.');
         // 오류가 있어도 메인 페이지로 이동
         const redirectTo = router.currentRoute.value.query.redirect || '/';
@@ -162,8 +168,6 @@ const handleLogin = async () => {
       }
     }
   } catch (error) {
-    console.error('로그인 오류:', error);
-
     // 네트워크 오류 등 구체적인 오류 유형별 메시지
     if (error.message && error.message.includes('Network')) {
       toastStore.error('네트워크 연결을 확인해주세요.');
@@ -179,6 +183,10 @@ const handleLogin = async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+const redirectToKakao = () => {
+  window.location.href = 'http://localhost:8080/oauth2/authorization/kakao';
 };
 </script>
 
@@ -402,6 +410,36 @@ const handleLogin = async () => {
 
 .icon-btn:hover {
   color: #333;
+}
+
+.social-login {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.kakao-button {
+  width: 100%;
+  padding: 0.9rem;
+  background-color: #fee500; /* 카카오 옐로우 */
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.kakao-button:hover {
+  background-color: #fada0a;
+}
+
+.kakao-logo {
+  width: 20px;
+  height: 20px;
 }
 </style>
 
