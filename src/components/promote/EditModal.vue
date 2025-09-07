@@ -1,5 +1,6 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">    <div class="modal">
+  <div class="modal-overlay" @click.self="$emit('close')">
+    <div class="modal">
       <div class="modal-header">
         <strong>문구 편집</strong>
         <button class="modal-close" type="button" @click="$emit('close')">×</button>
@@ -11,7 +12,7 @@
             :key="image.id"
             class="modal-img"
           >
-            <img :src="image.imageUrl" :alt="`미리보기 ${index + 1}`" />
+            <img :src="image.previewUrl" :alt="`미리보기 ${index + 1}`" />
             <div class="img-badge">{{ index + 1 }}</div>
           </div>
           <div v-if="uploadedImages.length === 0" class="modal-img-ph">이미지 없음</div>

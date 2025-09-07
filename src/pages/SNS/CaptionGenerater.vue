@@ -30,7 +30,7 @@
       @update-generated-text="generatedText = $event"
       @restore-original="restoreOriginal"
       @back-to-step2="currentStep = 2"
-    />
+      @open-edit-modal="openEditModal"  />
 
     <Step4Component
       v-if="currentStep === 4"
