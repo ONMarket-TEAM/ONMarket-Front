@@ -28,11 +28,14 @@ export const validationAPI = {
   },
 
   /** 닉네임 중복 체크 */
-  checkNickname: async (nickname) => {
+  checkNickname: async (nickname, memberId) => {
     try {
-      const response = await api.get('/api/validation/check/nickname', {
-        params: { nickname },
-      });
+      const params = { nickname };
+      if (memberId) {
+        params.memberId = memberId;
+      }
+
+      const response = await api.get('/api/validation/check/nickname', { params });
 
       return {
         isAvailable: true,
