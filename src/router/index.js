@@ -40,10 +40,6 @@ const router = createRouter({
       ],
     },
     {
-      path: '/auth/callback',
-      component: () => import('@/pages/AuthCallback.vue'),
-    },
-    {
       path: '/business/register',
       component: () => import('@/pages/Login/BusinessEdit.vue'),
       meta: { requiresAuth: true },
