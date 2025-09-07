@@ -154,5 +154,56 @@ export const authAPI = {
       return { success: false, message: '네트워크 연결을 확인해주세요.' };
     }
   },
+
+  // 토큰 갱신
+  refreshToken: async (refreshToken) => {
+    try {
+      const response = await api.post('/api/auth/refresh', {
+        refreshToken: refreshToken,
+      });
+
+      const result = response.data.body?.data;
+
+      if (result?.accessToken && result?.refreshToken) {
+        return {
+          success: true,
+          data: {
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
+          },
+          message: response.data.header?.message || '토큰 갱신 성공',
+        };
+      } else {
+        return {
+          success: false,
+          message: '토큰 갱신에 실패했습니다.',
+          data: null,
+        };
+      }
+    } catch (error) {
+      console.error('Token refresh API error:', error);
+
+      if (error.response) {
+        const status = error.response.status;
+        const message = error.response.data?.header?.message;
+
+        switch (status) {
+          case 400:
+            return { success: false, message: message || 'Refresh Token이 유효하지 않습니다.' };
+          case 401:
+            return { success: false, message: message || '회원 정보를 찾을 수 없습니다.' };
+          case 403:
+            return {
+              success: false,
+              message: message || '저장된 Refresh Token과 일치하지 않습니다.',
+            };
+          default:
+            return { success: false, message: message || '토큰 갱신 중 오류가 발생했습니다.' };
+        }
+      }
+
+      return { success: false, message: '네트워크 연결을 확인해주세요.' };
+    }
+  },
 };
 
