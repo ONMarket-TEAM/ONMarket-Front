@@ -1,7 +1,6 @@
 <template>
   <section class="step2">
     <div class="step2__grid">
-      <!-- 왼쪽 -->
       <div class="col-left">
         <div class="uploaded-box">
           <div class="uploaded-box__header">
@@ -16,7 +15,7 @@
                 class="thumb"
                 :class="{ 'analyze-thumb': index < 3 }"
               >
-                <img :src="image.imageUrl" :alt="`업로드된 사진 ${index + 1}`" />
+                <img :src="image.previewUrl" :alt="`업로드된 사진 ${index + 1}`" />
                 <div class="thumb-badge">{{ index + 1 }}</div>
               </div>
               <div v-if="uploadedImages.length > 3" class="more-indicator">
@@ -69,7 +68,6 @@
         </div>
       </div>
 
-      <!-- 오른쪽 -->
       <div class="col-right">
         <div class="preview-card">
           <div class="preview-card__title">
@@ -81,7 +79,7 @@
               <img
                 v-for="(image, index) in uploadedImages.slice(0, 3)"
                 :key="image.id"
-                :src="image.imageUrl"
+                :src="image.previewUrl"
                 :alt="`미리보기 ${index + 1}`"
                 class="preview-img"
                 :style="{ zIndex: 3 - index }"
@@ -115,6 +113,7 @@ defineEmits(['update-caption', 'back-to-upload']);
 </script>
 
 <style scoped>
+/* 섹션 컨테이너: 전체 너비 및 마진 */
 .step2 {
   width: 940px;
   max-width: calc(100% - 48px);

@@ -33,7 +33,7 @@
             :class="{ 'will-analyze': index < 3 }"
           >
             <div class="image-wrapper">
-              <img :src="image.imageUrl" :alt="`업로드된 이미지 ${index + 1}`" />
+              <img :src="image.previewUrl" :alt="`업로드된 이미지 ${index + 1}`" />
               <div class="image-overlay">
                 <button class="remove-btn" @click="removeImage(image.id)" aria-label="이미지 제거">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

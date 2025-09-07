@@ -49,7 +49,7 @@
                   transform: `translateX(${index * 10}px) translateY(${index * 5}px)`
                 }"
               >
-                <img :src="image.imageUrl" :alt="`최종 결과 ${index + 1}`" />
+                <img :src="image.previewUrl" :alt="`최종 결과 ${index + 1}`" />
                 <div class="image-number">{{ index + 1 }}</div>
               </div>
             </div>

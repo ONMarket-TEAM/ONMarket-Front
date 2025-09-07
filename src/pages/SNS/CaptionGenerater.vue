@@ -30,7 +30,6 @@
       @update-generated-text="generatedText = $event"
       @restore-original="restoreOriginal"
       @back-to-step2="currentStep = 2"
-      @open-edit-modal="openEditModal"
     />
 
     <Step4Component
@@ -59,7 +58,7 @@
       :uploaded-images="uploadedImages"
       @close="closeEditModal"
       @save="saveEdit"
-      @update-buffer="updateBuffer"
+      @update-buffer="editBuffer = $event"
     />
   </div>
 </template>
@@ -82,7 +81,7 @@ const userCaption = ref('');
 
 // 업로드 관련 (다중 이미지 지원)
 const isUploading = ref(false);
-const uploadedImages = ref([]); // { s3Key: string, imageUrl: string, id: string }
+const uploadedImages = ref([]); // { s3Key: string, previewUrl: string, id: string }
 
 // AI 생성 관련
 const isGenerating = ref(false);
@@ -117,11 +116,29 @@ const canProceed = computed(() => {
   }
 });
 
+// 이미지 보기용(다운로드) presigned URL을 가져오는 함수
+async function getImageViewUrl(s3Key, ttlSec = 180) {
+  try {
+    const response = await fetch(`/api/captions/presign-view?key=${encodeURIComponent(s3Key)}&ttl=${ttlSec}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!response.ok) {
+      throw new Error(`View URL 요청 실패: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.url;
+  } catch (error) {
+    console.error('View URL 생성 실패:', error);
+    toastError('이미지 미리보기를 불러오는 데 실패했습니다.');
+    return null;
+  }
+}
+
 // 다중 파일 업로드 처리
 async function handleMultipleUpload(files) {
   if (files.length === 0) return;
 
-  // 최대 20개 제한
   const totalImages = uploadedImages.value.length + files.length;
   if (totalImages > 20) {
     toastWarn(`최대 20개의 이미지만 업로드할 수 있습니다. (현재: ${uploadedImages.value.length}개)`);
@@ -129,12 +146,28 @@ async function handleMultipleUpload(files) {
   }
 
   isUploading.value = true;
+  const successfullyUploadedKeys = [];
 
   try {
     for (const file of files) {
-      await uploadSingleFile(file);
+      const s3Key = await uploadSingleFile(file);
+      if (s3Key) {
+        successfullyUploadedKeys.push(s3Key);
+      }
     }
-    toastSuccess(`${files.length}개의 이미지가 성공적으로 업로드되었어요.`);
+
+    for (const s3Key of successfullyUploadedKeys) {
+        const previewUrl = await getImageViewUrl(s3Key);
+        if (previewUrl) {
+            uploadedImages.value.push({
+                id: `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                s3Key: s3Key,
+                previewUrl: previewUrl,
+            });
+        }
+    }
+
+    toastSuccess(`${successfullyUploadedKeys.length}개의 이미지가 성공적으로 업로드되었어요.`);
   } catch (error) {
     console.error('업로드 오류:', error);
     toastError('일부 이미지 업로드에 실패했습니다.');
@@ -143,10 +176,9 @@ async function handleMultipleUpload(files) {
   }
 }
 
-// 단일 파일 업로드
+// 단일 파일 업로드 (presign-put 사용)
 async function uploadSingleFile(file) {
   try {
-    // 파일 검증
     if (!/image\/(jpeg|png)/.test(file.type)) {
       throw new Error('JPG, PNG만 업로드할 수 있어요.');
     }
@@ -154,74 +186,71 @@ async function uploadSingleFile(file) {
       throw new Error('최대 10MB까지 업로드할 수 있어요.');
     }
 
-    const sanitizeFilename = (name) => {
-      if (!name || !name.trim()) return `image_${Date.now()}.jpg`;
-      return name.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 100);
-    };
-
-    const normalizeContentType = (type) => {
-      if (!type || !type.trim()) return 'image/jpeg';
-      if (type.includes('jpeg') || type.includes('jpg')) return 'image/jpeg';
-      if (type.includes('png')) return 'image/png';
-      return 'image/jpeg';
-    };
+    const sanitizeFilename = (name) => name.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 100);
+    const normalizeContentType = (type) => (type.includes('jpeg') || type.includes('jpg')) ? 'image/jpeg' : (type.includes('png') ? 'image/png' : 'image/jpeg');
 
     const filename = sanitizeFilename(file.name);
     const contentType = normalizeContentType(file.type);
 
-    // 1. presigned URL 요청
     const response = await fetch('/api/captions/presign', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        filename: filename,
-        contentType: contentType,
-      }),
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ filename, contentType }),
     });
-
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`presigned URL 요청 실패: ${response.status}`);
+      throw new Error(`presigned URL 요청 실패: ${response.status} - ${errorText}`);
     }
-
     const presignData = await response.json();
 
-    // 2. S3에 실제 파일 업로드
     const uploadResponse = await fetch(presignData.url, {
       method: 'PUT',
-      headers: {
-        'Content-Type': contentType,
-      },
+      headers: { 'Content-Type': contentType },
       body: file,
     });
-
     if (!uploadResponse.ok) {
-      throw new Error(`S3 업로드 실패: ${uploadResponse.status}`);
+      const errorText = await uploadResponse.text();
+      throw new Error(`S3 업로드 실패: ${uploadResponse.status} - ${errorText}`);
     }
 
-    // 3. 업로드된 이미지 정보 저장
-    const imageData = {
-      id: `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      s3Key: presignData.key,
-      imageUrl: presignData.publicUrl || presignData.url.split('?')[0],
-      filename: file.name
-    };
-
-    uploadedImages.value.push(imageData);
-
+    return presignData.key;
   } catch (error) {
     console.error('개별 파일 업로드 오류:', error);
-    throw error;
+    toastError(error.message || '파일 업로드 중 오류가 발생했습니다.');
+    return null;
+  }
+}
+
+// S3에서 특정 키에 해당하는 파일을 삭제하는 함수
+async function deleteImageFromS3(s3Key) {
+  try {
+    const response = await fetch(`/api/captions/delete?key=${encodeURIComponent(s3Key)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error(`S3 파일 삭제 실패: ${response.status}`);
+    }
+    toastInfo('S3에서 이미지가 성공적으로 삭제되었습니다.');
+  } catch (error) {
+    console.error('S3 이미지 삭제 오류:', error);
+    toastError('S3 이미지 삭제 중 오류가 발생했어요.');
   }
 }
 
 // 이미지 제거
-function removeImage(imageId) {
+async function removeImage(imageId) {
+  const imageToRemove = uploadedImages.value.find(img => img.id === imageId);
+  if (!imageToRemove) {
+    toastWarn('해당 이미지를 찾을 수 없습니다.');
+    return;
+  }
+
+  // S3에서 먼저 파일 삭제를 시도합니다.
+  await deleteImageFromS3(imageToRemove.s3Key);
+
+  // S3 삭제 성공/실패와 관계없이 프론트엔드 상태를 업데이트합니다.
   uploadedImages.value = uploadedImages.value.filter(img => img.id !== imageId);
-  toastInfo('이미지가 제거되었습니다.');
+  toastInfo('이미지가 목록에서 제거되었습니다.');
 }
 
 // AI 캡션 생성 (첫 3장 이미지만 사용)
@@ -233,10 +262,7 @@ async function generateCaption() {
 
   try {
     isGenerating.value = true;
-
-    // 앞의 3장 이미지만 선택
     const imagesToAnalyze = uploadedImages.value.slice(0, 3);
-
     const requestData = {
       s3Keys: imagesToAnalyze.map(img => img.s3Key),
       prompt: userCaption.value.trim(),
@@ -244,10 +270,7 @@ async function generateCaption() {
 
     const response = await fetch('/api/captions/generate-from-multiple-s3', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(requestData),
     });
 
@@ -255,10 +278,8 @@ async function generateCaption() {
       const errorText = await response.text();
       throw new Error(`캡션 생성 요청 실패: ${response.status} - ${errorText}`);
     }
-
     const data = await response.json();
 
-    // 생성된 데이터 저장
     generatedText.value = data.caption || '';
     originalGeneratedText.value = data.caption || '';
     generatedHashtags.value = data.hashtags || [];
@@ -266,7 +287,6 @@ async function generateCaption() {
     generatedImpact.value = data.impactNote || '';
 
     toastSuccess('AI 캡션이 성공적으로 생성되었어요!');
-
   } catch (error) {
     console.error('캡션 생성 오류:', error);
     toastError(error.message || '캡션 생성 중 문제가 발생했어요.');
@@ -292,7 +312,6 @@ async function handleNext() {
         return;
       }
       currentStep.value = 3;
-      // AI 캡션 생성
       if (!generatedText.value) {
         await generateCaption();
       }
@@ -311,16 +330,8 @@ async function handleNext() {
   }
 }
 
+// 모든 상태 초기화
 function startOver() {
-  // blob URL 메모리 정리
-  uploadedImages.value.forEach(img => {
-    if (img.imageUrl && img.imageUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(img.imageUrl);
-    }
-  });
-
-  // 모든 상태 초기화
-  currentStep.value = 1;
   uploadedImages.value = [];
   userCaption.value = '';
   generatedText.value = '';
@@ -332,7 +343,7 @@ function startOver() {
   isGenerating.value = false;
 }
 
-// 편집 모달 관련 함수들
+// 편집 모달 관련 함수
 function openEditModal() {
   editBuffer.value = generatedText.value;
   showEditModal.value = true;
@@ -340,10 +351,6 @@ function openEditModal() {
 
 function closeEditModal() {
   showEditModal.value = false;
-}
-
-function updateBuffer(newText) {
-  editBuffer.value = newText;
 }
 
 function saveEdit() {
@@ -367,6 +374,10 @@ async function copyToClipboard() {
     toastError('복사 중 오류가 발생했어요.');
   }
 }
+
+defineExpose({
+  openEditModal
+});
 </script>
 
 <style scoped>

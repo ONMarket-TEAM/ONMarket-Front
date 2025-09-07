@@ -13,7 +13,7 @@
               :key="image.id"
               class="thumb"
             >
-              <img :src="image.imageUrl" :alt="`분석된 사진 ${index + 1}`" />
+              <img :src="image.previewUrl" :alt="`분석된 사진 ${index + 1}`" />
               <div class="mini-badge">{{ index + 1 }}</div>
             </div>
           </div>
