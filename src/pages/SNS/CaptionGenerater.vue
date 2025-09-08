@@ -129,7 +129,6 @@ async function getImageViewUrl(s3Key, ttlSec = 180) {
     const data = await response.json();
     return data.url;
   } catch (error) {
-    console.error('View URL 생성 실패:', error);
     toastError('이미지 미리보기를 불러오는 데 실패했습니다.');
     return null;
   }
