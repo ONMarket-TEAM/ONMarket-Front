@@ -29,7 +29,7 @@
       class="next-btn"
       @click="$emit('start-over')"
     >
-      새로 시작
+    <i class="fa-solid fa-rotate-right"></i>   처음으로
     </button>
   </div>
 </template>

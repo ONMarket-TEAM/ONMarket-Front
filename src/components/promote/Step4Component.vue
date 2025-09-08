@@ -1,6 +1,7 @@
 <template>
   <section class="step4">
     <div class="step4__grid">
+      <!-- 왼쪽 영역: 최종 생성 콘텐츠 -->
       <div class="final-left">
         <div class="final-box">
           <div class="final-box__title">
@@ -18,24 +19,17 @@
               </div>
             </div>
 
-            <div
-              class="final-hashtags"
-              v-if="generatedHashtags && generatedHashtags.length > 0"
-            >
+            <div v-if="generatedHashtags && generatedHashtags.length > 0" class="final-hashtags">
               <div class="hash-title"><span class="hash-icon" /> 추천 해시태그</div>
-              <div class="hash-bubble">
-                {{ generatedHashtags.join(' ') }}
-              </div>
+              <div class="hash-bubble">{{ generatedHashtags.join(' ') }}</div>
             </div>
 
-            <div class="final-metrics" v-if="generatedBestTime || generatedImpact">
-              <div class="metric" v-if="generatedBestTime">
-                <div class="metric-label">
-                  <span class="clock-icon" /> 최적 게시 시간
-                </div>
+            <div v-if="generatedBestTime || generatedImpact" class="final-metrics">
+              <div v-if="generatedBestTime" class="metric">
+                <div class="metric-label"><span class="clock-icon" /> 최적 게시 시간</div>
                 <div class="metric-value">{{ generatedBestTime }}</div>
               </div>
-              <div class="metric" v-if="generatedImpact">
+              <div v-if="generatedImpact" class="metric">
                 <div class="metric-label"><span class="spark-icon" /> 예상 효과</div>
                 <div class="metric-value">{{ generatedImpact }}</div>
               </div>
@@ -44,40 +38,70 @@
         </div>
       </div>
 
+      <!-- 오른쪽 영역: 인스타 게시글 미리보기 -->
       <div class="final-right">
-        <div class="result-card">
-          <div class="result-card__title">
-            <span class="eye" /> 최종 결과물
-          </div>
-          <div class="result-canvas">
-            <div class="result-images" v-if="uploadedImages.length > 0">
-              <div
-                v-for="(image, index) in uploadedImages.slice(0, 3)"
-                :key="image.id"
-                class="result-image"
-                :style="{
-                  zIndex: 3 - index,
-                  transform: `translateX(${index * 10}px) translateY(${index * 5}px)`,
-                }"
-              >
-                <img :src="image.previewUrl" :alt="`최종 결과 ${index + 1}`" />
-                <div class="image-number">{{ index + 1 }}</div>
-              </div>
+        <div class="result-card insta-preview-vertical">
+          <!-- 헤더 -->
+          <div class="insta-header">
+            <div class="insta-user">
+              <i class="fa-regular fa-circle-user"></i>
+              <span>{{ snsStore.instagram.username }}</span>
             </div>
-            <div class="canvas-ph" v-else>이미지 없음</div>
-          </div>
-          <div class="result-footer">
-            <div class="orig-label">원본 문구:</div>
-            <div class="orig-value link">
-              {{ userCaption || '입력된 문구 없음' }}
-            </div>
-            <div class="result-note">
-              <span class="info-icon" /> 총 {{ uploadedImages.length }}장 중 앞의
-              {{ Math.min(uploadedImages.length, 3) }}장을 분석하여 생성된 결과입니다
+            <div class="insta-options">
+              <i class="fa-solid fa-ellipsis"></i>
             </div>
           </div>
+
+          <!-- 게시글 이미지 (슬라이드 가능) -->
+          <div class="insta-image">
+            <img
+              v-if="uploadedImages.length > 0"
+              :src="uploadedImages[currentImageIndex].previewUrl"
+              alt="게시글 이미지"
+            />
+            <div v-else class="image-placeholder">사진 없음</div>
+            <button
+              v-if="uploadedImages.length > 1"
+              class="img-prev"
+              @click="prevImage"
+            >
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button
+              v-if="uploadedImages.length > 1"
+              class="img-next"
+              @click="nextImage"
+            >
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+
+          <!-- 좋아요, 댓글, 전송 아이콘 -->
+          <div class="insta-actions">
+            <i class="fa-regular fa-heart"></i>
+            <i class="fa-regular fa-comment"></i>
+            <i class="fa-regular fa-paper-plane"></i>
+          </div>
+
+          <!-- 좋아요 수 -->
+          <div class="insta-likes">좋아요 120개</div>
+
+          <!-- 캡션 (AI 첫 줄 + ...더보기) -->
+          <div class="insta-caption">
+            <span class="insta-username">{{ snsStore.instagram.username }}</span>
+            {{ firstLineAI }}<span v-if="hasMoreLines">...더보기</span>
+          </div>
+
+          <!-- 댓글 -->
+          <div class="insta-comments">
+            댓글 8개 모두 보기
+          </div>
+
+          <!-- 시간 정보 -->
+          <div class="insta-time">1시간 전</div>
         </div>
 
+        <!-- 액션 버튼 -->
         <div class="action-buttons">
           <div class="download-row">
             <div class="download-left"><span class="dl-icon" /> 콘텐츠 활용</div>
@@ -87,57 +111,91 @@
                 type="button"
                 @click="$emit('copy-to-clipboard')"
               >
-                <span class="btn-icon" /> 텍스트 복사
+                <i class="fa-regular fa-copy"></i>  텍스트 복사
               </button>
               <button
                 class="download-btn post-btn"
                 type="button"
-                @click="$emit('post-to-instagram')"
+                @click="uploadToInstagram"
               >
-                <span class="btn-icon" /> 인스타그램 게시하기
+                <i class="fa-brands fa-instagram"></i>  게시글 업로드
               </button>
             </div>
           </div>
-          <div class="start-over-row">
-            <button class="start-over-btn" type="button" @click="$emit('start-over')">
-              다시 시작하기
-            </button>
-          </div>
         </div>
+
+        <!-- Instagram 로그인 모달 -->
+        <InstagramLoginModal
+          ref="instagramLoginModal"
+          :visible="showInstagramModal"
+          @close="showInstagramModal = false"
+          @login-success="handleInstagramLoginSuccess"
+        />
       </div>
     </div>
   </section>
 </template>
 
 <script setup>
-defineProps({
-  uploadedImages: {
-    type: Array,
-    default: () => [],
-  },
-  userCaption: {
-    type: String,
-    default: '',
-  },
-  generatedText: {
-    type: String,
-    default: '',
-  },
-  generatedHashtags: {
-    type: Array,
-    default: () => [],
-  },
-  generatedBestTime: {
-    type: String,
-    default: '',
-  },
-  generatedImpact: {
-    type: String,
-    default: '',
-  },
+import { ref, computed } from 'vue';
+import InstagramLoginModal from '../sns/insta/InstagramLoginModal.vue';
+import { useSnsStore } from '@/stores/useSnsStore';
+import { useToastStore } from '@/stores/useToastStore';
+
+const props = defineProps({
+  uploadedImages: { type: Array, default: () => [] },
+  userCaption: { type: String, default: '' },
+  generatedText: { type: String, default: '' },
+  generatedHashtags: { type: Array, default: () => [] },
+  generatedBestTime: { type: String, default: '' },
+  generatedImpact: { type: String, default: '' },
 });
 
-defineEmits(['copy-to-clipboard', 'post-to-instagram', 'start-over']);
+const emit = defineEmits(['copy-to-clipboard', 'post-to-instagram', 'start-over']);
+
+const snsStore = useSnsStore();
+const toastStore = useToastStore();
+const showInstagramModal = ref(false);
+const instagramLoginModal = ref(null);
+
+// 이미지 슬라이드
+const currentImageIndex = ref(0);
+const nextImage = () => {
+  if (props.uploadedImages.length > 1) {
+    currentImageIndex.value = (currentImageIndex.value + 1) % props.uploadedImages.length;
+  }
+};
+const prevImage = () => {
+  if (props.uploadedImages.length > 1) {
+    currentImageIndex.value =
+      (currentImageIndex.value - 1 + props.uploadedImages.length) % props.uploadedImages.length;
+  }
+};
+
+// AI 캡션 첫 줄만 보여주기
+const firstLineAI = computed(() => {
+  if (!props.generatedText) return '';
+  const lines = props.generatedText.split('\n');
+  return lines[0];
+});
+const hasMoreLines = computed(() => {
+  if (!props.generatedText) return false;
+  return props.generatedText.includes('\n') || props.generatedText.length > firstLineAI.value.length;
+});
+
+// 인스타 업로드 함수
+const uploadToInstagram = () => {
+  if (snsStore.instagram.connected) {
+    toastStore.success(`${snsStore.instagram.username} 계정에 업로드 완료되었습니다.`);
+  } else {
+    showInstagramModal.value = true;
+  }
+};
+
+const handleInstagramLoginSuccess = (username) => {
+  toastStore.success(`${username} 계정에 업로드 완료되었습니다.`);
+  showInstagramModal.value = false;
+};
 </script>
 
 <style scoped>
@@ -146,14 +204,19 @@ defineEmits(['copy-to-clipboard', 'post-to-instagram', 'start-over']);
   display: flex;
   justify-content: center;
 }
-
 .step4__grid {
   width: 940px;
   max-width: calc(100% - 48px);
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr auto;
   gap: 24px;
   align-items: start;
+}
+
+.final-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 /* Common Box Styling */
@@ -176,10 +239,6 @@ defineEmits(['copy-to-clipboard', 'post-to-instagram', 'start-over']);
   gap: 8px;
   border-bottom: 1px solid #f3d9cf;
   background: var(--color-white);
-}
-
-.final-box__title {
-  border-bottom: 1px solid #f3d9cf;
 }
 
 .red-icon {
@@ -301,120 +360,127 @@ defineEmits(['copy-to-clipboard', 'post-to-instagram', 'start-over']);
 }
 
 /* Result Card Styling */
-.result-card__title {
-  padding: 10px 12px;
-  border-bottom: 1px solid #f3d9cf;
-  background: var(--color-white);
-  font-weight: 700;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.eye {
-  font-size: 16px;
-}
-
-.result-canvas {
-  padding: 24px;
-  height: 432px;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.result-images {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.result-image {
-  position: absolute;
-  width: 200px;
-  height: 200px;
-  border-radius: 8px;
+.insta-preview-vertical {
+  border: 1px solid #dbdbdb;
+  border-radius: 12px;
+  background: #fff;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border: 3px solid var(--color-white);
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, sans-serif;
 }
 
-.result-image img {
+.insta-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.insta-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.insta-user i {
+  font-size: 28px;
+}
+
+.insta-options i {
+  cursor: pointer;
+}
+
+.insta-image {
+  width: 100%;
+  aspect-ratio: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.insta-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.image-number {
+/* 슬라이드 버튼 */
+.img-prev,
+.img-next {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  background: var(--color-sub);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,0.3);
   color: white;
+  border: none;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  font-size: 12px;
-  font-weight: 700;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  z-index: 10;
 }
+.img-prev { left: 8px; }
+.img-next { right: 8px; }
 
-.canvas-ph {
+.image-placeholder {
   width: 100%;
   height: 100%;
   background: #f5f5f5;
-  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #999;
-  font-size: 14px;
+  font-size: 16px;
 }
 
-.result-footer {
-  padding: 16px;
-  border-top: 1px solid #f3d9cf;
-  background: var(--color-light-2);
-}
-
-.orig-label {
-  font-size: 12px;
-  color: #6f7275;
-}
-
-.orig-value {
-  margin-top: 4px;
-  color: var(--color-sub);
-  font-weight: 700;
-}
-
-.result-note {
-  margin-top: 8px;
-  font-size: 11px;
-  color: #9aa0a6;
+.insta-actions {
+  padding: 8px 12px;
   display: flex;
-  align-items: center;
-  gap: 6px;
+  gap: 16px;
+  font-size: 22px;
 }
 
-.info-icon {
-  width: 10px;
-  height: 10px;
-  background: var(--color-main);
-  border-radius: 999px;
-  display: inline-block;
+.insta-likes {
+  padding: 0 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.insta-caption {
+  padding: 0 12px;
+  margin-bottom: 6px;
+  line-height: 1.4;
+  font-size: 13px;
+}
+
+.insta-username {
+  font-weight: 700;
+  margin-right: 6px;
+  font-size: 13px;
+}
+
+.insta-comments {
+  padding: 0 12px;
+  color: #8e8e8e;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.insta-time {
+  padding: 0 12px 12px 12px;
+  font-size: 10px;
+  color: #999;
 }
 
 /* Action Buttons Section */
 .action-buttons {
-  margin-top: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -443,52 +509,23 @@ defineEmits(['copy-to-clipboard', 'post-to-instagram', 'start-over']);
 
 .download-btns {
   display: flex;
-  gap: 8px; /* Adjusted gap */
+  gap: 8px;
 }
 
 .download-btn {
   border: none;
-  background: var(--color-sub); /* Unified color */
+  background: var(--color-sub);
   color: #fff;
-  border-radius: 8px; /* Slightly smaller border-radius */
-  padding: 10px 14px; /* Reduced padding for smaller size */
+  border-radius: 8px;
+  padding: 8px 12px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
-  font-size: 13px; /* Smaller font size */
+  font-size: 13px;
 }
 
 .download-btn:hover {
   filter: brightness(0.95);
-}
-
-.btn-icon {
-  width: 8px;
-  height: 8px;
-  background: var(--color-white);
-  border-radius: 999px;
-  display: inline-block;
-  margin-right: 6px;
-}
-
-/* Start Over Button Section */
-.start-over-row {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.start-over-btn {
-  border: 1px solid #ddd;
-  background: #f0f0f0;
-  color: #666;
-  border-radius: 10px;
-  padding: 12px 18px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.start-over-btn:hover {
-  filter: brightness(0.98);
 }
 </style>
