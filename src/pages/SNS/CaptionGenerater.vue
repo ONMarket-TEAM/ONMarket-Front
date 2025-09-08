@@ -169,7 +169,6 @@ async function handleMultipleUpload(files) {
 
     toastSuccess(`${successfullyUploadedKeys.length}개의 이미지가 성공적으로 업로드되었어요.`);
   } catch (error) {
-    console.error('업로드 오류:', error);
     toastError('일부 이미지 업로드에 실패했습니다.');
   } finally {
     isUploading.value = false;
@@ -215,7 +214,6 @@ async function uploadSingleFile(file) {
 
     return presignData.key;
   } catch (error) {
-    console.error('개별 파일 업로드 오류:', error);
     toastError(error.message || '파일 업로드 중 오류가 발생했습니다.');
     return null;
   }
@@ -232,7 +230,6 @@ async function deleteImageFromS3(s3Key) {
     }
     toastInfo('S3에서 이미지가 성공적으로 삭제되었습니다.');
   } catch (error) {
-    console.error('S3 이미지 삭제 오류:', error);
     toastError('S3 이미지 삭제 중 오류가 발생했어요.');
   }
 }
@@ -288,7 +285,6 @@ async function generateCaption() {
 
     toastSuccess('AI 캡션이 성공적으로 생성되었어요!');
   } catch (error) {
-    console.error('캡션 생성 오류:', error);
     toastError(error.message || '캡션 생성 중 문제가 발생했어요.');
   } finally {
     isGenerating.value = false;
@@ -332,7 +328,7 @@ async function handleNext() {
 
 // 모든 상태 초기화
 function startOver() {
-  currentStep.value = 1; 
+  currentStep.value = 1;
   uploadedImages.value = [];
   userCaption.value = '';
   generatedText.value = '';
