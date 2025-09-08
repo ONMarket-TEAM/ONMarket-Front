@@ -16,6 +16,7 @@ defineProps({
 
 <style scoped>
 .title {
+  margin-bottom: 25px;
   margin-top: 36px;
   font-size: 28px;
   font-weight: 700;

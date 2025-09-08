@@ -36,6 +36,35 @@
             </div>
           </div>
         </div>
+
+        <!-- 액션 버튼 - 왼쪽으로 이동 -->
+        <div class="action-buttons">
+          <div class="download-row">
+            <div class="download-left"><span class="dl-icon" /> 콘텐츠 활용</div>
+            <div class="download-btns">
+              <button
+                class="download-btn copy-btn"
+                type="button"
+                @click="$emit('copy-to-clipboard')"
+              >
+                <i class="fa-regular fa-copy"></i> 텍스트 복사
+              </button>
+              <button
+                class="download-btn post-btn"
+                type="button"
+                @click="uploadToInstagram"
+              >
+                <i class="fa-brands fa-instagram"></i> 게시글 업로드
+              </button>
+            </div>
+          </div>
+
+          <!-- 안내 문구 추가 -->
+          <div class="action-guide">
+            <div class="guide-item">* 텍스트 복사를 통해 직접 인스타그램에서 편집하고 문구를 넣을 수 있습니다.</div>
+            <div class="guide-item">* 게시글 업로드 시, 인스타그램 로그인 연동 후 해당 계정에 바로 게시물을 업로드합니다.</div>
+          </div>
+        </div>
       </div>
 
       <!-- 오른쪽 영역: 인스타 게시글 미리보기 -->
@@ -45,7 +74,8 @@
           <div class="insta-header">
             <div class="insta-user">
               <i class="fa-regular fa-circle-user"></i>
-              <span>{{ snsStore.instagram.username }}</span>
+              <span>{{ snsStore.instagram.username || 'username' }}</span>
+              <span class="preview-tag">(미리보기)</span>
             </div>
             <div class="insta-options">
               <i class="fa-solid fa-ellipsis"></i>
@@ -81,47 +111,26 @@
             <i class="fa-regular fa-heart"></i>
             <i class="fa-regular fa-comment"></i>
             <i class="fa-regular fa-paper-plane"></i>
+            <i class="fa-regular fa-bookmark insta-bookmark"></i>
+
           </div>
 
           <!-- 좋아요 수 -->
-          <div class="insta-likes">좋아요 120개</div>
+          <div class="insta-likes">좋아요 1,230개</div>
 
           <!-- 캡션 (AI 첫 줄 + ...더보기) -->
           <div class="insta-caption">
-            <span class="insta-username">{{ snsStore.instagram.username }}</span>
+            <span class="insta-username">{{ snsStore.instagram.username || 'username' }}</span>
             {{ firstLineAI }}<span v-if="hasMoreLines">...더보기</span>
           </div>
 
           <!-- 댓글 -->
           <div class="insta-comments">
-            댓글 8개 모두 보기
+            댓글 12개 모두 보기
           </div>
 
           <!-- 시간 정보 -->
           <div class="insta-time">1시간 전</div>
-        </div>
-
-        <!-- 액션 버튼 -->
-        <div class="action-buttons">
-          <div class="download-row">
-            <div class="download-left"><span class="dl-icon" /> 콘텐츠 활용</div>
-            <div class="download-btns">
-              <button
-                class="download-btn copy-btn"
-                type="button"
-                @click="$emit('copy-to-clipboard')"
-              >
-                <i class="fa-regular fa-copy"></i>  텍스트 복사
-              </button>
-              <button
-                class="download-btn post-btn"
-                type="button"
-                @click="uploadToInstagram"
-              >
-                <i class="fa-brands fa-instagram"></i>  게시글 업로드
-              </button>
-            </div>
-          </div>
         </div>
 
         <!-- Instagram 로그인 모달 -->
@@ -199,6 +208,13 @@ const handleInstagramLoginSuccess = (username) => {
 </script>
 
 <style scoped>
+.preview-tag {
+  color: #999; /* 회색 */
+  font-size: 14px;
+  margin-left: 4px;
+  font-weight: 500;
+}
+
 .step4 {
   width: 100%;
   display: flex;
@@ -211,6 +227,12 @@ const handleInstagramLoginSuccess = (username) => {
   grid-template-columns: 1fr auto;
   gap: 24px;
   align-items: start;
+}
+
+.final-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .final-right {
@@ -428,6 +450,49 @@ const handleInstagramLoginSuccess = (username) => {
 .img-prev { left: 8px; }
 .img-next { right: 8px; }
 
+/* 이미지 개수 표시 */
+.image-counter {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 10;
+}
+
+/* 점 인디케이터 */
+.image-dots {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dot.active {
+  background: rgba(255,255,255,0.9);
+  transform: scale(1.2);
+}
+
+.dot:hover {
+  background: rgba(255,255,255,0.7);
+}
+
 .image-placeholder {
   width: 100%;
   height: 100%;
@@ -444,6 +509,14 @@ const handleInstagramLoginSuccess = (username) => {
   display: flex;
   gap: 16px;
   font-size: 22px;
+  position: relative;
+}
+
+.insta-bookmark {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .insta-likes {
@@ -527,5 +600,18 @@ const handleInstagramLoginSuccess = (username) => {
 
 .download-btn:hover {
   filter: brightness(0.95);
+}
+
+/* 안내 문구 스타일 */
+.action-guide {
+  margin-top: 8px;
+}
+
+.guide-item {
+  color: #999;
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 4px 0;
+  word-break: keep-all;
 }
 </style>

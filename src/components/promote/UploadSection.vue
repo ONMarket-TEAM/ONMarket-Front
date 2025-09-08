@@ -1,5 +1,14 @@
 <template>
   <section class="upload-section">
+
+    <p class="service-info">
+  <span class="tooltip-trigger"><i class="fa-solid fa-circle-info"></i> '내 가게 알리기'란?</span>
+  <span class="tooltip-text">
+    ‘내 가게 알리기’ 서비스는 가게 홍보에 어려움을 겪는 소상공인들을 위한 서비스입니다. <br>
+    업로드한 사진(예: 메뉴, 인테리어 등)을 분석하여 최적화된 홍보 문구를 작성하고, <br>
+    인스타그램에 바로 업로드까지 지원합니다.
+  </span>
+</p>
     <div class="upload-drop" :class="{ 'has-images': uploadedImages.length > 0 }" @drop.prevent="handleDrop" @dragover.prevent>
       <input
         type="file"
@@ -90,7 +99,7 @@
         <p class="upload-text-2" v-if="!isUploading">JPG, PNG 파일 지원 (최대 10MB, 20장까지)</p>
         <p class="upload-text-3" v-if="!isUploading">제품, 음식, 풍경, 인물 등 모든 사진 가능</p>
         <p class="upload-text-4" v-if="!isUploading">
-          <span class="highlight"> ※ 여러 장 선택 시 AI가 앞의 3장을 분석합니다</span>
+          <span class="highlight"> ※ 여러 장 업로드 시 앞의 3장을 분석하여 문구를 작성해드립니다</span>
         </p>
       </button>
     </div>
@@ -148,6 +157,41 @@ function removeImage(imageId) {
 </script>
 
 <style scoped>
+
+.service-info {
+  font-size: 17px;
+  color: var(--color-gray-700, #495057);
+  line-height: 1.6;
+  position: relative;
+}
+
+.tooltip-trigger {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tooltip-text {
+  display: none;
+  position: absolute;
+  top: 24px;
+  left: 0;
+  width: 400px;
+  padding: 14px;
+  background: var(--color-white, #fff);
+  border: 1px solid var(--color-gray-300, #ccc);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  font-size: 16px;
+  color: var(--color-gray-800, #333);
+  z-index: 10;
+  line-height: 1.5;
+}
+
+.tooltip-trigger:hover + .tooltip-text,
+.tooltip-text:hover {
+  display: block;
+}
+
 /* 섹션 컨테이너: 전체 너비 및 마진 */
 .upload-section {
   width: 940px;
