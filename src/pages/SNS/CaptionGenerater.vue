@@ -332,6 +332,7 @@ async function handleNext() {
 
 // 모든 상태 초기화
 function startOver() {
+  currentStep.value = 1; 
   uploadedImages.value = [];
   userCaption.value = '';
   generatedText.value = '';
