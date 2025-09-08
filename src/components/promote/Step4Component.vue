@@ -3,10 +3,14 @@
     <div class="step4__grid">
       <div class="final-left">
         <div class="final-box">
-          <div class="final-box__title"><span class="red-icon" /> 최종 생성된 콘텐츠</div>
+          <div class="final-box__title">
+            <span class="red-icon" /> 최종 생성된 콘텐츠
+          </div>
           <div class="final-box__body">
             <div class="final-caption">
-              <div class="final-caption__header"><span class="green-dot" /> 완성된 캡션</div>
+              <div class="final-caption__header">
+                <span class="green-dot" /> 완성된 캡션
+              </div>
               <div class="final-caption__inner">
                 <div class="final-caption__text">
                   {{ generatedText || '캡션이 생성되지 않았습니다.' }}
@@ -14,7 +18,10 @@
               </div>
             </div>
 
-            <div class="final-hashtags" v-if="generatedHashtags && generatedHashtags.length > 0">
+            <div
+              class="final-hashtags"
+              v-if="generatedHashtags && generatedHashtags.length > 0"
+            >
               <div class="hash-title"><span class="hash-icon" /> 추천 해시태그</div>
               <div class="hash-bubble">
                 {{ generatedHashtags.join(' ') }}
@@ -23,7 +30,9 @@
 
             <div class="final-metrics" v-if="generatedBestTime || generatedImpact">
               <div class="metric" v-if="generatedBestTime">
-                <div class="metric-label"><span class="clock-icon" /> 최적 게시 시간</div>
+                <div class="metric-label">
+                  <span class="clock-icon" /> 최적 게시 시간
+                </div>
                 <div class="metric-value">{{ generatedBestTime }}</div>
               </div>
               <div class="metric" v-if="generatedImpact">
@@ -37,7 +46,9 @@
 
       <div class="final-right">
         <div class="result-card">
-          <div class="result-card__title"><span class="eye" /> 최종 결과물</div>
+          <div class="result-card__title">
+            <span class="eye" /> 최종 결과물
+          </div>
           <div class="result-canvas">
             <div class="result-images" v-if="uploadedImages.length > 0">
               <div
@@ -46,7 +57,7 @@
                 class="result-image"
                 :style="{
                   zIndex: 3 - index,
-                  transform: `translateX(${index * 10}px) translateY(${index * 5}px)`
+                  transform: `translateX(${index * 10}px) translateY(${index * 5}px)`,
                 }"
               >
                 <img :src="image.previewUrl" :alt="`최종 결과 ${index + 1}`" />
@@ -57,18 +68,41 @@
           </div>
           <div class="result-footer">
             <div class="orig-label">원본 문구:</div>
-            <div class="orig-value link">{{ userCaption || '입력된 문구 없음' }}</div>
+            <div class="orig-value link">
+              {{ userCaption || '입력된 문구 없음' }}
+            </div>
             <div class="result-note">
-              <span class="info-icon" /> 총 {{ uploadedImages.length }}장 중 앞의 {{ Math.min(uploadedImages.length, 3) }}장을 분석하여 생성된 결과입니다
+              <span class="info-icon" /> 총 {{ uploadedImages.length }}장 중 앞의
+              {{ Math.min(uploadedImages.length, 3) }}장을 분석하여 생성된 결과입니다
             </div>
           </div>
         </div>
 
-        <div class="download-row">
-          <div class="download-left"><span class="dl-icon" /> 콘텐츠 활용</div>
-          <button class="download-btn" type="button" @click="$emit('copy-to-clipboard')">
-            <span class="btn-icon" /> 텍스트 복사
-          </button>
+        <div class="action-buttons">
+          <div class="download-row">
+            <div class="download-left"><span class="dl-icon" /> 콘텐츠 활용</div>
+            <div class="download-btns">
+              <button
+                class="download-btn copy-btn"
+                type="button"
+                @click="$emit('copy-to-clipboard')"
+              >
+                <span class="btn-icon" /> 텍스트 복사
+              </button>
+              <button
+                class="download-btn post-btn"
+                type="button"
+                @click="$emit('post-to-instagram')"
+              >
+                <span class="btn-icon" /> 인스타그램 게시하기
+              </button>
+            </div>
+          </div>
+          <div class="start-over-row">
+            <button class="start-over-btn" type="button" @click="$emit('start-over')">
+              다시 시작하기
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -79,31 +113,31 @@
 defineProps({
   uploadedImages: {
     type: Array,
-    default: () => []
+    default: () => [],
   },
   userCaption: {
     type: String,
-    default: ''
+    default: '',
   },
   generatedText: {
     type: String,
-    default: ''
+    default: '',
   },
   generatedHashtags: {
     type: Array,
-    default: () => []
+    default: () => [],
   },
   generatedBestTime: {
     type: String,
-    default: ''
+    default: '',
   },
   generatedImpact: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 });
 
-defineEmits(['copy-to-clipboard', 'start-over']);
+defineEmits(['copy-to-clipboard', 'post-to-instagram', 'start-over']);
 </script>
 
 <style scoped>
@@ -122,14 +156,18 @@ defineEmits(['copy-to-clipboard', 'start-over']);
   align-items: start;
 }
 
-.final-box {
+/* Common Box Styling */
+.final-box,
+.result-card {
   border: 1.2px solid var(--color-main);
   border-radius: 12px;
   background: var(--color-white);
   overflow: hidden;
 }
 
-.final-box__title {
+/* Title Styling */
+.final-box__title,
+.result-card__title {
   padding: 12px 16px;
   font-weight: 700;
   font-size: 14px;
@@ -140,6 +178,10 @@ defineEmits(['copy-to-clipboard', 'start-over']);
   background: var(--color-white);
 }
 
+.final-box__title {
+  border-bottom: 1px solid #f3d9cf;
+}
+
 .red-icon {
   width: 10px;
   height: 10px;
@@ -148,8 +190,12 @@ defineEmits(['copy-to-clipboard', 'start-over']);
   display: inline-block;
 }
 
+/* Body and Content Styling */
 .final-box__body {
-  padding: 14px;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .final-caption {
@@ -177,7 +223,7 @@ defineEmits(['copy-to-clipboard', 'start-over']);
 }
 
 .final-caption__inner {
-  padding: 12px;
+  padding: 16px;
 }
 
 .final-caption__text {
@@ -188,7 +234,7 @@ defineEmits(['copy-to-clipboard', 'start-over']);
 }
 
 .final-hashtags {
-  margin-top: 12px;
+  margin-top: 0;
 }
 
 .hash-title {
@@ -218,7 +264,7 @@ defineEmits(['copy-to-clipboard', 'start-over']);
 }
 
 .final-metrics {
-  margin-top: 12px;
+  margin-top: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
@@ -254,13 +300,7 @@ defineEmits(['copy-to-clipboard', 'start-over']);
   border-radius: 999px;
 }
 
-.result-card {
-  border: 1px solid #f3d9cf;
-  border-radius: 12px;
-  background: var(--color-white);
-  overflow: hidden;
-}
-
+/* Result Card Styling */
 .result-card__title {
   padding: 10px 12px;
   border-bottom: 1px solid #f3d9cf;
@@ -277,7 +317,7 @@ defineEmits(['copy-to-clipboard', 'start-over']);
 }
 
 .result-canvas {
-  padding: 12px;
+  padding: 24px;
   height: 432px;
   position: relative;
   display: flex;
@@ -339,7 +379,7 @@ defineEmits(['copy-to-clipboard', 'start-over']);
 }
 
 .result-footer {
-  padding: 12px;
+  padding: 16px;
   border-top: 1px solid #f3d9cf;
   background: var(--color-light-2);
 }
@@ -356,7 +396,7 @@ defineEmits(['copy-to-clipboard', 'start-over']);
 }
 
 .result-note {
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 11px;
   color: #9aa0a6;
   display: flex;
@@ -372,11 +412,18 @@ defineEmits(['copy-to-clipboard', 'start-over']);
   display: inline-block;
 }
 
+/* Action Buttons Section */
+.action-buttons {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .download-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 16px;
 }
 
 .download-left {
@@ -394,16 +441,22 @@ defineEmits(['copy-to-clipboard', 'start-over']);
   display: inline-block;
 }
 
+.download-btns {
+  display: flex;
+  gap: 8px; /* Adjusted gap */
+}
+
 .download-btn {
   border: none;
-  background: var(--color-sub);
+  background: var(--color-sub); /* Unified color */
   color: #fff;
-  border-radius: 10px;
-  padding: 12px 18px;
+  border-radius: 8px; /* Slightly smaller border-radius */
+  padding: 10px 14px; /* Reduced padding for smaller size */
   font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
+  font-size: 13px; /* Smaller font size */
 }
 
 .download-btn:hover {
@@ -411,11 +464,31 @@ defineEmits(['copy-to-clipboard', 'start-over']);
 }
 
 .btn-icon {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   background: var(--color-white);
   border-radius: 999px;
   display: inline-block;
   margin-right: 6px;
+}
+
+/* Start Over Button Section */
+.start-over-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.start-over-btn {
+  border: 1px solid #ddd;
+  background: #f0f0f0;
+  color: #666;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.start-over-btn:hover {
+  filter: brightness(0.98);
 }
 </style>
