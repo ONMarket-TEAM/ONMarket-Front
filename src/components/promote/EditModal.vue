@@ -1,37 +1,39 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal">
-      <div class="modal-header">
-        <strong>문구 편집</strong>
-        <button class="modal-close" type="button" @click="$emit('close')">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="modal-images">
-          <div
-            v-for="(image, index) in uploadedImages.slice(0, 3)"
-            :key="image.id"
-            class="modal-img"
-          >
-            <img :src="image.previewUrl" :alt="`미리보기 ${index + 1}`" />
-            <div class="img-badge">{{ index + 1 }}</div>
+  <teleport to="body">
+    <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
+      <div class="modal">
+        <div class="modal-header">
+          <strong>문구 편집</strong>
+          <button class="modal-close" type="button" @click="$emit('close')">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-images">
+            <div
+              v-for="(image, index) in uploadedImages.slice(0, 3)"
+              :key="image.id"
+              class="modal-img"
+            >
+              <img :src="image.previewUrl" :alt="`미리보기 ${index + 1}`" />
+              <div class="img-badge">{{ index + 1 }}</div>
+            </div>
+            <div v-if="uploadedImages.length === 0" class="modal-img-ph">이미지 없음</div>
           </div>
-          <div v-if="uploadedImages.length === 0" class="modal-img-ph">이미지 없음</div>
+          <div class="modal-form">
+            <textarea
+              :value="editBuffer"
+              @input="$emit('update-buffer', $event.target.value)"
+              class="modal-textarea"
+              placeholder="문구를 편집해주세요..."
+            ></textarea>
+          </div>
         </div>
-        <div class="modal-form">
-          <textarea
-            :value="editBuffer"
-            @input="$emit('update-buffer', $event.target.value)"
-            class="modal-textarea"
-            placeholder="문구를 편집해주세요..."
-          ></textarea>
+        <div class="modal-actions">
+          <button class="btn-primary" type="button" @click="$emit('save')">저장</button>
+          <button class="btn-secondary" type="button" @click="$emit('close')">닫기</button>
         </div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn-primary" type="button" @click="$emit('save')">저장</button>
-        <button class="btn-secondary" type="button" @click="$emit('close')">닫기</button>
       </div>
     </div>
-  </div>
+  </teleport>
 </template>
 
 <script setup>
@@ -56,10 +58,7 @@ defineEmits(['close', 'save', 'update-buffer']);
 <style scoped>
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0; /* top, right, bottom, left 모두 0 */
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
@@ -68,15 +67,19 @@ defineEmits(['close', 'save', 'update-buffer']);
 }
 
 .modal {
+  position: fixed; /* 반드시 fixed */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   background: var(--color-white);
   border-radius: 12px;
   width: 90%;
   max-width: 600px;
   max-height: 80vh;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  display: flex; /* Flexbox로 변경 */
-  flex-direction: column; /* 세로 방향으로 요소 정렬 */
+  display: flex;
+  flex-direction: column;
+  z-index: 1001;
 }
 
 .modal-header {
@@ -104,17 +107,17 @@ defineEmits(['close', 'save', 'update-buffer']);
 
 .modal-body {
   padding: 20px;
-  display: flex; /* Flexbox로 변경 */
-  flex-grow: 1; /* 남은 공간을 채우도록 설정 */
+  display: flex;
+  flex-grow: 1;
   gap: 16px;
-  overflow-y: auto; /* 내용이 넘칠 경우 스크롤 */
+  overflow-y: auto;
 }
 
 .modal-images {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex-shrink: 0; /* 공간이 부족해도 축소되지 않음 */
+  flex-shrink: 0;
 }
 
 .modal-img {
@@ -161,14 +164,14 @@ defineEmits(['close', 'save', 'update-buffer']);
 }
 
 .modal-form {
-  flex-grow: 1; /* 남은 공간을 모두 차지하도록 설정 */
+  flex-grow: 1;
   display: flex;
   flex-direction: column;
 }
 
 .modal-textarea {
   width: 100%;
-  height: 100%; /* 부모의 남은 공간을 채우도록 */
+  height: 100%;
   min-height: 200px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -197,7 +200,7 @@ defineEmits(['close', 'save', 'update-buffer']);
   color: #fff;
   border: none;
   border-radius: 6px;
-  padding: 10px 20px;
+  padding: 6px 20px;
   font-weight: 600;
   cursor: pointer;
 }
