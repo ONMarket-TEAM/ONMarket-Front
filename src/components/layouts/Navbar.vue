@@ -76,22 +76,31 @@
           <div v-if="showNotifications" class="notification-dropdown">
             <div class="notification-header">
               <h4>알림</h4>
-              <button @click="markAllAsRead" class="mark-all-read">모두 읽음</button>
+              <button @click="markAllAsRead" class="mark-all-read" :disabled="markingAllAsRead">
+                모두 읽음
+              </button>
             </div>
             <div class="notification-list">
-              <div
-                v-for="notification in notifications"
-                :key="notification.id"
-                class="notification-item"
-                :class="{ unread: !notification.read }"
-              >
-                <div class="notification-content">
-                  <p>{{ notification.message }}</p>
-                  <span class="notification-time">{{ formatTime(notification.createdAt) }}</span>
-                </div>
-              </div>
               <div v-if="notifications.length === 0" class="no-notifications">
                 새로운 알림이 없습니다.
+              </div>
+              <div v-else>
+                <div
+                  v-for="notification in notifications"
+                  :key="notification.notificationId"
+                  class="notification-item"
+                  :class="{ unread: !notification.isRead }"
+                  @click="markNotificationAsRead(notification)"
+                >
+                  <div class="notification-content">
+                    <div class="notification-title">{{ notification.title }}</div>
+                    <p class="notification-message">{{ notification.message }}</p>
+                    <div class="notification-meta">
+                      <span class="notification-time">{{ notification.relativeTime }}</span>
+                    </div>
+                  </div>
+                  <div v-if="!notification.isRead" class="unread-indicator"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -136,6 +145,7 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/useAuthStore';
 import memberApi from '@/api/member';
+import notificationApi from '@/api/notification';
 import { useToastStore } from '@/stores/useToastStore';
 import default_image from '@/assets/default_avatar.png';
 
@@ -148,16 +158,10 @@ const me = ref(null);
 
 // 알림 관련 상태
 const showNotifications = ref(false);
-const notifications = ref([
-  { id: 1, message: '새로운 대출 상품이 등록되었습니다.', read: false, createdAt: new Date() },
-  {
-    id: 2,
-    message: '정부 지원금 신청 결과가 나왔습니다.',
-    read: false,
-    createdAt: new Date(Date.now() - 3600000),
-  },
-]);
-const unreadCount = ref(2);
+const notifications = ref([]);
+const unreadCount = ref(0);
+const notificationLoading = ref(false);
+const markingAllAsRead = ref(false);
 
 // 사용자 메뉴 관련 상태
 const showUserMenu = ref(false);
@@ -208,9 +212,12 @@ watch(
     if (newVal && !oldVal) {
       // 로그인되었을 때
       fetchUserInfo();
+      fetchNotificationSummary();
     } else if (!newVal && oldVal) {
       // 로그아웃되었을 때
       me.value = null;
+      notifications.value = [];
+      unreadCount.value = 0;
     }
   },
   { immediate: false }
@@ -222,6 +229,7 @@ watch(
   (newUser) => {
     if (newUser && !me.value) {
       fetchUserInfo();
+      fetchNotificationSummary();
     }
   },
   { immediate: false, deep: true }
@@ -247,10 +255,15 @@ const toggleMobileMenu = () => {
 const closeMobileMenu = () => {
   showMobileMenu.value = false;
 };
-const toggleNotifications = () => {
+const toggleNotifications = async () => {
   showNotifications.value = !showNotifications.value;
   showUserMenu.value = false;
   showMobileMenu.value = false;
+
+  // 알림 드롭다운 열릴 때마다 최신 알림 목록 조회
+  if (showNotifications.value) {
+    await fetchNotifications();
+  }
 };
 const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value;
@@ -261,30 +274,99 @@ const closeUserMenu = () => {
   showUserMenu.value = false;
 };
 
-// 알림 모두 읽음
-const markAllAsRead = () => {
-  notifications.value.forEach((notification) => {
-    notification.read = true;
-  });
-  unreadCount.value = 0;
+// 알림 요약 정보 조회 (읽지 않은 개수)
+const fetchNotificationSummary = async () => {
+  if (!authStore.isAuthenticated) {
+    unreadCount.value = 0;
+    return;
+  }
+
+  try {
+    const summary = await notificationApi.getNotificationSummary();
+    unreadCount.value = summary.unreadCount || 0;
+  } catch (err) {
+    toast.error('알림 요약 정보 조회 실패:', err);
+  }
 };
 
-// 알림 시간 포맷
-const formatTime = (date) => {
-  const now = new Date();
-  const diff = now - date;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
+// 알림 목록 조회
+const fetchNotifications = async () => {
+  if (!authStore.isAuthenticated) {
+    notifications.value = [];
+    return;
+  }
 
-  if (minutes < 1) return '방금 전';
-  if (minutes < 60) return `${minutes}분 전`;
-  if (hours < 24) return `${hours}시간 전`;
-  return date.toLocaleDateString();
+  try {
+    notificationLoading.value = true;
+    const response = await notificationApi.getNotifications(0, 20);
+    const unreadNotifications = notifications.value.filter((n) => !n.isRead);
+    unreadCount.value = unreadNotifications.length;
+
+    // 페이징된 데이터 처리
+    if (response.content) {
+      notifications.value = response.content;
+    } else if (Array.isArray(response)) {
+      notifications.value = response;
+    } else {
+      notifications.value = [];
+    }
+  } catch (err) {
+    toast.error('알림을 불러오는 데 실패했습니다.');
+    notifications.value = [];
+  } finally {
+    notificationLoading.value = false;
+  }
+};
+
+// 개별 알림 읽음 처리
+const markNotificationAsRead = async (notification) => {
+  if (notification.isRead) return;
+
+  try {
+    await notificationApi.markNotificationAsRead(notification.notificationId);
+
+    // 로컬 상태 업데이트
+    notification.isRead = true;
+    unreadCount.value = Math.max(0, unreadCount.value - 1);
+
+    toast.success('알림을 읽음 처리했습니다.');
+  } catch (err) {
+    toast.error('알림 읽음 처리에 실패했습니다.');
+  }
+};
+
+// 알림 모두 읽음
+const markAllAsRead = async () => {
+  if (markingAllAsRead.value) return;
+
+  try {
+    markingAllAsRead.value = true;
+    const response = await notificationApi.markAllNotificationsAsRead();
+
+    // 로컬 상태 업데이트
+    notifications.value.forEach((notification) => {
+      notification.isRead = true;
+    });
+    unreadCount.value = 0;
+
+    const markedCount = response.markedCount || 0;
+    if (markedCount > 0) {
+      toast.success(`${markedCount}개의 알림을 읽음 처리했습니다.`);
+    } else {
+      toast.info('읽지 않은 알림이 없습니다.');
+    }
+  } catch (err) {
+    toast.error('모든 알림 읽음 처리에 실패했습니다.');
+  } finally {
+    markingAllAsRead.value = false;
+  }
 };
 
 // 로그아웃 함수들 수정 - 사용자 정보 완전 초기화
 const handleLogout = () => {
   me.value = null;
+  notifications.value = [];
+  unreadCount.value = 0;
   authStore.logout();
   showUserMenu.value = false;
   router.push('/');
@@ -292,6 +374,8 @@ const handleLogout = () => {
 
 const handleMobileLogout = () => {
   me.value = null;
+  notifications.value = [];
+  unreadCount.value = 0;
   authStore.logout();
   showMobileMenu.value = false;
   router.push('/');
@@ -315,6 +399,7 @@ onMounted(() => {
 
   if (authStore.isAuthenticated) {
     fetchUserInfo();
+    fetchNotificationSummary();
   }
 });
 

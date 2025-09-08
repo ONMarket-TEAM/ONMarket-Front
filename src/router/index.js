@@ -68,6 +68,11 @@ const router = createRouter({
       meta: { requiresAuth: true },
       props: (route) => ({ businessId: Number(route.params.businessId) }),
     },
+    {
+      path: '/user/myscraps',
+      component: () => import('@/pages/User/MyScraps.vue'),
+      meta: { requiresAuth: true },
+    },
 
     // 대출 상품 페이지 (인증 필요)
     {
