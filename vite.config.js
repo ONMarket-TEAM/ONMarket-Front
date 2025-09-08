@@ -17,6 +17,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080', // Spring 서버
         changeOrigin: true,
+        
       },
     },
   },

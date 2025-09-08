@@ -96,7 +96,7 @@ const router = createRouter({
     },
     {
       path: '/promote',
-      component: () => import('@/pages/SNS/Caption.vue'),
+      component: () => import('@/pages/SNS/CaptionGenerater.vue'),
       meta: { requiresAuth: true },
     },
 
