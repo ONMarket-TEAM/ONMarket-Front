@@ -13,10 +13,7 @@ export const postAPI = {
         support: 'SUPPORT'
       }[type.toLowerCase()] || type.toUpperCase()
 
-      console.log(`API 호출: /api/posts/type/${normalizedType}`)
-
       const { data } = await api.get(`/api/posts/type/${normalizedType}`)
-      console.log('API 응답 성공:', data)
       return data
     } catch (error) {
       console.error(`게시물 목록 조회 실패 (${type}):`, error)
@@ -40,8 +37,6 @@ export const postAPI = {
 export const scrapAPI = {
   toggleScrap: async (postId) => {
     try {
-      console.log('스크랩 요청 postId:', postId) // 디버깅용
-      
       // 백엔드가 @RequestParam을 사용하므로 쿼리 파라미터로 전송
       const { data } = await api.post(`/api/scraps/toggle?postId=${postId}`)
       return data
@@ -54,7 +49,7 @@ export const scrapAPI = {
 
 // 댓글 API
 export const commentAPI = {
-  // 게시물별 댓글 목록 조회 - 누락된 함수 추가
+  // 게시물별 댓글 목록 조회
   getCommentsByPostId: async (postId) => {
     try {
       const { data } = await api.get(`/api/comments/post/${postId}`)
