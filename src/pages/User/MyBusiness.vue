@@ -36,7 +36,7 @@
       <!-- 등록된 사업장이 없을 때 -->
       <div v-else class="empty">
         <p>등록된 사업장이 없습니다.</p>
-        <button class="add-btn" @click="goToRegister">사업장 추가하기</button>
+        <!-- <button class="add-btn" @click="goToRegister">사업장 추가하기</button> -->
       </div>
 
       <!-- 사업장 추가 버튼 -->
