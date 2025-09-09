@@ -2,7 +2,26 @@
   <div class="post-list-container">
     <div class="container section">
       <h1 class="page-title">{{ pageTitle }}</h1>
-      <div class="post-grid">
+
+      <!-- 로딩 상태 -->
+      <div v-if="loading" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>데이터를 불러오는 중...</p>
+      </div>
+
+      <!-- 에러 상태 -->
+      <div v-else-if="error" class="error-container">
+        <p class="error-message">{{ error }}</p>
+        <button class="retry-btn" @click="fetchData">다시 시도</button>
+      </div>
+
+      <!-- 데이터가 없는 경우 -->
+      <div v-else-if="posts.length === 0" class="empty-container">
+        <p>등록된 상품이 없습니다.</p>
+      </div>
+
+      <!-- 상품 목록 -->
+      <div v-else class="post-grid">
         <PostCard
           v-for="post in posts"
           :key="post.id"
@@ -11,100 +30,249 @@
           :description="post.description"
           :tags="post.tags"
           :deadline="post.deadline"
+          :companyName="post.companyName"
         />
+      </div>
+
+      <!-- 페이지네이션 -->
+      <div v-if="pagination.totalPages > 1" class="pagination-container">
+        <!-- 이전 버튼 -->
+        <button
+          class="pagination-btn"
+          :class="{ disabled: currentPage === 1 }"
+          :disabled="currentPage === 1 || loading"
+          @click="changePage(currentPage - 1)"
+        >
+          이전
+        </button>
+
+        <!-- 페이지 번호 -->
+        <template v-for="page in paginationPages" :key="page">
+          <span v-if="page === '...'" class="pagination-btn disabled"> ... </span>
+
+          <button
+            v-else
+            @click="changePage(page)"
+            :class="['pagination-btn', { active: page === currentPage }]"
+            :disabled="loading"
+          >
+            {{ page }}
+          </button>
+        </template>
+
+        <!-- 다음 버튼 -->
+        <button
+          class="pagination-btn"
+          :class="{ disabled: currentPage === pagination.totalPages }"
+          :disabled="currentPage === pagination.totalPages || loading"
+          @click="changePage(currentPage + 1)"
+        >
+          다음
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import PostCard from '@/components/post/PostCard.vue'
+import { ref, computed, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import PostCard from '@/components/post/PostCard.vue';
+import { postAPI, getErrorMessage } from '@/api/post';
 
-const route = useRoute()
+const route = useRoute();
 
-const pageTitle = computed(() => {
-  if (route.path === '/loans') {
-    return '대출 상품 보기'
-  } else if (route.path === '/policiess') {
-    return '정부 지원금 보기'
+const posts = ref([]);
+const loading = ref(false);
+const error = ref('');
+const pagination = ref({ totalPages: 1, totalItems: 0 });
+const currentPage = ref(1);
+
+const pageTitle = computed(() =>
+  route.path === '/policies' ? '정부 지원금 보기' : '대출 상품 보기'
+);
+
+const currentPageType = computed(() => {
+  if (route.path === '/loans') return 'loans';
+  if (route.path === '/policies') return 'policies';
+  return null;
+});
+
+const fetchData = async () => {
+  if (!currentPageType.value) return;
+  loading.value = true;
+  error.value = '';
+
+  try {
+    const response = await postAPI.getPostsByType(currentPageType.value);
+    const postsData = response?.body?.data ?? [];
+
+    posts.value = transformPostsData(postsData);
+    pagination.value = {
+      totalPages: 1,
+      totalItems: postsData.length,
+    };
+  } catch (err) {
+    error.value = getErrorMessage(err);
+    posts.value = [];
+  } finally {
+    loading.value = false;
   }
-  return '상품 목록'
-})
+};
 
-const posts = computed(() => {
-  if (route.path === '/loans') {
-    return [
-      {
-        id: 1,
-        title: '서울시 예비 창업금 대출',
-        description: '서울 소재 예비창업자에게 저금리로 운영자금 대출',
-        tags: ['서울', '저금리'],
-        deadline: 'D-12'
-      },
-      {
-        id: 2,
-        title: 'KB국민은행 창업대출',
-        description: '청년 창업자 대상 특별금리 대출 상품',
-        tags: ['청년', '특별금리'],
-        deadline: 'D-5'
-      },
-      {
-        id: 3,
-        title: '신한은행 스타트업론',
-        description: '기술창업 기업 대상 성장자금 지원',
-        tags: ['기술창업', '성장자금'],
-        deadline: 'D-20'
-      }
-    ]
-  } else if (route.path === '/policies') {
-    return [
-      {
-        id: 1,
-        title: '청년창업사관학교 지원금',
-        description: '예비창업자 대상 창업교육 및 자금 지원',
-        tags: ['청년', '교육지원'],
-        deadline: 'D-15'
-      },
-      {
-        id: 2,
-        title: '중소벤처기업부 R&D 지원',
-        description: '기술개발 및 사업화 자금 지원',
-        tags: ['R&D', '기술개발'],
-        deadline: 'D-30'
-      },
-      {
-        id: 3,
-        title: '서울시 청년창업 지원금',
-        description: '서울 거주 청년창업자 대상 운영자금 지원',
-        tags: ['서울', '청년창업'],
-        deadline: 'D-8'
-      }
-    ]
-  }
-  return []
-})
+const transformPostsData = (rawData) => {
+  if (!Array.isArray(rawData)) return [];
+  return rawData.map((post) => ({
+    id: post.postId,
+    title: post.productName || '제목 없음',
+    description: post.summary || '설명 없음',
+    tags: post.tags || [],
+    deadline: post.deadline || '상시 모집',
+    companyName: post.companyName || '',
+  }));
+};
+
+watch(() => route.path, fetchData, { immediate: true });
 </script>
 
 <style scoped>
 .post-list-container {
-  background: var(--color--white);
   min-height: 100vh;
+  background: var(--color-light-1);
+}
+
+.container.section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
 }
 
 .page-title {
-  font-size: 1.75rem;
+  font-size: 2rem;
   font-weight: bold;
-  color: #333;
-  margin-bottom: 1.875rem;
+  margin-bottom: 2rem;
   text-align: center;
+  color: #333; /* 예외 허용 */
+}
+
+.loading-container,
+.error-container,
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+  padding: 3rem;
+}
+
+.loading-spinner {
+  width: 3rem;
+  height: 3rem;
+  border: 0.25rem solid var(--color-light-3);
+  border-top: 0.25rem solid var(--color-sub);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-message {
+  color: var(--color-error);
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  max-width: 600px;
+}
+
+.retry-btn {
+  background-color: var(--color-sub); 
+  color: var(--color-white);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease; 
+}
+
+
+.retry-btn:hover {
+  background: var(--color-main);
+}
+
+.empty-container p {
+  color: #666; /* 예외 허용 */
+  font-size: 1.1rem;
 }
 
 .post-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18.75rem, 1fr));
-  gap: 1.25rem;
-  align-items: stretch;
+  grid-template-columns: repeat(3, 1fr); /* 고정 3컬럼 */
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.pagination-btn {
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-white);
+  color: #666;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+  min-width: 40px;
+  text-align: center;
+}
+
+.pagination-btn:hover:not(.disabled):not(:disabled) {
+  background-color: var(--color-light-2);
+  border-color: var(--color-sub);
+  color: var(--color-sub);
+}
+
+.pagination-btn.active {
+  background-color: var(--color-sub);
+  color: var(--color-white);
+  border-color: var(--color-sub);
+}
+
+.pagination-btn.disabled,
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--color-disabled-bg);
+}
+
+.pagination-btn:disabled:hover {
+  background-color: var(--color-disabled-bg);
+  border-color: var(--color-border);
+  color: #666;
+}
+
+/* 스켈레톤 로딩 효과 (단색 + opacity) */
+.skeleton {
+  background-color: var(--color-light-3);
+  animation: skeleton-loading 1.5s infinite alternate;
+}
+
+@keyframes skeleton-loading {
+  from { opacity: 1; }
+  to { opacity: 0.6; }
 }
 </style>

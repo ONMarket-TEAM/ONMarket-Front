@@ -2,7 +2,7 @@
   <div class="post-card" @click="goToDetail">
     <div class="container section">
       <div class="card-header">
-        <button class="loan-btn">{{ buttonText }}</button>
+        <span class="company-name">{{ buttonText }}</span>
         <span class="deadline">{{ deadline }}</span>
       </div>
 
@@ -25,43 +25,19 @@ const router = useRouter();
 const route = useRoute();
 
 const props = defineProps({
-  id: {
-    type: [String, Number],
-    required: true,
-  },
-  title: {
-    type: String,
-    default: '서울시 예비 창업금 대출',
-  },
-  description: {
-    type: String,
-    default: '서울 소재 예비창업자에게 저금리로 운영자금 대출',
-  },
-  tags: {
-    type: Array,
-    default: () => ['서울', '저금리'],
-  },
-  deadline: {
-    type: String,
-    default: 'D-12',
-  },
+  id: { type: [String, Number], required: true },
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  tags: { type: Array, default: () => [] },
+  deadline: { type: String, default: '상시 모집' },
+  companyName: { type: String, default: '' },
 });
 
-const buttonText = computed(() => {
-  if (route.path === '/loans') {
-    return '대출';
-  } else if (route.path === '/policies') {
-    return '공공 지원금';
-  }
-  return '대출';
-});
+const buttonText = computed(() => props.companyName || '기관명 없음');
 
 const goToDetail = () => {
-  if (route.path === '/loans') {
-    router.push(`/loans/${props.id}`);
-  } else if (route.path === '/policies') {
-    router.push(`/policies/${props.id}`);
-  }
+  if (route.path === '/loans') router.push(`/loans/${props.id}`);
+  else if (route.path === '/policies') router.push(`/policies/${props.id}`);
 };
 </script>
 
@@ -94,20 +70,10 @@ const goToDetail = () => {
   margin-bottom: 1rem;
 }
 
-.loan-btn {
-  background: var(--color-white);
-  border: 1px solid var(--color-sub);
+.company-name {
+  font-weight: bold;
   color: var(--color-sub);
-  padding: 0.375rem 1rem;
-  border-radius: 1.25rem;
   font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.loan-btn:hover {
-  background: var(--color-sub);
-  color: var(--color-white);
 }
 
 .deadline {
@@ -147,3 +113,4 @@ const goToDetail = () => {
   font-weight: 500;
 }
 </style>
+
