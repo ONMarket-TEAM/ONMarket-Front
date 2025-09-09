@@ -70,6 +70,38 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
+  // 회원탈퇴
+  const withdraw = async () => {
+    if (!accessToken.value) {
+      toastStore.error('로그인이 필요합니다.');
+      return { success: false, message: '로그인이 필요합니다.' };
+    }
+
+    isLoading.value = true;
+
+    try {
+      const result = await authAPI.withdraw(accessToken.value);
+
+      if (result.success) {
+        // 회원탈퇴 시 사용자 데이터 초기화
+        clearUserData();
+        localStorage.clear();
+        sessionStorage.clear();
+
+        toastStore.success(result.message || '회원탈퇴가 완료되었습니다.');
+        return { success: true, message: result.message || '회원탈퇴가 완료되었습니다.' };
+      } else {
+        toastStore.error(result.message || '회원탈퇴 중 오류가 발생했습니다.');
+        return { success: false, message: result.message || '회원탈퇴 중 오류가 발생했습니다.' };
+      }
+    } catch (error) {
+      toastStore.error('네트워크 연결을 확인해주세요.');
+      return { success: false, message: '네트워크 연결을 확인해주세요.' };
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
   // 비밀번호 찾기
   const forgotPassword = async (email) => {
     isLoading.value = true;
@@ -378,6 +410,7 @@ export const useAuthStore = defineStore('auth', () => {
     // 기존 메서드
     login,
     signup,
+    withdraw,
     forgotPassword,
     findIdByPhone,
     logout,

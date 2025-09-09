@@ -2,107 +2,155 @@
   <div class="container section">
     <h1>내 정보</h1>
     <hr />
-    <div class="user-info" v-if="me">
-      <div class="profile-image" @click="openImageMenu">
-        <img :src="currentAvatar" :key="avatarVersion" alt="프로필 이미지" @error="onImgErr" />
-        <div class="image-overlay">
-          <i class="fas fa-camera"></i>
-        </div>
-      </div>
 
-      <div v-if="showImageMenu" class="image-menu-backdrop" @click.self="closeImageMenu">
-        <div class="image-menu chip-row" role="dialog" aria-modal="true">
-          <button class="chip-btn" @click="selectNewImage">이미지 변경</button>
-          <button class="chip-btn" @click="setDefaultImage">기본 이미지로 변경</button>
-          <button class="chip-btn" @click="closeImageMenu">취소</button>
-        </div>
-      </div>
-
-      <input
-        ref="fileInput"
-        type="file"
-        accept="image/*"
-        style="display: none"
-        @change="handleFileSelect"
-      />
-
-      <div class="row">
-        <strong>이름</strong> <span>{{ me?.username || '정보 없음' }}</span>
-      </div>
-      <div class="row">
-        <strong>닉네임</strong> <span>{{ me?.nickname || '정보 없음' }}</span>
-      </div>
-      <div class="row">
-        <strong>이메일</strong> <span>{{ me?.email || '정보 없음' }}</span>
-      </div>
-      <div class="row">
-        <strong>전화번호</strong> <span>{{ me?.phone || '정보 없음' }}</span>
-      </div>
-      <div class="row">
-        <strong>생년월일</strong> <span>{{ me?.birthDate || '정보 없음' }}</span>
-      </div>
-      <div class="row">
-        <strong>인스타그램</strong>
-        <div class="instagram-content">
-          <!-- 연결된 경우 -->
-          <div v-if="snsStore.instagram.connected" class="instagram-connected">
-            <span>{{ snsStore.instagram.username }}</span>
-            <button class="disconnect-btn" @click="disconnectInstagram">✕</button>
+    <div v-if="me" class="mypage-grid">
+      <!-- 왼쪽 : 회원 정보 -->
+      <div class="user-info">
+        <div class="profile-image" @click="openImageMenu">
+          <img :src="currentAvatar" :key="avatarVersion" alt="프로필 이미지" @error="onImgErr" />
+          <div class="image-overlay">
+            <i class="fas fa-camera"></i>
           </div>
-          <!-- 연결되지 않은 경우 -->
-          <!-- 인스타그램 연동 버튼 -->
-          <div v-else class="instagram-not-connected">
-            <button class="connect-btn" @click="openInstagramLoginModal">
-              <i class="fab fa-instagram"></i>
-              Instagram
-            </button>
-          </div>
-
-          <!-- Instagram 모달 (항상 DOM에 두고 visible로 열고 닫음) -->
-          <InstagramLoginModal
-            ref="instagramLoginModal"
-            :visible="showInstagramModal"
-            @close="showInstagramModal = false"
-            @login-success="handleInstagramLoginSuccess"
-          />
         </div>
-      </div>
 
-      <div class="actions">
-        <button @click="openVeriftModal">회원정보 변경하기</button>
-        <button @click="goToBusinessList">사업정보 변경하기</button>
-      </div>
+        <div v-if="showImageMenu" class="image-menu-backdrop" @click.self="closeImageMenu">
+          <div class="image-menu chip-row" role="dialog" aria-modal="true">
+            <button class="chip-btn" @click="selectNewImage">이미지 변경</button>
+            <button class="chip-btn" @click="setDefaultImage">기본 이미지로 변경</button>
+            <button class="chip-btn" @click="closeImageMenu">취소</button>
+          </div>
+        </div>
 
-      <div v-if="showVerify" class="modal-backdrop" @click.self="closeVerifyModal">
-        <div class="modal-card">
-          <h2>비밀번호 확인</h2>
+        <input
+          ref="fileInput"
+          type="file"
+          accept="image/*"
+          style="display: none"
+          @change="handleFileSelect"
+        />
 
-          <label class="field-label">현재 비밀번호</label>
-          <div class="input-pwd">
-            <input
-              v-model="currentPassword"
-              :type="showPassword ? 'text' : 'password'"
-              class="input"
-              placeholder="현재 비밀번호를 입력해주세요."
-              @keyup.enter="submitVerify"
+        <div class="row">
+          <strong>이름</strong> <span>{{ me?.username || '정보 없음' }}</span>
+        </div>
+        <div class="row">
+          <strong>닉네임</strong> <span>{{ me?.nickname || '정보 없음' }}</span>
+        </div>
+        <div class="row">
+          <strong>이메일</strong> <span>{{ me?.email || '정보 없음' }}</span>
+        </div>
+        <div class="row">
+          <strong>전화번호</strong> <span>{{ me?.phone || '정보 없음' }}</span>
+        </div>
+        <div class="row">
+          <strong>생년월일</strong> <span>{{ me?.birthDate || '정보 없음' }}</span>
+        </div>
+        <div class="row">
+          <strong>인스타그램</strong>
+          <div class="instagram-content">
+            <!-- 연결된 경우 -->
+            <div v-if="snsStore.instagram.connected" class="instagram-connected">
+              <span>{{ snsStore.instagram.username }}</span>
+              <button class="disconnect-btn" @click="disconnectInstagram">✕</button>
+            </div>
+            <!-- 연결되지 않은 경우 -->
+            <!-- 인스타그램 연동 버튼 -->
+            <div v-else class="instagram-not-connected">
+              <button class="connect-btn" @click="openInstagramLoginModal">
+                <i class="fab fa-instagram"></i>
+                Instagram
+              </button>
+            </div>
+
+            <!-- Instagram 모달 (항상 DOM에 두고 visible로 열고 닫음) -->
+            <InstagramLoginModal
+              ref="instagramLoginModal"
+              :visible="showInstagramModal"
+              @close="showInstagramModal = false"
+              @login-success="handleInstagramLoginSuccess"
             />
-            <button type="button" class="icon-btn" @click="togglePassword">
-              <i :class="showPassword ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
-            </button>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button @click="openVeriftModal">회원정보 변경하기</button>
+          <button @click="goToBusinessList">사업정보 변경하기</button>
+        </div>
+
+        <div v-if="showVerify" class="modal-backdrop" @click.self="closeVerifyModal">
+          <div class="modal-card">
+            <h2>비밀번호 확인</h2>
+
+            <label class="field-label">현재 비밀번호</label>
+            <div class="input-pwd">
+              <input
+                v-model="currentPassword"
+                :type="showPassword ? 'text' : 'password'"
+                class="input"
+                placeholder="현재 비밀번호를 입력해주세요."
+                @keyup.enter="submitVerify"
+              />
+              <button type="button" class="icon-btn" @click="togglePassword">
+                <i :class="showPassword ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
+              </button>
+            </div>
+
+            <p class="hint">
+              영문 대/소문자, 숫자, 특수문자를 모두 포함해 8자 이상 20자 이하로 입력해주세요.
+            </p>
+
+            <div class="row-actions">
+              <button class="btn primary" :disabled="verifyLoading" @click="submitVerify">
+                {{ verifyLoading ? '확인 중...' : '회원정보 수정하기' }}
+              </button>
+              <button class="btn ghost" @click="closeVerifyModal">취소</button>
+            </div>
+
+            <p v-if="verifyError" class="error">{{ verifyError }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 오른쪽 : 스크랩북 + 설정 -->
+      <div class="right-col">
+        <aside class="scrap-card">
+          <header class="scrap-header">
+            <i class="fas fa-bookmark"></i>
+            <span>내 스크랩북</span>
+          </header>
+
+          <div v-if="scraps.length === 0" class="scrap-empty">
+            <p>아직 스크랩한 정책이 없습니다.</p>
           </div>
 
-          <p class="hint">
-            영문 대/소문자, 숫자, 특수문자를 모두 포함해 8자 이상 20자 이하로 입력해주세요.
-          </p>
+          <ul v-else class="scrap-list">
+            <li v-for="scrap in visibleScraps" :key="scrap.postId" class="scrap-item">
+              <span class="scrap-title">{{ scrap.productName }}</span>
+              <span class="scrap-dday" :class="getDdayClass(scrap.deadline)">{{
+                // formatDeadline(scrap.deadline)
+                scrap.deadline
+              }}</span>
+            </li>
+          </ul>
 
-          <div class="row-actions">
-            <button class="btn primary" :disabled="verifyLoading" @click="submitVerify">
-              {{ verifyLoading ? '확인 중...' : '회원정보 수정하기' }}
-            </button>
-            <button class="btn ghost" @click="closeVerifyModal">취소</button>
+          <button v-if="scraps.length > 6" class="scrap-more" @click="goToMyScrap">
+            <i class="fas fa-chevron-down"></i>
+          </button>
+          <div v-else class="scrap-footer-space"></div>
+        </aside>
+
+        <!-- 설정 버튼 바 -->
+        <div class="settings-bar">
+          <div class="bell-toggle">
+            <i class="fas fa-bell"></i>
+            <span>알림</span>
+            <label class="switch">
+              <input type="checkbox" v-model="pushEnabled" @change="onTogglePush" />
+              <span class="slider"></span>
+            </label>
           </div>
 
-          <p v-if="verifyError" class="error">{{ verifyError }}</p>
+          <button class="pill-btn ghost" @click="handleLogout">로그아웃</button>
+          <button class="pill-btn ghost" @click="handleWithdraw">회원탈퇴</button>
         </div>
       </div>
     </div>
@@ -125,6 +173,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import member from '@/api/member';
+import scrapAPI from '@/api/scrap';
+import notificationAPI from '@/api/notification';
 import { useRouter } from 'vue-router';
 import { useToastStore } from '@/stores/useToastStore';
 import { useSnsStore } from '@/stores/useSnsStore';
@@ -139,12 +189,152 @@ const router = useRouter();
 const toast = useToastStore();
 const snsStore = useSnsStore();
 const authStore = useAuthStore();
+
 const profileImageUrl = ref(null);
 const showImageMenu = ref(false);
 const fileInput = ref(null);
 const avatarVersion = ref(0);
 const showInstagramModal = ref(false);
 const instagramLoginModal = ref(null);
+
+const scraps = ref([]);
+const scrapLoading = ref(false);
+const scrapError = ref('');
+
+const pushEnabled = ref(false);
+const visibleScraps = computed(() => scraps.value.slice(0, 6));
+
+const loadScraps = async () => {
+  scrapLoading.value = true;
+  scrapError.value = '';
+
+  try {
+    const response = await scrapAPI.getMyScraps();
+    scraps.value = response || [];
+  } catch (e) {
+    scrapError.value = '스크랩 목록을 불러올 수 없습니다.';
+  } finally {
+    scrapLoading.value = false;
+  }
+};
+
+const getDdayClass = (label) => {
+  if (!label) return '';
+  if (label === '마감') return 'expired';
+  if (label === 'D-DAY') return 'dday';
+
+  const m = /^D-(\d+)$/i.exec(label);
+  if (m) {
+    const n = Number(m[1]);
+    return n <= 7 ? 'soon' : '';
+  }
+  return '';
+};
+
+const registerServiceWorker = async () => {
+  if (!('serviceWorker' in navigator)) {
+    throw new Error('이 브라우저는 서비스워커를 지원하지 않습니다.');
+  }
+
+  if (!('PushManager' in window)) {
+    throw new Error('이 브라우저는 웹 푸시를 지원하지 않습니다.');
+  }
+
+  // 서비스워커 등록
+  const registration = await navigator.serviceWorker.register('/sw.js');
+  await navigator.serviceWorker.ready;
+
+  // 알림 권한 요청
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    throw new Error('알림 권한이 거부되었습니다. 브라우저 설정에서 알림을 허용해주세요.');
+  }
+
+  return registration;
+};
+
+// VAPID 키 변환 유틸리티
+const urlBase64ToUint8Array = (base64String) => {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+};
+
+// 웹 푸시 구독 생성
+function ab2b64url(buf) {
+  if (!buf) return null;
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+const createPushSubscription = async () => {
+  // 1) SW 확보
+  const registration = await registerServiceWorker();
+
+  // 2) 권한 확인
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') {
+    throw new Error('알림 권한이 필요합니다.');
+  }
+
+  // 3) VAPID 키 체크
+  const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+  if (!vapidPublicKey) {
+    throw new Error('VAPID 공개키가 설정되지 않았습니다. (.env: VITE_VAPID_PUBLIC_KEY)');
+  }
+
+  // 4) 기존 구독 재사용 or 신규 구독
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+    });
+  }
+
+  // 5) 표준 방식으로 키 추출
+  let p256dhKey = ab2b64url(subscription.getKey && subscription.getKey('p256dh'));
+  let authKey = ab2b64url(subscription.getKey && subscription.getKey('auth'));
+
+  // 보조: 일부 브라우저의 toJSON().keys 사용
+  if ((!p256dhKey || !authKey) && subscription.toJSON) {
+    const raw = subscription.toJSON();
+    if (!p256dhKey) p256dhKey = raw?.keys?.p256dh || null;
+    if (!authKey) authKey = raw?.keys?.auth || null;
+  }
+
+  if (!p256dhKey || !authKey) {
+    throw new Error('브라우저가 구독 키(p256dh/auth)를 제공하지 않았습니다.');
+  }
+
+  return {
+    endpoint: subscription.endpoint,
+    p256dhKey,
+    authKey,
+  };
+};
+
+// 기존 푸시 구독 해제
+const unsubscribePush = async () => {
+  if ('serviceWorker' in navigator) {
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (registration) {
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        await subscription.unsubscribe();
+      }
+    }
+  }
+};
 
 // Signed URL 확인 헬퍼
 const isSignedUrl = (url) => {
@@ -232,6 +422,10 @@ const submitVerify = async () => {
 
 const goToBusinessList = () => {
   router.push('/user/mybusiness');
+};
+
+const goToMyScrap = () => {
+  router.push('/user/myscraps');
 };
 
 const openImageMenu = () => {
@@ -339,6 +533,93 @@ const loadInfo = async () => {
   }
 };
 
+const handleLogout = async () => {
+  if (!confirm('로그아웃하시겠습니까?')) return;
+
+  try {
+    authStore.logout();
+    router.push('/');
+  } catch (e) {
+    toast.error('로그아웃 중 오류가 발생했습니다.');
+  }
+};
+
+const handleWithdraw = async () => {
+  if (!confirm('정말로 회원탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+
+  const result = await authStore.withdraw();
+
+  if (result.success) {
+    router.push('/');
+  }
+};
+
+// 알림 설정
+const onTogglePush = async () => {
+  const originalState = pushEnabled.value;
+
+  try {
+    if (pushEnabled.value) {
+      // 알림 켜기 - 웹 푸시 구독
+      // 1. 브라우저 지원 확인
+      if (!('serviceWorker' in navigator)) {
+        throw new Error('이 브라우저는 서비스워커를 지원하지 않습니다.');
+      }
+      if (!('PushManager' in window)) {
+        throw new Error('이 브라우저는 웹 푸시를 지원하지 않습니다.');
+      }
+
+      // 2. VAPID 키 확인
+      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+
+      if (!vapidPublicKey) {
+        throw new Error('VAPID 공개키가 설정되지 않았습니다.');
+      }
+
+      // 3. 구독 데이터 생성
+      const subscriptionData = await createPushSubscription();
+
+      // 4. 백엔드 API 호출
+      await notificationAPI.subscribe(subscriptionData);
+
+      toast.success('알림이 활성화되었습니다.');
+    } else {
+      // 알림 끄기 - 웹 푸시 구독 해제
+      // 1. 브라우저 구독 해제
+      await unsubscribePush();
+
+      // 2. 백엔드 API 호출
+      await notificationAPI.unsubscribe();
+
+      toast.success('알림이 비활성화되었습니다.');
+    }
+  } catch (error) {
+    // 실패 시 원래 상태로 복원
+    pushEnabled.value = originalState;
+
+    let errorMessage = '알림 설정 변경에 실패했습니다.';
+    if (error.message.includes('권한')) {
+      errorMessage = '알림 권한을 허용해주세요. 브라우저 설정에서 알림을 활성화할 수 있습니다.';
+    } else if (error.message.includes('지원하지 않습니다')) {
+      errorMessage = error.message;
+    } else if (error.message.includes('VAPID')) {
+      errorMessage = 'VAPID 키 설정을 확인해주세요.';
+    }
+
+    toast.error(errorMessage);
+  }
+};
+
+// 초기 알림 구독 상태 로드
+const loadNotificationStatus = async () => {
+  try {
+    const status = await notificationAPI.getSubscriptionStatus();
+    pushEnabled.value = status?.isSubscribed || false;
+  } catch (error) {
+    pushEnabled.value = false;
+  }
+};
+
 const DEFAULT_AVATAR = default_image;
 const onImgErr = (e) => {
   e.target.src = DEFAULT_AVATAR;
@@ -356,18 +637,30 @@ onMounted(() => {
   (async () => {
     await loadInfo();
     await loadProfileImage();
+    await loadScraps();
+    await loadNotificationStatus();
   })();
 });
 </script>
 
 <style scoped>
-.user-info {
+.mypage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 34px;
+  padding: 0 10px;
+  align-items: start;
+}
+.user-info,
+.scrap-card {
   background: #fff;
   border: 1px solid #ececec;
   border-radius: 18px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+.user-info {
   padding: 28px 20px;
-  max-width: 500px;
+  max-width: 100%;
 }
 .row {
   display: grid;
@@ -416,7 +709,7 @@ onMounted(() => {
   position: relative;
   width: 96px;
   height: 96px;
-  margin: 4px auto 18px; /* auto로 수평 가운데 정렬 */
+  margin: 4px auto 18px;
   cursor: pointer;
   display: block; /* 전체폭을 차지하지 않게 */
 }
@@ -447,30 +740,28 @@ onMounted(() => {
 .image-overlay i {
   font-size: 20px;
 }
-/* 중앙 강제 정렬 제거 → 흐름상 아바타 아래에 표시 */
+/* 프로필 이미지 변경 메뉴 */
 .image-menu-backdrop {
-  position: static; /* ← fixed 제거 */
+  position: static;
   background: transparent;
-  display: block; /* grid 제거 */
+  display: block;
   z-index: auto;
 }
 
-/* 칩 행만 가운데 정렬 & 간격 */
 .image-menu.chip-row {
   background: transparent;
   box-shadow: none;
-  margin: 8px auto 0; /* 가운데 정렬 */
+  margin: 8px auto 0;
   padding: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 16px; /* 버튼 사이 간격 */
-  flex-wrap: wrap; /* 줄바꿈 */
+  gap: 16px;
+  flex-wrap: wrap;
   width: 100%;
   max-width: 560px;
 }
 
-/* 칩 버튼만 둥글고 도톰하게 */
 .chip-btn {
   appearance: none;
   background: var(--color-main);
@@ -495,11 +786,6 @@ onMounted(() => {
 .chip-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16);
-  border-color: #dcdcdc;
-}
-.chip-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 .actions {
   margin-top: 24px;
@@ -514,7 +800,7 @@ onMounted(() => {
   padding: 12px 16px;
   font-size: 17px;
   font-weight: 500;
-  border: 1px solid black;
+  border: 2px solid var(--color-light-1);
   border-radius: 999px;
   background: #fff;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
@@ -526,7 +812,203 @@ onMounted(() => {
 .actions button:hover {
   transform: translateY(-1px);
   box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
+  background: var(--color-light-1);
 }
+
+.right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-self: start;
+}
+/* 스크랩 */
+.scrap-card {
+  --scrap-header-h: 72px;
+  --scrap-row-h: 76px;
+  --scrap-footer-h: 48px;
+  min-height: calc(var(--scrap-header-h) + 6 * var(--scrap-row-h) + var(--scrap-footer-h));
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.scrap-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  min-height: var(--scrap-header-h);
+  border-bottom: 1px solid #eee;
+  font-weight: 600;
+  font-size: 23px;
+}
+.scrap-header i {
+  color: #222;
+}
+
+/* 비어 있을 때 */
+.scrap-empty {
+  flex: 1 1 auto; /* 남은 높이 채우기 */
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  color: #888;
+}
+
+/* 리스트 */
+.scrap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+}
+.scrap-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 20px;
+  min-height: var(--scrap-row-h);
+  border-bottom: 1px solid #f0f0f0;
+}
+.scrap-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 70%;
+  color: #222;
+}
+.scrap-dday {
+  font-weight: 700;
+  color: black;
+}
+.scrap-dday.dday {
+  color: #e33;
+}
+.scrap-dday.soon {
+  color: var(--color-sub);
+} /* 7일 이내 */
+.scrap-dday.expired {
+  color: #aaa;
+} /* 마감됨 */
+
+/* 더보기(아래 화살표) */
+.scrap-more {
+  flex: 0 0 var(--scrap-footer-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid #eee;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #333;
+  cursor: pointer;
+}
+.scrap-more i {
+  font-size: 14px;
+  line-height: 1;
+}
+.scrap-footer-space {
+  flex: 0 0 var(--scrap-footer-h);
+  height: var(--scrap-footer-h);
+}
+.scrap-more i {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #333;
+  padding: 8px 0;
+  height: var(--scrap-footer-h); /* 동일한 높이 */
+  cursor: pointer;
+}
+
+/* ===== 하단: 알림 설정/탈퇴/로그아웃 ===== */
+.settings-bar {
+  display: flex;
+  justify-content: flex-start; /* 왼쪽 정렬(디자인에 맞게 조절 가능) */
+  align-items: center;
+  gap: 18px;
+  margin-top: 20px;
+}
+
+/* 알림 토글 카드형 */
+.bell-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  margin-right: 50px;
+  border: 1px solid #e6e6e6;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+}
+.bell-toggle i {
+  font-size: 16px;
+}
+
+/* 토글 스위치 */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: lightgray;
+  transition: 0.2s;
+  border-radius: 999px;
+}
+.slider:before {
+  content: '';
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.switch input:checked + .slider {
+  background: var(--color-sub);
+}
+.switch input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* pill 버튼 (회원탈퇴/로그아웃) */
+.pill-btn {
+  border: 1px solid #e6e6e6;
+  background: #fff;
+  border-radius: 18px;
+  padding: 12px 20px;
+  width: 150px;
+  font-size: 17px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition:
+    transform 0.05s ease,
+    box-shadow 0.15s ease;
+}
+.pill-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+}
+.pill-btn.ghost {
+  color: #111;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
