@@ -82,5 +82,27 @@ export const businessAPI = {
       };
     }
   },
+  delete: async (businessId) => {
+    try {
+      const response = await api.delete(`/api/business/${businessId}`);
+
+      const header = response.data?.header;
+      const body = response.data?.body;
+
+      return {
+        success: true,
+        data: body?.data ?? null,
+        status: header?.status ?? response.status,
+        message: header?.message ?? '사업장이 성공적으로 삭제되었습니다.',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        status: error.response?.status || 500,
+        message: error.response?.data?.header?.message || '사업장 삭제 중 오류가 발생했습니다.',
+      };
+    }
+  },
 };
 
