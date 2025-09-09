@@ -6,6 +6,7 @@
     </div>
 
     <form @submit.prevent="handleNext" class="step-form" novalidate>
+      <!-- 이름 -->
       <div class="form-group">
         <label for="username" class="form-label">이름</label>
         <div class="form-control">
@@ -14,21 +15,33 @@
             v-model="signupForm.username"
             type="text"
             class="form-input"
-            :class="{ readonly: isSocialSignup }"
             placeholder="이름을 입력하세요"
-            :readonly="isSocialSignup"
             required
           />
+          <div :class="['input-hint']">아이디 찾기 | 비밀번호 찾기에 사용되는 이름입니다.</div>
         </div>
       </div>
 
+      <!-- 휴대폰 번호 -->
       <div class="form-group">
         <label class="form-label">휴대폰 번호</label>
         <div class="form-control">
+          <!-- 구글은 무조건 입력 필요 -->
           <SmsVerification
+            v-if="!isSocialSignup || socialProvider === 'GOOGLE'"
             ref="smsVerificationRef"
             v-model="signupForm.phone"
-            :disabled="smsVerificationStatus.isVerified || isSocialSignup"
+            :disabled="smsVerificationStatus.isVerified"
+            @verified="onSmsVerified"
+            @error="onSmsError"
+            @code-sent="onCodeSent"
+          />
+          <!-- 카카오는 값 있으면 readonly, 없으면 입력 가능 -->
+          <SmsVerification
+            v-else-if="socialProvider === 'KAKAO'"
+            ref="smsVerificationRef"
+            v-model="signupForm.phone"
+            :disabled="smsVerificationStatus.isVerified && !!signupForm.phone"
             @verified="onSmsVerified"
             @error="onSmsError"
             @code-sent="onCodeSent"
@@ -36,6 +49,7 @@
         </div>
       </div>
 
+      <!-- 닉네임 -->
       <div class="form-group">
         <label for="nickname" class="form-label">닉네임</label>
         <div class="form-control">
@@ -72,6 +86,7 @@
         </div>
       </div>
 
+      <!-- 이메일 -->
       <div class="form-group">
         <label for="email" class="form-label">이메일</label>
         <div class="form-control">
@@ -110,7 +125,8 @@
         </div>
       </div>
 
-      <div class="form-group">
+      <!-- 비밀번호 -->
+      <div class="form-group" v-if="!isSocialSignup">
         <label for="password" class="form-label">비밀번호</label>
         <div class="form-control">
           <input
@@ -118,16 +134,15 @@
             v-model="signupForm.password"
             type="password"
             class="form-input"
-            :class="{ readonly: isSocialSignup }"
             placeholder="비밀번호를 입력하세요"
-            :readonly="isSocialSignup"
-            :required="!isSocialSignup"
+            required
           />
           <div class="password-hint">최소 8자 이상, 영문, 숫자, 특수문자 포함</div>
         </div>
       </div>
 
-      <div class="form-group">
+      <!-- 비밀번호 확인 -->
+      <div class="form-group" v-if="!isSocialSignup">
         <label for="confirmPassword" class="form-label">비밀번호 확인</label>
         <div class="form-control">
           <input
@@ -135,10 +150,8 @@
             v-model="signupForm.confirmPassword"
             type="password"
             class="form-input"
-            :class="{ readonly: isSocialSignup }"
             placeholder="비밀번호를 다시 입력하세요"
-            :readonly="isSocialSignup"
-            :required="!isSocialSignup"
+            required
           />
           <div v-if="confirmPasswordMessage" class="check-message error">
             {{ confirmPasswordMessage }}
@@ -146,6 +159,7 @@
         </div>
       </div>
 
+      <!-- 생년월일 -->
       <div class="form-group">
         <label for="birthDate" class="form-label">생년월일</label>
         <div class="form-control">
@@ -154,15 +168,15 @@
             v-model="signupForm.birthDate"
             type="date"
             class="form-input"
-            :class="{ readonly: isSocialSignup }"
             min="1900-01-01"
             :max="new Date().toISOString().split('T')[0]"
-            :readonly="isSocialSignup"
+            :disabled="isSocialSignup && socialProvider === 'KAKAO' && !!signupForm.birthDate"
             required
           />
         </div>
       </div>
 
+      <!-- 성별 -->
       <div class="form-group">
         <label class="form-label">성별</label>
         <div class="form-control">
@@ -173,9 +187,10 @@
                 type="radio"
                 value="MALE"
                 class="radio-input"
-                :disabled="isSocialSignup"
+                :disabled="isSocialSignup && socialProvider === 'KAKAO' && !!signupForm.gender"
                 required
               />
+
               <span class="radio-text">남성</span>
             </label>
             <label class="radio-label">
@@ -184,7 +199,7 @@
                 type="radio"
                 value="FEMALE"
                 class="radio-input"
-                :disabled="isSocialSignup"
+                :disabled="isSocialSignup && socialProvider === 'KAKAO' && !!signupForm.gender"
                 required
               />
               <span class="radio-text">여성</span>
@@ -193,6 +208,7 @@
         </div>
       </div>
 
+      <!-- 프로필 이미지 -->
       <div class="form-group">
         <label for="profileImage" class="form-label">프로필 이미지</label>
         <div class="form-control">
@@ -217,6 +233,7 @@
         </div>
       </div>
 
+      <!-- 완료 버튼 -->
       <div class="button-wrapper">
         <button type="submit" class="next-button" :class="{ active: isFormValid }">
           회원가입 완료
@@ -478,6 +495,10 @@ const completeSocialSignup = async () => {
     const result = await snsAPI.completeSocialSignup(pendingMemberId.value, {
       nickname: signupForm.nickname,
       profileImageKey: signupForm.profileImageKey,
+      username: signupForm.username,
+      birthDate: signupForm.birthDate,
+      gender: signupForm.gender,
+      phone: signupForm.phone,
     });
 
     if (result.success) {
@@ -570,6 +591,8 @@ const handleNext = () => {
   }
 };
 
+const socialProvider = ref(null); // "KAKAO" or "GOOGLE"
+
 // 소셜 회원 정보 로드
 const loadSocialMemberInfo = async (memberId) => {
   try {
@@ -589,6 +612,7 @@ const loadSocialMemberInfo = async (memberId) => {
       // 소셜 로그인 플래그 설정
       isSocialSignup.value = true;
       pendingMemberId.value = memberId;
+      socialProvider.value = memberData.socialProvider;
 
       // 소셜 회원가입의 경우 이메일 중복 체크 필요 없음
       if (memberData.email) {
@@ -714,6 +738,11 @@ onMounted(async () => {
   box-shadow: 0 0 0 3px var(--color-light-3);
 }
 
+.form-input:disabled {
+  background-color: #f5f5f5;
+  color: #666;
+  cursor: not-allowed;
+}
 /* 입력창과 버튼 조합 */
 .input-with-button {
   display: flex;
@@ -756,6 +785,12 @@ onMounted(async () => {
 .input-error {
   border-color: #dc3545 !important;
   box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1) !important;
+}
+
+.input-hint {
+  font-size: 0.8rem;
+  color: #999;
+  margin-top: 0.3rem;
 }
 
 /* 메시지 & 힌트 */
