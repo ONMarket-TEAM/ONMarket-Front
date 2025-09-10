@@ -41,10 +41,10 @@ button {
 
 /* ONMARKET  Color */
 :root {
-  --color-sub: #f8bc96;
-  --color-main: #f9dbc8;
-  --color-light-1: #fae2d3;
-  --color-light-2: #fcebe1;
-  --color-light-3: #fdf4ee;
+  --color-main: #f95453;
+  --color-sub: #ff7474;
+  --color-light-1: #ffa2a2;
+  --color-light-2: #fdcaca;
+  --color-light-3: #ffe8e8;
   --color-white: #ffffff;
 }
