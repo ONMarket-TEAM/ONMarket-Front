@@ -2,13 +2,11 @@
   <Navbar />
   <main class="main-content">
     <RouterView />
-    <ToastContainer />
   </main>
 </template>
 
 <script setup>
 import Navbar from './components/layouts/Navbar.vue';
-import ToastContainer from './composables/ToastContainer.vue';
 </script>
 
 <style scoped>

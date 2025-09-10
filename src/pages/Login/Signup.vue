@@ -1,7 +1,5 @@
 <template>
-  <MultiStepSignup />
+  <div class="container section">
+    <h1>Signup</h1>
+  </div>
 </template>
-
-<script setup>
-import MultiStepSignup from '@/components/signup/MultiStepSignup.vue';
-</script>
