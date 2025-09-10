@@ -187,9 +187,9 @@ const handleLogin = async () => {
 
 const login = (provider) => {
   if (provider === 'kakao')
-    window.location.href = 'http://localhost:8080/oauth2/authorization/kakao';
+  window.location.href = "https://onmarket.duckdns.org/oauth2/authorization/kakao";
   else if (provider === 'google')
-    window.location.href = 'http://localhost:8080/oauth2/authorization/google';
+  window.location.href = "https://onmarket.duckdns.org/oauth2/authorization/google";
 };
 </script>
 

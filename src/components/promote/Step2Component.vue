@@ -401,7 +401,7 @@ defineEmits(['update-caption', 'back-to-upload']);
 
 .preview-text {
   font-weight: 700;
-  color: var(--color-sub);
+  /* color: var(--color-sub); */
 }
 
 .preview-help {

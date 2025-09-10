@@ -73,10 +73,10 @@
           <!-- 헤더 -->
           <div class="insta-header">
             <div class="insta-user">
-  <img class="insta-profile" :src="snsStore.instagram.profileImage || defaultAvatar" alt="프로필" />
-  <span>{{ snsStore.instagram.username || 'username' }}</span>
-  <span class="preview-tag">(미리보기)</span>
-</div>
+              <img class="insta-profile" :src="snsStore.instagram.profileImage || defaultAvatar" alt="프로필" />
+              <span>{{ snsStore.instagram.username || 'username' }}</span>
+              <span class="preview-tag">(미리보기)</span>
+            </div>
             <div class="insta-options">
               <i class="fa-solid fa-ellipsis"></i>
             </div>
@@ -112,24 +112,22 @@
             <i class="fa-regular fa-comment"></i>
             <i class="fa-regular fa-paper-plane"></i>
             <i class="fa-regular fa-bookmark insta-bookmark"></i>
-
           </div>
 
           <!-- 좋아요 수 -->
           <div class="insta-likes">좋아요 1,230개</div>
 
           <!-- 캡션 (AI 첫 줄 + ...더보기) -->
-        <!-- 캡션 (AI 첫 줄 + ...더보기) -->
-<div class="insta-caption">
-  <span class="insta-username">{{ snsStore.instagram.username || 'username' }}</span>
-  <span v-if="!showFullCaption">
-    {{ firstLineAI }}
-    <span v-if="hasMoreLines" class="more-btn" @click="showFullCaption = true">...더보기</span>
-  </span>
-  <span v-else>
-    {{ props.generatedText }}
-  </span>
-</div>
+          <div class="insta-caption">
+            <span class="insta-username">{{ snsStore.instagram.username || 'username' }}</span>
+            <span v-if="!showFullCaption">
+              {{ firstLineAI }}
+              <span v-if="hasMoreLines" class="more-btn" @click="showFullCaption = true">...더보기</span>
+            </span>
+            <span v-else>
+              {{ props.generatedText }}
+            </span>
+          </div>
 
           <!-- 댓글 -->
           <div class="insta-comments">
@@ -147,18 +145,33 @@
           @close="showInstagramModal = false"
           @login-success="handleInstagramLoginSuccess"
         />
+
+        <!-- 업로드 완료 모달 -->
+        <div v-if="showUploadCompleteModal" class="modal-overlay">
+  <div class="upload-complete-modal">
+    <div class="modal-content-center">
+      <div class="success-icon">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <h3 class="modal-title">인스타 업로드 완료!</h3>
+      <p class="upload-message">
+        <strong>{{ snsStore.instagram.username }}</strong> 계정에<br>
+        게시물이 업로드되었습니다.
+      </p>
+    </div>
+  </div>
+</div>
       </div>
     </div>
   </section>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import InstagramLoginModal from '../sns/insta/InstagramLoginModal.vue';
 import { useSnsStore } from '@/stores/useSnsStore';
 import { useToastStore } from '@/stores/useToastStore';
 import defaultAvatar from '@/assets/default_avatar.png';
-
 
 const props = defineProps({
   uploadedImages: { type: Array, default: () => [] },
@@ -174,9 +187,9 @@ const emit = defineEmits(['copy-to-clipboard', 'post-to-instagram', 'start-over'
 const snsStore = useSnsStore();
 const toastStore = useToastStore();
 const showInstagramModal = ref(false);
+const showUploadCompleteModal = ref(false);
 const instagramLoginModal = ref(null);
 const showFullCaption = ref(false);
-
 
 // 이미지 슬라이드
 const currentImageIndex = ref(0);
@@ -206,21 +219,32 @@ const hasMoreLines = computed(() => {
 // 인스타 업로드 함수
 const uploadToInstagram = () => {
   if (snsStore.instagram.connected) {
-    toastStore.success(`${snsStore.instagram.username} 계정에 업로드 완료되었습니다.`);
+    showUploadCompleteModal.value = true;
   } else {
     showInstagramModal.value = true;
   }
 };
 
 const handleInstagramLoginSuccess = (username) => {
-  toastStore.success(`${username} 계정에 업로드 완료되었습니다.`);
   showInstagramModal.value = false;
+  showUploadCompleteModal.value = true;
 };
+
+// 자동 닫기
+watch(showUploadCompleteModal, (newVal) => {
+  if (newVal) {
+    setTimeout(() => {
+      showUploadCompleteModal.value = false;
+    }, 3000);
+  }
+});
+
 </script>
 
 <style scoped>
+/* 기존 스타일 그대로 유지 */
 .preview-tag {
-  color: #999; /* 회색 */
+  color: #999;
   font-size: 14px;
   margin-left: 4px;
   font-weight: 500;
@@ -633,13 +657,88 @@ const handleInstagramLoginSuccess = (username) => {
   object-fit: cover;
   border: 1px solid #ddd;
 }
+
 .more-btn {
-  cursor: pointer;           /* 마우스 올리면 손가락 커서 */
-  color: #555;               /* 기본 색상 */
+  cursor: pointer;
+  color: #555;
   font-weight: 500;
 }
+
 .more-btn:hover {
-  color: #000;                /* hover 시 진한 색 */
+  color: #000;
+}
+
+/* 업로드 완료 모달 스타일 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(2px);
+}
+
+.upload-complete-modal {
+  background: white;
+  border-radius: 16px;
+  padding: 40px 32px;
+  width: 300px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: modalSlideUp 0.3s ease-out;
+}
+
+.modal-content-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.success-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #E1306C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.success-icon i {
+  font-size: 28px;
+  color: white;
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.upload-message {
+  font-size: 14px;
+  color: #333;
+  text-align: center;
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 </style>
