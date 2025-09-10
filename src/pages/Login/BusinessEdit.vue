@@ -14,8 +14,13 @@
 
       <!-- 사업장 이름 -->
       <BusinessNameInput v-model="businessForm.businessName" :error="errors.businessName" />
-      <!-- 지역 코드 -->
-      <RegionCodeInput v-model="businessForm.regionCodeId" :error="errors.regionCodeId" />
+
+      <!-- 지역 선택 -->
+      <RegionInput
+        v-model:sidoName="businessForm.sidoName"
+        v-model:sigunguName="businessForm.sigunguName"
+        :error="errors.region"
+      />
 
       <!-- 설립 연도 -->
       <EstablishedYearInput
@@ -47,25 +52,50 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import IndustrySelect from '@/components/business/IndustrySelect.vue';
 import BusinessTypeSelect from '@/components/business/BusinessTypeSelect.vue';
 import BusinessNameInput from '@/components/business/BusinessName.vue';
-import RegionCodeInput from '@/components/business/RegionCodeInput.vue';
+import RegionInput from '@/components/business/RegionCodeInput.vue';
 import EstablishedYearInput from '@/components/business/EstablishedYearInput.vue';
 import AnnualRevenueSelect from '@/components/business/AnnualRevenueSelect.vue';
 import EmployeeCountInput from '@/components/business/EmployeeCountInput.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { businessAPI } from '@/api/business';
 import { useToastStore } from '@/stores/useToastStore';
-import { computed } from 'vue';
 
+// === 상태 ===
+const isLoading = ref(false);
+
+const businessForm = reactive({
+  industry: '',
+  businessType: '',
+  businessName: '',
+  sidoName: '',
+  sigunguName: '',
+  establishedYear: null,
+  annualRevenue: '',
+  employeeCount: null,
+});
+
+const errors = reactive({
+  industry: '',
+  businessType: '',
+  businessName: '',
+  region: '',
+  establishedYear: '',
+  annualRevenue: '',
+  employeeCount: '',
+});
+
+// === 유효성 검사 ===
 const isFormValid = computed(() => {
   return (
     businessForm.industry &&
     businessForm.businessType &&
     businessForm.businessName &&
-    businessForm.regionCodeId &&
+    businessForm.sidoName &&
+    businessForm.sigunguName &&
     businessForm.establishedYear &&
     businessForm.establishedYear <= new Date().getFullYear() &&
     businessForm.annualRevenue &&
@@ -74,139 +104,68 @@ const isFormValid = computed(() => {
   );
 });
 
-const props = defineProps({
-  businessData: {
-    type: Object,
-    default: () => ({}),
-  },
-});
+const validateForm = () => {
+  let isValid = true;
+  Object.keys(errors).forEach((key) => (errors[key] = ''));
 
+  if (!businessForm.industry) isValid = false;
+  if (!businessForm.businessType) isValid = false;
+  if (!businessForm.businessName) isValid = false;
+  if (!businessForm.sidoName || !businessForm.sigunguName) {
+    errors.region = '사업장 지역을 선택해주세요.';
+    isValid = false;
+  }
+  if (!businessForm.establishedYear || businessForm.establishedYear > new Date().getFullYear()) {
+    isValid = false;
+  }
+  if (!businessForm.annualRevenue) isValid = false;
+  if (!businessForm.employeeCount || businessForm.employeeCount < 1) isValid = false;
+
+  return isValid;
+};
+
+// === 네비게이션 ===
+const props = defineProps({ businessData: { type: Object, default: () => ({}) } });
 const emit = defineEmits(['complete']);
 const route = useRoute();
 const router = useRouter();
 const toastStore = useToastStore();
 
-// Refs
-const isLoading = ref(false);
-
-// 폼 데이터
-const businessForm = reactive({
-  industry: '',
-  businessType: '',
-  businessName: '',
-  regionCodeId: '',
-  establishedYear: null,
-  annualRevenue: '',
-  employeeCount: null,
-});
-
-// 에러 메시지
-const errors = reactive({
-  industry: '',
-  businessType: '',
-  businessName: '',
-  regionCodeId: '',
-  establishedYear: '',
-  annualRevenue: '',
-  employeeCount: '',
-});
-
-// 유효성 검증 (그대로 유지)
-const validateForm = () => {
-  let isValid = true;
-  Object.keys(errors).forEach((key) => (errors[key] = ''));
-
-  if (!businessForm.industry) {
-    isValid = false;
-  }
-  if (!businessForm.businessType) {
-    isValid = false;
-  }
-  if (!businessForm.businessName) {
-    isValid = false;
-  }
-  if (!businessForm.regionCodeId) {
-    isValid = false;
-  }
-  if (!businessForm.establishedYear) {
-    isValid = false;
-  } else {
-    const currentYear = new Date().getFullYear();
-    if (businessForm.establishedYear > currentYear) {
-      isValid = false;
-    }
-  }
-  if (!businessForm.annualRevenue) {
-    isValid = false;
-  }
-  if (!businessForm.employeeCount) {
-    isValid = false;
-  } else if (businessForm.employeeCount < 1) {
-    isValid = false;
-  }
-
-  return isValid;
-};
-
-// 건너뛰기
 const ALLOWED_RETURN_PATHS = ['/user/mybusiness'];
 
 const handleSkip = () => {
   const returnTo = route.query.returnTo;
-
-  if (returnTo && ALLOWED_RETURN_PATHS.includes(returnTo)) {
-    router.push(returnTo);
-  } else {
-    // 기본 경로로 이동
-    router.push('/');
-  }
+  router.push(returnTo && ALLOWED_RETURN_PATHS.includes(returnTo) ? returnTo : '/');
 };
 
-// 사업장 등록 API 호출
+// === API 호출 ===
 const handleComplete = async () => {
-  // 유효성 검증
-  const isValid = validateForm();
-  if (!isValid) {
-    // 첫 번째 에러 메시지를 찾아서 보여주기
-    const firstError = Object.values(errors).find((msg) => msg);
-    if (firstError) {
-      toastStore.error(firstError);
-    } else {
-      toastStore.error('입력 정보를 확인해주세요.');
-    }
+  if (!validateForm()) {
+    toastStore.error('입력 정보를 확인해주세요.');
     return;
   }
 
   try {
     isLoading.value = true;
-    const result = await businessAPI.register(businessForm);
 
-    if (result) {
-      toastStore.success('사업장이 성공적으로 등록되었습니다.');
+    const cleanedForm = {
+      ...businessForm,
+      businessName: businessForm.businessName.trim(),
+    };
 
-      // 부모 컴포넌트 알림
-      emit('complete', result);
+    const result = await businessAPI.register(cleanedForm);
 
-      // 리다이렉트
+    // 현재 로직
+    if (result?.success) {
+      toastStore.success(result.message || '사업장이 성공적으로 등록되었습니다.');
+      emit('complete', result.data);
       const returnTo = route.query.returnTo;
       router.push(returnTo && ALLOWED_RETURN_PATHS.includes(returnTo) ? returnTo : '/');
     } else {
-      toastStore.error('사업장 등록에 실패했습니다. 다시 시도해주세요.');
+      toastStore.error(result?.message || '사업장 등록에 실패했습니다. 다시 시도해주세요.');
     }
   } catch (error) {
-    console.error('사업장 등록 오류:', error);
-
-    if (error.message && error.message.includes('Network')) {
-      toastStore.error('네트워크 연결을 확인해주세요.');
-    } else if (error.message && error.message.includes('timeout')) {
-      toastStore.error('요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
-    } else if (error.response && error.response.status === 429) {
-      toastStore.error('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
-    } else if (error.response && error.response.status >= 500) {
-      toastStore.error('서버에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.');
-    } else {
-      toastStore.error('처리 중 알 수 없는 오류가 발생했습니다.');
-    }
+    toastStore.error('처리 중 오류가 발생했습니다.');
   } finally {
     isLoading.value = false;
   }
@@ -214,11 +173,10 @@ const handleComplete = async () => {
 
 // 기존 데이터 복원
 onMounted(() => {
-  if (props.businessData) {
-    Object.assign(businessForm, props.businessData);
-  }
+  if (props.businessData) Object.assign(businessForm, props.businessData);
 });
 </script>
+
 <style scoped>
 .step-content {
   width: 100%;
