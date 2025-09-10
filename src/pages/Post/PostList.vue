@@ -1,26 +1,34 @@
 <template>
   <div class="post-list-container">
     <div class="container section">
-      <h1 class="page-title">{{ pageTitle }}</h1>
+      <div class="search-container">
+        <div class="search-bar">
+          <i class="fas fa-search search-icon"></i>
+          <input
+            type="search"
+            class="search-input"
+            placeholder="검색어를 입력해주세요"
+            v-model="searchKeyword"
+            @keydown.enter="handleSearch"
+          />
+        </div>
+        <button class="search-btn" @click="handleSearch">검색</button>
+      </div>
 
-      <!-- 로딩 상태 -->
       <div v-if="loading" class="loading-container">
         <div class="loading-spinner"></div>
         <p>데이터를 불러오는 중...</p>
       </div>
 
-      <!-- 에러 상태 -->
       <div v-else-if="error" class="error-container">
         <p class="error-message">{{ error }}</p>
         <button class="retry-btn" @click="fetchData">다시 시도</button>
       </div>
 
-      <!-- 데이터가 없는 경우 -->
       <div v-else-if="posts.length === 0" class="empty-container">
-        <p>등록된 상품이 없습니다.</p>
+        <p>{{ isSearching ? '검색 결과가 없습니다.' : '등록된 상품이 없습니다.' }}</p>
       </div>
 
-      <!-- 상품 목록 -->
       <div v-else class="post-grid">
         <PostCard
           v-for="post in posts"
@@ -34,7 +42,6 @@
         />
       </div>
 
-      <!-- 페이지네이션 -->
       <div v-if="pagination.totalPages > 1" class="pagination-container">
         <button
           class="pagination-btn"
@@ -43,7 +50,6 @@
         >
           이전
         </button>
-
         <button
           v-for="page in paginationPages"
           :key="page"
@@ -53,10 +59,10 @@
         >
           {{ page }}
         </button>
-
         <button
           class="pagination-btn"
           :disabled="
+            paginationPages.length &&
             paginationPages[paginationPages.length - 1] === pagination.totalPages || loading
           "
           @click="goToNextBlock"
@@ -77,42 +83,53 @@ import { postAPI, getErrorMessage } from '@/api/post';
 const route = useRoute();
 const router = useRouter();
 
-// [추가] 페이지네이션 블록 크기를 상수로 정의 (5개씩)
 const PAGE_BLOCK_SIZE = 5;
 
+// === 상태 관리 ===
 const posts = ref([]);
 const loading = ref(false);
 const error = ref('');
-
 const pagination = ref({
   totalPages: 0,
   totalElements: 0,
   pageNumber: 0,
   size: 9,
 });
-
 const currentPage = ref(1);
+const searchKeyword = ref('');
 
-const pageTitle = computed(() =>
-  route.path.includes('/policies') ? '정부 지원금 보기' : '대출 상품 보기'
-);
-
+// === Computed ===
 const currentPageType = computed(() => {
   if (route.path.includes('/loans')) return 'loans';
   if (route.path.includes('/policies')) return 'policies';
   return null;
 });
 
+// [수정됨] isSearching 로직에서 available 조건 삭제
+const isSearching = computed(() => !!route.query.keyword);
+
+// === 데이터 로직 ===
 const fetchData = async () => {
   if (!currentPageType.value) return;
   loading.value = true;
   error.value = '';
+
   try {
-    const response = await postAPI.getPostsByType(
-      currentPageType.value,
-      currentPage.value - 1,
-      pagination.value.size
-    );
+    let response;
+    if (isSearching.value) {
+      response = await postAPI.searchPosts({
+        type: currentPageType.value,
+        keyword: route.query.keyword,
+        page: currentPage.value - 1,
+        size: pagination.value.size,
+      });
+    } else {
+      response = await postAPI.getPostsByType(
+        currentPageType.value,
+        currentPage.value - 1,
+        pagination.value.size
+      );
+    }
     const pageData = response?.body?.data;
     if (pageData && pageData.content) {
       posts.value = transformPostsData(pageData.content);
@@ -146,25 +163,31 @@ const transformPostsData = (rawData) => {
   }));
 };
 
+// === 페이지네이션 & 검색 로직 ===
+const handleSearch = () => {
+  const query = {};
+  if (searchKeyword.value) {
+    query.keyword = searchKeyword.value;
+  }
+  // [수정됨] available 관련 로직 삭제
+  query.page = '1';
+  router.push({ path: route.path, query });
+};
+
 const changePage = (page) => {
   if (page < 1 || page > pagination.value.totalPages || page === currentPage.value) {
     return;
   }
-  router.push({ path: route.path, query: { page } });
+  const query = { ...route.query, page };
+  router.push({ path: route.path, query });
 };
 
-// [수정] 페이지네이션 UI를 블록 단위로 계산하도록 로직 변경
 const paginationPages = computed(() => {
   const totalPages = pagination.value.totalPages;
   if (!totalPages) return [];
-
-  // 현재 페이지가 속한 블록 계산 (0부터 시작)
   const currentBlock = Math.floor((currentPage.value - 1) / PAGE_BLOCK_SIZE);
-
-  // 현재 블록의 시작 페이지와 끝 페이지 계산
   const startPage = currentBlock * PAGE_BLOCK_SIZE + 1;
   const endPage = Math.min(startPage + PAGE_BLOCK_SIZE - 1, totalPages);
-
   const pages = [];
   for (let i = startPage; i <= endPage; i++) {
     pages.push(i);
@@ -172,34 +195,32 @@ const paginationPages = computed(() => {
   return pages;
 });
 
-// [추가] 다음 페이지 블록으로 이동하는 함수
 const goToNextBlock = () => {
   const totalPages = pagination.value.totalPages;
   const currentBlock = Math.floor((currentPage.value - 1) / PAGE_BLOCK_SIZE);
   const nextPage = (currentBlock + 1) * PAGE_BLOCK_SIZE + 1;
-
   if (nextPage <= totalPages) {
     changePage(nextPage);
   }
 };
 
-// [추가] 이전 페이지 블록으로 이동하는 함수
 const goToPreviousBlock = () => {
   const currentBlock = Math.floor((currentPage.value - 1) / PAGE_BLOCK_SIZE);
   const prevPage = (currentBlock - 1) * PAGE_BLOCK_SIZE + 1;
-
   if (prevPage >= 1) {
     changePage(prevPage);
   }
 };
 
 watch(
-  () => [route.path, route.query.page],
-  ([newPath, newPageQuery]) => {
-    currentPage.value = parseInt(newPageQuery || '1', 10);
+  () => route.query,
+  (newQuery) => {
+    searchKeyword.value = newQuery.keyword || '';
+    // [수정됨] available 관련 로직 삭제
+    currentPage.value = parseInt(newQuery.page || '1', 10);
     fetchData();
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
 </script>
 
@@ -215,14 +236,68 @@ watch(
   padding: 2rem 1rem;
 }
 
-.page-title {
-  font-size: 2rem;
-  font-weight: bold;
+/* [수정됨] 검색 UI 전체 컨테이너 스타일 */
+.search-container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 1rem;
   margin-bottom: 2rem;
-  text-align: center;
-  color: #333; /* 예외 허용 */
 }
 
+.search-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* [수정됨] 돋보기 아이콘 스타일 */
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #999;
+  pointer-events: none; /* 아이콘이 클릭되지 않도록 설정 */
+}
+
+/* [수정됨] 검색 입력창 스타일 (왼쪽 패딩 추가) */
+.search-input {
+  width: 100%;
+  min-width: 300px;
+  padding: 0.75rem 1rem 0.75rem 2.5rem; /* 왼쪽 패딩으로 아이콘 공간 확보 */
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-sub);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* [수정됨] 검색 버튼 스타일 (돋보기 아이콘이 아닌 별도의 버튼) */
+.search-btn {
+  background-color: var(--color-sub);
+  color: var(--color-white);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.search-btn:hover {
+  background: var(--color-main);
+}
+
+
+/* ... 이하 스타일은 기존과 동일 ... */
 .loading-container,
 .error-container,
 .empty-container {
@@ -246,12 +321,8 @@ watch(
 }
 
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .error-message {
@@ -278,13 +349,13 @@ watch(
 }
 
 .empty-container p {
-  color: #666; /* 예외 허용 */
+  color: #666;
   font-size: 1.1rem;
 }
 
 .post-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* 고정 3컬럼 */
+  grid-template-columns: repeat(3, 1fr);
   gap: 2rem;
   margin-bottom: 3rem;
 }
@@ -311,7 +382,7 @@ watch(
   text-align: center;
 }
 
-.pagination-btn:hover:not(.disabled):not(:disabled) {
+.pagination-btn:hover:not(:disabled) {
   background-color: var(--color-light-2);
   border-color: var(--color-sub);
   color: var(--color-sub);
@@ -323,32 +394,9 @@ watch(
   border-color: var(--color-sub);
 }
 
-.pagination-btn.disabled,
 .pagination-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   background-color: var(--color-disabled-bg);
 }
-
-.pagination-btn:disabled:hover {
-  background-color: var(--color-disabled-bg);
-  border-color: var(--color-border);
-  color: #666;
-}
-
-/* 스켈레톤 로딩 효과 (단색 + opacity) */
-.skeleton {
-  background-color: var(--color-light-3);
-  animation: skeleton-loading 1.5s infinite alternate;
-}
-
-@keyframes skeleton-loading {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0.6;
-  }
-}
 </style>
-
