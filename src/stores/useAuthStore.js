@@ -348,32 +348,44 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const memberApi = await import('@/api/member');
-      const info = await memberApi.default.getMemberInfo();
 
-      if (info) {
-        user.value = { ...user.value, ...info };
+      // 프로필 + 서명URL을 병렬로 조회(하나 실패해도 다른 하나는 살려둠)
+      const [infoRes, imgRes] = await Promise.allSettled([
+        memberApi.default.getMemberInfo(),
+        memberApi.default.getCurrentProfileImage(), // { url }
+      ]);
 
-        // 프로필 이미지는 선택적으로 로드 (실패해도 진행)
-        try {
-          const imageData = await memberApi.default.getCurrentProfileImage();
-          if (imageData?.url) {
-            user.value.profileImage = imageData.url;
-          }
-        } catch (error) {
-          user.value.profileImage = null;
-        }
-
-        // 스토리지 업데이트
-        const userInfoStr = JSON.stringify(user.value);
-        if (localStorage.getItem('userInfo')) {
-          localStorage.setItem('userInfo', userInfoStr);
-        }
-
-        return user.value;
+      if (infoRes.status !== 'fulfilled' || !infoRes.value) {
+        // 회원정보 자체를 못 받았을 때만 처리
+        return null;
       }
+
+      const info = infoRes.value;
+      const profileImageUrl = imgRes.status === 'fulfilled' ? (imgRes.value?.url ?? null) : null;
+
+      // ⚠️ DB키(profileImage)는 info 그대로 두고,
+      //     화면용 서명URL은 profileImageUrl에 따로 둠
+      user.value = {
+        ...(user.value ?? {}),
+        ...info,
+        profileImageUrl, // 신규 필드
+      };
+
+      // 로컬 스토리지 저장(있든 없든 덮어써도 무방)
+      try {
+        localStorage.setItem('userInfo', JSON.stringify(user.value));
+      } catch (_) {
+        /* ignore quota errors */
+      }
+
+      return user.value;
     } catch (error) {
-      toastStore.error('네트워크 연결을 확인해주세요.');
-      logout();
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) {
+        logout();
+      } else {
+        toastStore.error('네트워크 연결을 확인해주세요.');
+      }
       return null;
     }
   };
