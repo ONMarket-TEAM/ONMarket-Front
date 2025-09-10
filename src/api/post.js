@@ -26,6 +26,36 @@ export const postAPI = {
     }
   },
 
+  // [수정됨] 상품 검색 API 호출 함수에서 available 관련 로직 모두 삭제
+  searchPosts: async (searchParams) => {
+    try {
+      const { type, keyword, company, page, size, sort } = searchParams;
+      
+      const normalizedType = {
+        loans: 'LOAN',
+        loan: 'LOAN',
+        policies: 'SUPPORT',
+        support: 'SUPPORT'
+      }[type.toLowerCase()] || type.toUpperCase();
+
+      const params = new URLSearchParams({
+        page: page || 0,
+        size: size || 9,
+        sort: sort || 'createdAt,desc'
+      });
+
+      if (keyword) params.append('keyword', keyword);
+      if (company) params.append('company', company);
+      
+      const url = `/api/posts/type/${normalizedType}/search?${params.toString()}`;
+      const { data } = await api.get(url);
+      return data;
+    } catch (error) {
+      console.error(`게시물 검색 실패:`, error);
+      throw error;
+    }
+  },
+
   getPostById: async (postId) => {
     try {
       const { data } = await api.get(`/api/posts/${postId}`);
@@ -52,7 +82,6 @@ export const scrapAPI = {
 
 // 댓글 API
 export const commentAPI = {
-  // 게시물별 댓글 목록 조회
   getCommentsByPostId: async (postId) => {
     try {
       const { data } = await api.get(`/api/comments/post/${postId}`);
@@ -63,7 +92,6 @@ export const commentAPI = {
     }
   },
 
-  // 댓글 생성
   createComment: async (commentData) => {
     try {
       const { data } = await api.post('/api/comments', commentData);
@@ -74,7 +102,6 @@ export const commentAPI = {
     }
   },
 
-  // 댓글 조회
   getCommentById: async (commentId) => {
     try {
       const { data } = await api.get(`/api/comments/${commentId}`);
@@ -85,7 +112,6 @@ export const commentAPI = {
     }
   },
 
-  // 댓글 수정
   updateComment: async (commentId, commentData) => {
     try {
       const { data } = await api.put(`/api/comments/${commentId}`, commentData);
@@ -96,7 +122,6 @@ export const commentAPI = {
     }
   },
 
-  // 댓글 삭제
   deleteComment: async (commentId) => {
     try {
       const { data } = await api.delete(`/api/comments/${commentId}`);
