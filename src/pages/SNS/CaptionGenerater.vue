@@ -1,7 +1,6 @@
 <template>
   <div class="page">
     <StepperComponent :current-step="currentStep" />
-
     <TitleComponent :current-step="currentStep" />
 
     <UploadSection
@@ -30,7 +29,8 @@
       @update-generated-text="generatedText = $event"
       @restore-original="restoreOriginal"
       @back-to-step2="currentStep = 2"
-      @open-edit-modal="openEditModal"  />
+      @open-edit-modal="openEditModal"
+    />
 
     <Step4Component
       v-if="currentStep === 4"
@@ -75,23 +75,25 @@ import Step4Component from '@/components/promote/Step4Component.vue';
 import FooterButtons from '@/components/promote/FooterButtons.vue';
 import EditModal from '@/components/promote/EditModal.vue';
 
+// API 모듈 import
+import {
+  getImageViewUrl,
+  uploadSingleFile,
+  deleteImageFromS3,
+  generateCaptionFromS3,
+} from '@/api/caption';
+
 // 상태
 const currentStep = ref(1);
 const userCaption = ref('');
-
-// 업로드 관련 (다중 이미지 지원)
 const isUploading = ref(false);
-const uploadedImages = ref([]); // { s3Key: string, previewUrl: string, id: string }
-
-// AI 생성 관련
+const uploadedImages = ref([]);
 const isGenerating = ref(false);
 const generatedText = ref('');
 const originalGeneratedText = ref('');
 const generatedHashtags = ref([]);
 const generatedBestTime = ref('');
 const generatedImpact = ref('');
-
-// 편집 모달
 const showEditModal = ref(false);
 const editBuffer = ref('');
 
@@ -116,24 +118,6 @@ const canProceed = computed(() => {
   }
 });
 
-// 이미지 보기용(다운로드) presigned URL을 가져오는 함수
-async function getImageViewUrl(s3Key, ttlSec = 180) {
-  try {
-    const response = await fetch(`/api/captions/presign-view?key=${encodeURIComponent(s3Key)}&ttl=${ttlSec}`, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-    });
-    if (!response.ok) {
-      throw new Error(`View URL 요청 실패: ${response.status}`);
-    }
-    const data = await response.json();
-    return data.url;
-  } catch (error) {
-    toastError('이미지 미리보기를 불러오는 데 실패했습니다.');
-    return null;
-  }
-}
-
 // 다중 파일 업로드 처리
 async function handleMultipleUpload(files) {
   if (files.length === 0) return;
@@ -149,21 +133,21 @@ async function handleMultipleUpload(files) {
 
   try {
     for (const file of files) {
-      const s3Key = await uploadSingleFile(file);
+      const s3Key = await uploadSingleFile(file, toastError);
       if (s3Key) {
         successfullyUploadedKeys.push(s3Key);
       }
     }
 
     for (const s3Key of successfullyUploadedKeys) {
-        const previewUrl = await getImageViewUrl(s3Key);
-        if (previewUrl) {
-            uploadedImages.value.push({
-                id: `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                s3Key: s3Key,
-                previewUrl: previewUrl,
-            });
-        }
+      const previewUrl = await getImageViewUrl(s3Key, toastError);
+      if (previewUrl) {
+        uploadedImages.value.push({
+          id: `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          s3Key: s3Key,
+          previewUrl: previewUrl,
+        });
+      }
     }
 
     toastSuccess(`${successfullyUploadedKeys.length}개의 이미지가 성공적으로 업로드되었어요.`);
@@ -174,65 +158,6 @@ async function handleMultipleUpload(files) {
   }
 }
 
-// 단일 파일 업로드 (presign-put 사용)
-async function uploadSingleFile(file) {
-  try {
-    if (!/image\/(jpeg|png)/.test(file.type)) {
-      throw new Error('JPG, PNG만 업로드할 수 있어요.');
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      throw new Error('최대 10MB까지 업로드할 수 있어요.');
-    }
-
-    const sanitizeFilename = (name) => name.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 100);
-    const normalizeContentType = (type) => (type.includes('jpeg') || type.includes('jpg')) ? 'image/jpeg' : (type.includes('png') ? 'image/png' : 'image/jpeg');
-
-    const filename = sanitizeFilename(file.name);
-    const contentType = normalizeContentType(file.type);
-
-    const response = await fetch('/api/captions/presign', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ filename, contentType }),
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`presigned URL 요청 실패: ${response.status} - ${errorText}`);
-    }
-    const presignData = await response.json();
-
-    const uploadResponse = await fetch(presignData.url, {
-      method: 'PUT',
-      headers: { 'Content-Type': contentType },
-      body: file,
-    });
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      throw new Error(`S3 업로드 실패: ${uploadResponse.status} - ${errorText}`);
-    }
-
-    return presignData.key;
-  } catch (error) {
-    toastError(error.message || '파일 업로드 중 오류가 발생했습니다.');
-    return null;
-  }
-}
-
-// S3에서 특정 키에 해당하는 파일을 삭제하는 함수
-async function deleteImageFromS3(s3Key) {
-  try {
-    const response = await fetch(`/api/captions/delete?key=${encodeURIComponent(s3Key)}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) {
-      throw new Error(`S3 파일 삭제 실패: ${response.status}`);
-    }
-    toastInfo('S3에서 이미지가 성공적으로 삭제되었습니다.');
-  } catch (error) {
-    toastError('S3 이미지 삭제 중 오류가 발생했어요.');
-  }
-}
-
 // 이미지 제거
 async function removeImage(imageId) {
   const imageToRemove = uploadedImages.value.find(img => img.id === imageId);
@@ -240,16 +165,12 @@ async function removeImage(imageId) {
     toastWarn('해당 이미지를 찾을 수 없습니다.');
     return;
   }
-
-  // S3에서 먼저 파일 삭제를 시도합니다.
-  await deleteImageFromS3(imageToRemove.s3Key);
-
-  // S3 삭제 성공/실패와 관계없이 프론트엔드 상태를 업데이트합니다.
+  await deleteImageFromS3(imageToRemove.s3Key, toastError, toastInfo);
   uploadedImages.value = uploadedImages.value.filter(img => img.id !== imageId);
   toastInfo('이미지가 목록에서 제거되었습니다.');
 }
 
-// AI 캡션 생성 (첫 3장 이미지만 사용)
+// AI 캡션 생성
 async function generateCaption() {
   if (uploadedImages.value.length === 0 || !userCaption.value.trim()) {
     toastWarn('이미지와 문구를 모두 입력해주세요.');
@@ -259,22 +180,11 @@ async function generateCaption() {
   try {
     isGenerating.value = true;
     const imagesToAnalyze = uploadedImages.value.slice(0, 3);
-    const requestData = {
-      s3Keys: imagesToAnalyze.map(img => img.s3Key),
-      prompt: userCaption.value.trim(),
-    };
-
-    const response = await fetch('/api/captions/generate-from-multiple-s3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(requestData),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`캡션 생성 요청 실패: ${response.status} - ${errorText}`);
-    }
-    const data = await response.json();
+    const data = await generateCaptionFromS3(
+      imagesToAnalyze.map(img => img.s3Key),
+      userCaption.value.trim(),
+      toastError
+    );
 
     generatedText.value = data.caption || '';
     originalGeneratedText.value = data.caption || '';
@@ -283,8 +193,6 @@ async function generateCaption() {
     generatedImpact.value = data.impactNote || '';
 
     toastSuccess('AI 캡션이 성공적으로 생성되었어요!');
-  } catch (error) {
-    toastError(error.message || '캡션 생성 중 문제가 발생했어요.');
   } finally {
     isGenerating.value = false;
   }
@@ -339,22 +247,17 @@ function startOver() {
   isGenerating.value = false;
 }
 
-// 편집 모달 관련 함수
+// 편집 모달
 function openEditModal() {
   editBuffer.value = generatedText.value;
   showEditModal.value = true;
 }
-
-function closeEditModal() {
-  showEditModal.value = false;
-}
-
+function closeEditModal() { showEditModal.value = false; }
 function saveEdit() {
   generatedText.value = editBuffer.value;
   showEditModal.value = false;
   toastSuccess('수정 내용을 저장했어요.');
 }
-
 function restoreOriginal() {
   generatedText.value = originalGeneratedText.value;
   toastInfo('원본으로 되돌렸어요.');
@@ -366,14 +269,12 @@ async function copyToClipboard() {
     const content = generatedText.value + '\n\n' + generatedHashtags.value.join(' ');
     await navigator.clipboard.writeText(content);
     toastSuccess('텍스트가 클립보드에 복사되었어요!');
-  } catch (error) {
+  } catch {
     toastError('복사 중 오류가 발생했어요.');
   }
 }
 
-defineExpose({
-  openEditModal
-});
+defineExpose({ openEditModal });
 </script>
 
 <style scoped>

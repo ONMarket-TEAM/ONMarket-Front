@@ -7,7 +7,7 @@
             <span v-if="activeSlide.chip" class="chip">{{ activeSlide.chip }}</span>
             <h1 class="hero-title" v-html="activeSlide.titleHTML"></h1>
             <button class="cta" @click="goRoute(activeSlide.ctaRoute)">
-              <img v-if="activeSlide.ctaRoute === '/caption'" :src="instaIcon" alt="Instagram Icon" class="cta-icon">
+              <img v-if="activeSlide.ctaRoute === '/promote'" :src="instaIcon" alt="Instagram Icon" class="cta-icon">
               {{ activeSlide.ctaLabel }}
             </button>
           </div>
@@ -63,17 +63,20 @@
           class="data-card"
           v-for="(item, i) in hotTop5"
           :key="item.id"
-          @click="$router.push(`/loans/${item.id}`)"
+          @click="goDetail(item)"
         >
-          <div class="thumb-wrapper"></div>
+          <div class="thumb-wrapper">
+            <img v-if="item.imageUrl" :src="item.imageUrl" alt="상품 이미지" style="width:100%;height:100%;object-fit:cover;" />
+            <span class="rank-badge">{{ i + 1 }}</span>
+          </div>
           <div class="meta">
             <div class="meta-header">
               <span class="category-tag" :class="item.categoryClass">{{ item.category }}</span>
               <span class="card-id">D-{{ String(item.id).padStart(3, '0') }}</span>
             </div>
             <h3 class="title">{{ item.title }}</h3>
-            <p class="sub">{{ item.agency }} · {{ item.region || item.type }}</p>
-            <p class="period">{{ item.period || item.rate }}</p>
+            <p class="sub">{{ item.agency }}</p>
+            <p class="period">{{ item.period }}</p>
           </div>
         </article>
       </div>
@@ -125,57 +128,45 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 
-// 슬라이드 포스터 이미지들
+// 🔗 API 모듈 import
+import { fetchHotTop5Api } from '@/api/posts';
+
+// 이미지 & 아이콘
 import p1 from '@/assets/poster.png';
 import p2 from '@/assets/poster2.png';
 import p3 from '@/assets/poster3.png';
 import p4 from '@/assets/poster4.png';
-// 세 번째 슬라이드용 일러스트 및 아이콘
 import p5Illustration from '@/assets/poster5.png';
 import instaIcon from '@/assets/insta.png';
 import likeIcon from '@/assets/like.png';
 
 const router = useRouter();
 
+// --- 슬라이드 정의 ---
 const slides = ref([
   {
-    bgStyle: {
-      background: 'linear-gradient(180deg, #FDF4EE 0%, #FFE3DF 100%)',
-    },
-    titleHTML:
-      '카드뉴스로<br/><span class="highlight">간편하게</span><br/><span class="highlight">맞춤형</span><br/>대출 상품 · 정부 지원금을<br/>확인해보세요',
+    bgStyle: { background: 'linear-gradient(180deg, #FDF4EE 0%, #FFE3DF 100%)' },
+    titleHTML: '카드뉴스로<br/><span class="highlight">간편하게</span><br/><span class="highlight">맞춤형</span><br/>대출 상품 · 정부 지원금을<br/>확인해보세요',
     ctaLabel: '정부 지원금 바로가기',
     ctaRoute: '/policies',
-    images: [
-      { src: p1, alt: '대출 포스터 1' },
-      { src: p2, alt: '대출 포스터 2' },
-    ],
+    images: [{ src: p1, alt: '대출 포스터 1' }, { src: p2, alt: '대출 포스터 2' }],
     mainImage: null,
   },
   {
     chip: '',
-    bgStyle: {
-      background: 'linear-gradient(180deg, #EEF9FD 0%, #DAF3FF 100%)',
-    },
-    titleHTML:
-      '<span class="highlight">소상공인</span>을 위한<br/><span class="highlight">대출 상품</span><br/>지금 바로 확인하세요!',
+    bgStyle: { background: 'linear-gradient(180deg, #EEF9FD 0%, #DAF3FF 100%)' },
+    titleHTML: '<span class="highlight">소상공인</span>을 위한<br/><span class="highlight">대출 상품</span><br/>지금 바로 확인하세요!',
     ctaLabel: '대출 상품 바로가기',
     ctaRoute: '/loans',
-    images: [
-      { src: p3, alt: '지원금 포스터 A' },
-      { src: p4, alt: '지원금 포스터 B' },
-    ],
+    images: [{ src: p3, alt: '지원금 포스터 A' }, { src: p4, alt: '지원금 포스터 B' }],
     mainImage: null,
   },
   {
     chip: '',
-    bgStyle: {
-      background: 'linear-gradient(180deg, #F2EEFD 0%, #DEDAFF 100%)',
-    },
-    titleHTML:
-      '가게 <span class="highlight">홍보</span>가<br/>어려우신가요?<br/><span class="highlight">사진만</span> 올려주시면<br/>도와드릴게요!',
+    bgStyle: { background: 'linear-gradient(180deg, #F2EEFD 0%, #DEDAFF 100%)' },
+    titleHTML: '가게 <span class="highlight">홍보</span>가<br/>어려우신가요?<br/><span class="highlight">사진만</span> 올려주시면<br/>도와드릴게요!',
     ctaLabel: '게시글 올리기',
-    ctaRoute: '/caption',
+    ctaRoute: '/promote',
     images: [],
     mainImage: { src: p5Illustration, alt: '사람 일러스트' },
   },
@@ -185,138 +176,48 @@ const currentIndex = ref(0);
 const activeSlide = computed(() => slides.value[currentIndex.value]);
 
 const go = (i) => (currentIndex.value = i);
-const goRoute = (path) => {
-  if (path) {
-    router.push(path);
-  }
-};
+const goRoute = (path) => { if (path) router.push(path); };
 
-// 자동재생
+// --- 자동 슬라이드 ---
 const intervalMs = 3800;
 let timer = null;
-
-const next = () => {
-  currentIndex.value = (currentIndex.value + 1) % slides.value.length;
-};
-
-const play = () => {
-  stop();
-  timer = setInterval(next, intervalMs);
-};
-
+const next = () => { currentIndex.value = (currentIndex.value + 1) % slides.value.length; };
+const play = () => { stop(); timer = setInterval(next, intervalMs); };
 const pause = () => stop();
+const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
 
-const stop = () => {
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
+// --- HOT TOP5 (API 연동) ---
+const hotTop5 = ref([]);
+
+const fetchHotTop5 = async () => {
+  try {
+    hotTop5.value = await fetchHotTop5Api();
+  } catch (err) {
+    console.error('HOT TOP5 불러오기 실패:', err);
   }
 };
+
+const goDetail = (item) => {
+  if (!item || !item.id) return;
+  router.push(`/loans/${item.id}`);
+};
+
+// --- 추천상품 (임시 하드코딩) ---
+const recommendProducts = ref([
+  { id: 201, title: '소상공인 경영개선자금', agency: '소상공인시장진흥공단', type: '정책자금', rate: '3.0%', category: '대출', categoryClass: 'loan' },
+  { id: 202, title: '혁신성장 바우처', agency: '중기부', region: '전국', period: '2025.07.01 ~ 11.30', category: '공공지원금', categoryClass: 'public' },
+  { id: 203, title: '신용보증재단 창업자금', agency: '서울신용보증재단', type: '보증대출', rate: '4.2%', category: '대출', categoryClass: 'loan' },
+  { id: 204, title: '중소기업 R&D 지원사업', agency: '중기부', region: '전국', period: '2025.03.01 ~ 06.30', category: '공공지원금', categoryClass: 'public' },
+  { id: 205, title: '햇살론 유스', agency: '서민금융진흥원', type: '신용대출', rate: '8.5%', category: '대출', categoryClass: 'loan' },
+]);
 
 onMounted(() => {
   play();
+  fetchHotTop5();
 });
-
-onBeforeUnmount(() => {
-  stop();
-});
-
-const hotTop5 = ref([
-  {
-    id: 101,
-    title: '청년 소상공인 정책자금',
-    agency: '중기부',
-    region: '전국',
-    period: '2025.08.01 ~ 09.30',
-    category: '공공지원금',
-    categoryClass: 'public',
-  },
-  {
-    id: 102,
-    title: '미소금융 창업자금',
-    agency: '서민금융진흥원',
-    type: '신용대출',
-    rate: '4.5%',
-    category: '대출',
-    categoryClass: 'loan',
-  },
-  {
-    id: 103,
-    title: '초기창업 마케팅 지원',
-    agency: '창업진흥원',
-    region: '부산',
-    period: '예산 소진 시',
-    category: '공공지원금',
-    categoryClass: 'public',
-  },
-  {
-    id: 104,
-    title: 'IBK 소상공인 특례보증',
-    agency: 'IBK기업은행',
-    type: '보증대출',
-    rate: '3.8%',
-    category: '대출',
-    categoryClass: 'loan',
-  },
-  {
-    id: 105,
-    title: '스마트공장 구축사업',
-    agency: '산업부',
-    region: '경기',
-    period: '2025.01.15 ~ 12.31',
-    category: '공공지원금',
-    categoryClass: 'public',
-  },
-]);
-
-const recommendProducts = ref([
-  {
-    id: 201,
-    title: '소상공인 경영개선자금',
-    agency: '소상공인시장진흥공단',
-    type: '정책자금',
-    rate: '3.0%',
-    category: '대출',
-    categoryClass: 'loan',
-  },
-  {
-    id: 202,
-    title: '혁신성장 바우처',
-    agency: '중기부',
-    region: '전국',
-    period: '2025.07.01 ~ 11.30',
-    category: '공공지원금',
-    categoryClass: 'public',
-  },
-  {
-    id: 203,
-    title: '신용보증재단 창업자금',
-    agency: '서울신용보증재단',
-    type: '보증대출',
-    rate: '4.2%',
-    category: '대출',
-    categoryClass: 'loan',
-  },
-  {
-    id: 204,
-    title: '중소기업 R&D 지원사업',
-    agency: '중기부',
-    region: '전국',
-    period: '2025.03.01 ~ 06.30',
-    category: '공공지원금',
-    categoryClass: 'public',
-  },
-  {
-    id: 205,
-    title: '햇살론 유스',
-    agency: '서민금융진흥원',
-    type: '신용대출',
-    rate: '8.5%',
-    category: '대출',
-    categoryClass: 'loan',
-  },
-]);
+onBeforeUnmount(() => stop());
 </script>
+
 
 <style scoped>
 :root {
