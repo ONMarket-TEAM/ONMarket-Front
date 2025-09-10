@@ -127,9 +127,11 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
 
-// 슬라이드 이미지들
+// 🔗 API 모듈 import
+import { fetchHotTop5Api } from '@/api/posts';
+
+// 이미지 & 아이콘
 import p1 from '@/assets/poster.png';
 import p2 from '@/assets/poster2.png';
 import p3 from '@/assets/poster3.png';
@@ -140,6 +142,7 @@ import likeIcon from '@/assets/like.png';
 
 const router = useRouter();
 
+// --- 슬라이드 정의 ---
 const slides = ref([
   {
     bgStyle: { background: 'linear-gradient(180deg, #FDF4EE 0%, #FFE3DF 100%)' },
@@ -175,7 +178,7 @@ const activeSlide = computed(() => slides.value[currentIndex.value]);
 const go = (i) => (currentIndex.value = i);
 const goRoute = (path) => { if (path) router.push(path); };
 
-// 자동재생
+// --- 자동 슬라이드 ---
 const intervalMs = 3800;
 let timer = null;
 const next = () => { currentIndex.value = (currentIndex.value + 1) % slides.value.length; };
@@ -183,35 +186,23 @@ const play = () => { stop(); timer = setInterval(next, intervalMs); };
 const pause = () => stop();
 const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
 
-// ===== HOT TOP5 (실데이터 연동) =====
+// --- HOT TOP5 (API 연동) ---
 const hotTop5 = ref([]);
 
 const fetchHotTop5 = async () => {
   try {
-    const res = await axios.get('/api/posts/top-scraps');
-    console.log("TOP5 API 응답:", res.data);
-
-    hotTop5.value = res.data.body.data.map((post, idx) => ({
-      id: post.postId,  // 👈 여기 postId 잘 들어옴
-      title: post.productName,
-      agency: post.companyName,
-      period: post.deadline ?? '기간 미정', // null 방어 처리
-      category: post.postType === 'LOAN' ? '대출' : '공공지원금',
-      categoryClass: post.postType === 'LOAN' ? 'loan' : 'public',
-      rank: idx + 1,
-    }));
+    hotTop5.value = await fetchHotTop5Api();
   } catch (err) {
     console.error('HOT TOP5 불러오기 실패:', err);
   }
 };
 
-
 const goDetail = (item) => {
-  if (!item || !item.id) return;             // ✅ 가드: undefined 방지
+  if (!item || !item.id) return;
   router.push(`/loans/${item.id}`);
 };
 
-// 추천 상품은 아직 목데이터 유지
+// --- 추천상품 (임시 하드코딩) ---
 const recommendProducts = ref([
   { id: 201, title: '소상공인 경영개선자금', agency: '소상공인시장진흥공단', type: '정책자금', rate: '3.0%', category: '대출', categoryClass: 'loan' },
   { id: 202, title: '혁신성장 바우처', agency: '중기부', region: '전국', period: '2025.07.01 ~ 11.30', category: '공공지원금', categoryClass: 'public' },
@@ -226,6 +217,7 @@ onMounted(() => {
 });
 onBeforeUnmount(() => stop());
 </script>
+
 
 <style scoped>
 :root {
