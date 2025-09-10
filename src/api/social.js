@@ -80,6 +80,10 @@ export const snsAPI = {
     try {
       const requestBody = {
         nickname: signupData.nickname,
+        username: signupData.username,
+        birthDate: signupData.birthDate,
+        gender: signupData.gender,
+        phone: signupData.phone,
       };
 
       // 프로필 이미지가 있다면 추가
@@ -106,3 +110,4 @@ export const snsAPI = {
     }
   },
 };
+

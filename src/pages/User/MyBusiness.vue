@@ -18,17 +18,45 @@
           class="card"
           @click="goToUpdate(b.businessId)"
         >
+          <!-- 카드 상단 -->
           <div class="card-top">
             <span class="badge">{{ toBusinessType(b.businessType) }}</span>
+
+            <!-- 삭제 버튼 (우측 상단) -->
+            <button
+              class="btn-delete"
+              @click.stop="toggleConfirm(b.businessId)"
+              v-if="confirmingId !== b.businessId"
+            >
+              ✕
+            </button>
           </div>
 
+          <!-- 사업장명 -->
           <h3 class="title">
             {{ b.businessName || '사업장명 미등록' }}
           </h3>
 
+          <!-- 카드 하단 -->
           <div class="card-bottom">
             <span class="chip">#{{ toRegion(b.regionCodeId) }}</span>
             <span class="chip">#{{ toIndustry(b.industry) }}</span>
+          </div>
+
+          <!-- 삭제 확인 토글 -->
+          <div class="delete-confirm" v-if="confirmingId === b.businessId">
+            <p class="warn-text">정말로 이 사업장을 삭제할까요? 이 작업은 되돌릴 수 없습니다.</p>
+            <div class="confirm-actions">
+              <button class="btn-ghost" @click.stop="cancelConfirm">취소</button>
+              <button
+                class="btn-danger"
+                @click.stop="deleteBusiness(b.businessId)"
+                :disabled="deletingId === b.businessId"
+              >
+                <span v-if="deletingId === b.businessId">삭제 중...</span>
+                <span v-else>영구 삭제</span>
+              </button>
+            </div>
           </div>
         </article>
       </div>
@@ -36,7 +64,6 @@
       <!-- 등록된 사업장이 없을 때 -->
       <div v-else class="empty">
         <p>등록된 사업장이 없습니다.</p>
-        <!-- <button class="add-btn" @click="goToRegister">사업장 추가하기</button> -->
       </div>
 
       <!-- 사업장 추가 버튼 -->
@@ -59,6 +86,8 @@ const businesses = ref([]);
 const loading = ref(true);
 const error = ref('');
 const toast = useToastStore();
+const confirmingId = ref(null);
+const deletingId = ref(null);
 
 /** 사업장 목록 로드 */
 const load = async () => {
@@ -149,6 +178,47 @@ const toRegion = (code) => {
 
   // 매핑되지 않은 코드는 원본 코드 반환
   return code;
+};
+
+const toggleConfirm = (businessId) => {
+  confirmingId.value = confirmingId.value === businessId ? null : businessId;
+};
+
+const cancelConfirm = () => {
+  confirmingId.value = null;
+};
+
+/** 삭제 실행 */
+const deleteBusiness = async (businessId) => {
+  try {
+    deletingId.value = businessId;
+    const res = await businessAPI.delete(businessId); // <- businessAPI에 DELETE 호출이 있어야 합니다.
+
+    // API 규약에 맞춰 성공 판별
+    if (!res || res.success === false) {
+      const msg = res?.message || '삭제에 실패했습니다. 잠시 후 다시 시도해주세요.';
+      toast.error(msg);
+      return;
+    }
+
+    // 목록에서 제거
+    businesses.value = businesses.value.filter((b) => b.businessId !== businessId);
+    toast.success('사업장을 삭제했습니다.');
+  } catch (e) {
+    if (e?.response?.status === 403) {
+      toast.error('내 소유의 사업장이 아닙니다.');
+    } else if (e?.response?.status === 404) {
+      toast.error('사업장을 찾을 수 없습니다.');
+    } else if (e?.response?.status === 401) {
+      toast.warning('인증이 만료되었습니다.');
+      router.push('/login');
+    } else {
+      toast.error('삭제 처리 중 오류가 발생했습니다.');
+    }
+  } finally {
+    deletingId.value = null;
+    confirmingId.value = null;
+  }
 };
 </script>
 
@@ -260,6 +330,69 @@ const toRegion = (code) => {
 .add-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 0.625rem 1.375rem rgba(0, 0, 0, 0.12);
+}
+
+.btn-danger {
+  background: #f44336;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-danger:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid #ddd;
+  color: #555;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-ghost:hover {
+  background: #fafafa;
+}
+
+.delete-confirm {
+  margin-top: 0.875rem;
+  padding: 0.875rem;
+  border: 1px dashed #f44336;
+  border-radius: 0.5rem;
+  background: #fff5f5;
+}
+.warn-text {
+  margin: 0 0 0.5rem 0;
+  color: #b71c1c;
+  font-size: 0.9rem;
+}
+.confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.btn-delete {
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  color: #999;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.btn-delete:hover {
+  color: #f44336;
 }
 </style>
 
