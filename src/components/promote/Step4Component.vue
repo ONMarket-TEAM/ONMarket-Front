@@ -73,10 +73,10 @@
           <!-- 헤더 -->
           <div class="insta-header">
             <div class="insta-user">
-              <i class="fa-regular fa-circle-user"></i>
-              <span>{{ snsStore.instagram.username || 'username' }}</span>
-              <span class="preview-tag">(미리보기)</span>
-            </div>
+  <img class="insta-profile" :src="snsStore.instagram.profileImage || defaultAvatar" alt="프로필" />
+  <span>{{ snsStore.instagram.username || 'username' }}</span>
+  <span class="preview-tag">(미리보기)</span>
+</div>
             <div class="insta-options">
               <i class="fa-solid fa-ellipsis"></i>
             </div>
@@ -119,10 +119,17 @@
           <div class="insta-likes">좋아요 1,230개</div>
 
           <!-- 캡션 (AI 첫 줄 + ...더보기) -->
-          <div class="insta-caption">
-            <span class="insta-username">{{ snsStore.instagram.username || 'username' }}</span>
-            {{ firstLineAI }}<span v-if="hasMoreLines">...더보기</span>
-          </div>
+        <!-- 캡션 (AI 첫 줄 + ...더보기) -->
+<div class="insta-caption">
+  <span class="insta-username">{{ snsStore.instagram.username || 'username' }}</span>
+  <span v-if="!showFullCaption">
+    {{ firstLineAI }}
+    <span v-if="hasMoreLines" class="more-btn" @click="showFullCaption = true">...더보기</span>
+  </span>
+  <span v-else>
+    {{ props.generatedText }}
+  </span>
+</div>
 
           <!-- 댓글 -->
           <div class="insta-comments">
@@ -150,6 +157,8 @@ import { ref, computed } from 'vue';
 import InstagramLoginModal from '../sns/insta/InstagramLoginModal.vue';
 import { useSnsStore } from '@/stores/useSnsStore';
 import { useToastStore } from '@/stores/useToastStore';
+import defaultAvatar from '@/assets/default_avatar.png';
+
 
 const props = defineProps({
   uploadedImages: { type: Array, default: () => [] },
@@ -166,6 +175,8 @@ const snsStore = useSnsStore();
 const toastStore = useToastStore();
 const showInstagramModal = ref(false);
 const instagramLoginModal = ref(null);
+const showFullCaption = ref(false);
+
 
 // 이미지 슬라이드
 const currentImageIndex = ref(0);
@@ -613,5 +624,13 @@ const handleInstagramLoginSuccess = (username) => {
   line-height: 1.4;
   margin: 4px 0;
   word-break: keep-all;
+}
+
+.insta-profile {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #ddd;
 }
 </style>
