@@ -165,7 +165,6 @@
       </template>
     </div>
 
-    <!-- 일반 댓글 작성 모달 -->
     <div
       v-if="isModalOpen && !isReplyMode && !isEditMode"
       class="modal-overlay"
@@ -212,7 +211,6 @@
       </div>
     </div>
 
-    <!-- 대댓글 작성 모달 -->
     <div v-if="isModalOpen && isReplyMode && !isEditMode" class="modal-overlay" @click="closeModal">
       <div class="modal-content reply-modal" @click.stop>
         <div class="modal-header">
@@ -242,14 +240,12 @@
       </div>
     </div>
 
-    <!-- 댓글 수정 모달 -->
     <div v-if="isModalOpen && isEditMode" class="modal-overlay" @click="closeModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>{{ editingComment.parentCommentId ? '답글 수정' : '후기 수정' }}</h2>
         </div>
 
-        <!-- 일반 댓글 수정 시에만 평점 표시 -->
         <div class="rating-section" v-if="!editingComment.parentCommentId">
           <p class="rating-label">평점을 선택해주세요</p>
           <div class="rating-stars">
@@ -291,11 +287,18 @@
         </div>
       </div>
     </div>
+
+    <transition name="fade">
+      <button v-if="showScrollTopButton" @click="scrollToTop" class="scroll-top-btn">
+        <i class="fas fa-arrow-up"></i>
+      </button>
+    </transition>
+    
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue'; // [수정됨] onUnmounted 추가
 import { useRoute } from 'vue-router';
 import { postAPI, scrapAPI, commentAPI, getErrorMessage } from '@/api/post';
 import { useToastStore } from '@/stores/useToastStore';
@@ -635,11 +638,36 @@ const formatDate = (dateString) => {
 
 const formatContent = (content) => (content ? content.replace(/\n/g, '<br>') : '');
 
-// 컴포넌트 마운트 시 데이터 로딩
+// [추가됨] Scroll to Top 관련 로직
+const showScrollTopButton = ref(false);
+
+const handleScroll = () => {
+  if (window.scrollY > 200) {
+    showScrollTopButton.value = true;
+  } else {
+    showScrollTopButton.value = false;
+  }
+};
+
+const scrollToTop = () => {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  });
+};
+
+// 컴포넌트 마운트 및 언마운트 시 로직
 onMounted(async () => {
   currentUser.value = getCurrentUser();
   await fetchProductDetail();
   await fetchComments();
+  // [추가됨] 스크롤 이벤트 리스너 등록
+  window.addEventListener('scroll', handleScroll);
+});
+
+// [추가됨] 컴포넌트가 사라질 때 이벤트 리스너 제거
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
 });
 </script>
 
@@ -1300,5 +1328,42 @@ onMounted(async () => {
   .replies {
     padding-left: 1rem;
   }
+}
+
+/* [추가됨] 맨 위로 가기 버튼 스타일 */
+.scroll-top-btn {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background-color: var(--color-sub);
+  color: var(--color-white);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.scroll-top-btn:hover {
+  background-color: var(--color-main);
+  transform: translateY(-2px);
+}
+
+/* [추가됨] 트랜지션 효과 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
