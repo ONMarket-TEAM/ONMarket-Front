@@ -633,4 +633,13 @@ const handleInstagramLoginSuccess = (username) => {
   object-fit: cover;
   border: 1px solid #ddd;
 }
+.more-btn {
+  cursor: pointer;           /* 마우스 올리면 손가락 커서 */
+  color: #555;               /* 기본 색상 */
+  font-weight: 500;
+}
+.more-btn:hover {
+  color: #000;                /* hover 시 진한 색 */
+}
+
 </style>
