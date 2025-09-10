@@ -114,6 +114,7 @@ const validatePassword = () => {
     passwordError.value = '';
   }
 };
+
 const showPasswordConfirm = ref(false);
 const togglePasswordConfirm = () => {
   showPasswordConfirm.value = !showPasswordConfirm.value;

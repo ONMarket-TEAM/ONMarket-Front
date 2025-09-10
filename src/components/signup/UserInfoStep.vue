@@ -137,7 +137,9 @@
             placeholder="비밀번호를 입력하세요"
             required
           />
-          <div class="password-hint">최소 8자 이상, 영문, 숫자, 특수문자 포함</div>
+          <div v-if="passwordErrorMessage" class="check-message error">
+            {{ passwordErrorMessage }}
+          </div>
         </div>
       </div>
 
@@ -297,7 +299,16 @@ const isFormValid = computed(() => {
     );
   }
 });
+const passwordErrorMessage = computed(() => {
+  const pwd = signupForm.password;
 
+  if (!pwd) return ''; // 입력 없으면 메시지 숨김
+
+  const isValid =
+    pwd.length >= 8 && /[a-zA-Z]/.test(pwd) && /\d/.test(pwd) && /[@$!%*?&]/.test(pwd);
+
+  return isValid ? '' : '비밀번호 조건에 맞지 않습니다. (최소 8자, 영문, 숫자, 특수문자 포함)';
+});
 const smsVerificationRef = ref(null);
 
 const smsVerificationStatus = ref({
@@ -992,6 +1003,12 @@ onMounted(async () => {
 .radio-input:disabled + .radio-text {
   color: #999;
   cursor: not-allowed;
+}
+.check-message.error {
+  color: #dc3545; /* 빨간색 */
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-top: 0.3rem;
 }
 </style>
 
