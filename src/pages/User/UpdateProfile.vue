@@ -56,11 +56,6 @@
           </small>
         </div>
 
-        <!-- 안내문 -->
-        <!-- <p class="hint">
-          영문 대소문자, 숫자, 특수문자를 모두 포함해 8자 이상 20자 이하로 입력해주세요.
-        </p> -->
-
         <!-- 버튼 -->
         <div class="actions">
           <button class="btn primary" :disabled="submitDisabled || loading" @click="onSubmit">
@@ -80,10 +75,12 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToastStore } from '@/stores/useToastStore';
 import member from '@/api/member';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 // 상태
 const router = useRouter();
 const toast = useToastStore();
+const authStore = useAuthStore();
 const me = ref(null);
 const meLoaded = ref(false);
 const loading = ref(false);
@@ -114,6 +111,7 @@ const validatePassword = () => {
     passwordError.value = '';
   }
 };
+
 const showPasswordConfirm = ref(false);
 const togglePasswordConfirm = () => {
   showPasswordConfirm.value = !showPasswordConfirm.value;
@@ -181,7 +179,19 @@ const onSubmit = async () => {
   try {
     const updated = await member.updateMember(payload);
 
-    // 닉네임 즉시 반영
+    /** AuthStore 동기화: 다른 페이지(Navbar/MyPage 등)에서도 즉시 반영 */
+    if (updated) {
+      authStore.updateUserProfile({
+        nickname: updated.nickname,
+        username: updated.username,
+        email: updated.email,
+        phone: updated.phone,
+        birthDate: updated.birthDate,
+        // profileImage는 이번 폼에서 바꾸지 않으므로 그대로 둠
+      });
+    }
+
+    // 닉네임 즉시 반영 (로컬)
     me.value = updated || me.value;
     // 비밀번호 관련 폼 초기화
     newPassword.value = '';
@@ -218,6 +228,17 @@ const goBack = () => {
 onMounted(async () => {
   try {
     me.value = await member.getMemberInfo();
+
+    /** 최초 진입 시에도 스토어 하이드레이션 */
+    if (me.value) {
+      authStore.updateUserProfile({
+        nickname: me.value.nickname,
+        username: me.value.username,
+        email: me.value.email,
+        phone: me.value.phone,
+        birthDate: me.value.birthDate,
+      });
+    }
   } catch (e) {
     toast.error('회원정보를 불러오는데 실패했습니다.');
     router.push('/login');

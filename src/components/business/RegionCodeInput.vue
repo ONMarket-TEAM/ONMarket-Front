@@ -36,8 +36,8 @@
             </option>
             <option
               v-for="district in filteredDistricts"
-              :key="district.지역코드"
-              :value="district.지역코드"
+              :key="district.시군구명"
+              :value="district.시군구명"
             >
               {{ district.시군구명 }}
             </option>
@@ -57,20 +57,26 @@ import { ref, computed, watch } from 'vue';
 import regionData from '@/data/region.json';
 
 const props = defineProps({
-  modelValue: {
-    type: String,
-    default: '',
-  },
-  error: {
-    type: String,
-    default: '',
-  },
+  sidoName: String,
+  sigunguName: String,
+  error: String,
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:sidoName', 'update:sigunguName']);
 
 const selectedProvince = ref('');
 const selectedDistrict = ref('');
+
+// 이벤트 핸들러에 디버깅 추가
+const onProvinceChange = () => {
+  emit('update:sidoName', selectedProvince.value);
+  emit('update:sigunguName', ''); // 시도 변경시 시군구 초기화
+  selectedDistrict.value = ''; // 로컬 상태도 초기화
+};
+
+const onDistrictChange = () => {
+  emit('update:sigunguName', selectedDistrict.value);
+};
 
 // 고유한 시도 목록 생성
 const provinces = computed(() => {
@@ -84,36 +90,16 @@ const filteredDistricts = computed(() => {
   return regionData.filter((item) => item.시도명 === selectedProvince.value);
 });
 
-// 시도 선택 시 시군구 초기화
-const onProvinceChange = () => {
-  selectedDistrict.value = '';
-  emit('update:modelValue', '');
-};
-
-// 시군구 선택 시 지역코드 전달
-const onDistrictChange = () => {
-  emit('update:modelValue', selectedDistrict.value);
-};
+// Props 변경 감지하여 로컬 상태 동기화
 watch(
-  () => props.modelValue,
-  (newValue) => {
-    if (!newValue) {
-      selectedProvince.value = '';
-      selectedDistrict.value = '';
-      return;
-    }
-
-    // 지역코드로부터 시도와 시군구 찾기
-    const region = regionData.find((item) => item.지역코드 === newValue);
-    if (region) {
-      selectedProvince.value = region.시도명;
-      selectedDistrict.value = region.지역코드;
-    }
+  () => [props.sidoName, props.sigunguName],
+  ([newSido, newSigungu]) => {
+    selectedProvince.value = newSido || '';
+    selectedDistrict.value = newSigungu || '';
   },
   { immediate: true }
 );
 </script>
-
 <style scoped>
 /* 가로 배열을 위한 컨테이너 */
 .region-selector-row {

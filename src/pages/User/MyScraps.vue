@@ -1,12 +1,15 @@
-<!-- src/pages/MyScraps.vue -->
 <template>
   <div class="container section">
     <h1>내 스크랩북</h1>
     <hr />
 
     <div class="tabs">
-      <button class="tab" :class="{ active: activeTab === 'POLICY' }" @click="activeTab = 'POLICY'">
-        정부 지원금 <span class="count">{{ policyList.length }}</span>
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'SUPPORT' }"
+        @click="activeTab = 'SUPPORT'"
+      >
+        정부 지원금 <span class="count">{{ supportList.length }}</span>
       </button>
       <div class="divider" />
       <button class="tab" :class="{ active: activeTab === 'LOAN' }" @click="activeTab = 'LOAN'">
@@ -20,9 +23,11 @@
       <div v-if="filtered.length === 0" class="state">스크랩한 항목이 없습니다.</div>
 
       <ul v-else class="grid">
-        <li v-for="item in filtered" :key="item.postId" class="card" @click="goPost(item.postId)">
-          <div class="badge" :class="getDdayClass(item.deadline)">
-            {{ item.deadline }}
+        <li v-for="item in filtered" :key="item.postId" class="card" @click="goPost(item)">
+          <div class="card-top">
+            <div class="badge" :class="getDdayClass(item.deadline)">
+              {{ item.deadline }}
+            </div>
           </div>
           <h3 class="title">{{ item.productName }}</h3>
           <p class="summary">{{ item.summary }}</p>
@@ -43,11 +48,11 @@ const loading = ref(false);
 const error = ref('');
 const scraps = ref([]);
 
-const activeTab = ref('POLICY'); // 기본 탭
+const activeTab = ref('SUPPORT'); // 기본 탭
 
 const loanList = computed(() => scraps.value.filter((s) => s.postType === 'LOAN'));
-const policyList = computed(() => scraps.value.filter((s) => s.postType === 'POLICY'));
-const filtered = computed(() => (activeTab.value === 'LOAN' ? loanList.value : policyList.value));
+const supportList = computed(() => scraps.value.filter((s) => s.postType === 'SUPPORT'));
+const filtered = computed(() => (activeTab.value === 'LOAN' ? loanList.value : supportList.value));
 
 const getDdayClass = (label) => {
   if (!label) return '';
@@ -61,9 +66,15 @@ const getDdayClass = (label) => {
   return '';
 };
 
-const goPost = (postId) => {
-  // 상세 페이지 라우트에 맞춰 경로 수정
-  router.push(`/post/${postId}`);
+const goPost = (item) => {
+  if (item.postType === 'LOAN') {
+    router.push(`/loans/${item.postId}`);
+  } else if (item.postType === 'SUPPORT') {
+    router.push(`/policies/${item.postId}`);
+  } else {
+    // 혹시 다른 경우를 대비한 기본 라우팅
+    router.push(`/post/${item.postId}`);
+  }
 };
 
 onMounted(async () => {
@@ -85,18 +96,17 @@ onMounted(async () => {
 .tabs {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  align-items: center; /* 세로 중앙 */
-  justify-items: center; /* 각 칸 가로 중앙 */
-  margin: 22px auto 28px; /* 전체 가운데 배치 */
-  max-width: 720px; /* 폭을 주면 중앙 정렬이 더 또렷 */
+  align-items: center;
+  justify-items: center;
+  margin: 22px auto 28px;
+  max-width: 720px;
 }
 
-/* 버튼을 자신의 칸 안에서 정확히 중앙에 */
 .tab {
-  width: 100%; /* 각 탭이 자신 칸(1fr) 전체 사용 */
+  width: 100%;
   display: inline-flex;
-  align-items: center; /* 세로 중앙 */
-  justify-content: center; /* 가로 중앙 */
+  align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 8px 0;
   appearance: none;
@@ -142,46 +152,39 @@ onMounted(async () => {
   margin: 0;
   padding: 8px 0 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 28px 26px;
-}
-@media (max-width: 1024px) {
-  .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-@media (max-width: 640px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
+  gap: 1.25rem;
 }
 
 .card {
-  border: 1px solid #ececec;
-  border-radius: 16px;
   background: #fff;
-  padding: 18px 18px 20px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  border-radius: 0.75rem;
+  border: 0.0625rem solid #f3eee8;
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
+  /* padding: 18px 18px 20px; */
+  padding: 1.25rem;
   cursor: pointer;
   transition:
-    transform 0.08s ease,
-    box-shadow 0.18s ease;
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   min-height: 180px;
 }
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.1);
+  transform: translateY(-0.125rem);
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
+  background: var(--color-light-2);
 }
 
 .badge {
   display: inline-block;
-  font-size: 12px;
-  font-weight: 800;
-  border-radius: 999px;
-  padding: 6px 10px;
+  padding: 0.375rem 1rem;
+  border-radius: 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
   margin-bottom: 12px;
-  color: #111;
-  background: #f2f2f2;
+  color: var(--color-sub);
+  background: var(--color-white);
+  border: 1px solid var(--color-sub);
 }
 .badge.soon {
   background: var(--color-sub, #ff6b6b);
@@ -197,25 +200,26 @@ onMounted(async () => {
 }
 
 .title {
-  font-size: 18px;
+  margin: 0.625rem 0.125rem 1.125rem 0.3125rem;
+  font-size: 1.125rem;
   font-weight: 700;
-  color: #111;
-  margin: 2px 0 8px;
+  color: #333;
   line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
 }
 .summary {
+  margin-left: 8px;
   font-size: 14px;
   color: #444;
   line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 </style>

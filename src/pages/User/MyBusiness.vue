@@ -37,9 +37,9 @@
             {{ b.businessName || '사업장명 미등록' }}
           </h3>
 
-          <!-- 카드 하단 -->
+          <!-- 카드 하단 - sidoName, sigunguName 사용 -->
           <div class="card-bottom">
-            <span class="chip">#{{ toRegion(b.regionCodeId) }}</span>
+            <span class="chip">#{{ toRegion(b.sidoName, b.sigunguName) }}</span>
             <span class="chip">#{{ toIndustry(b.industry) }}</span>
           </div>
 
@@ -78,7 +78,6 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { businessAPI } from '@/api/business';
-import regionData from '@/data/region.json';
 import { useToastStore } from '@/stores/useToastStore';
 
 const router = useRouter();
@@ -99,18 +98,15 @@ const load = async () => {
     if (result.success) {
       businesses.value = result.data;
     } else {
-      // API에서 반환하는 에러 메시지 사용
       error.value = result.message || '사업장 목록을 불러오지 못했습니다.';
       toast.error(error.value);
     }
   } catch (e) {
-    // 네트워크 에러 등 에러
+    console.error('사업장 목록 로드 에러:', e);
     error.value = '사업장 목록을 불러오지 못했습니다.';
     toast.error(error.value);
 
-    // 인증 만료 등 특정 상태 코드에 따른 처리
     if (e?.response?.status === 401) {
-      // 로그인 페이지로 이동 처리
       toast.warning('인증이 만료되었습니다.');
       router.push('/login');
     }
@@ -151,33 +147,17 @@ const toIndustry = (v) => {
   return map[v] || '업종';
 };
 
-// 지역코드 매핑
-const regionMap = regionData.reduce((map, region) => {
-  map[region.지역코드] = `${region.시도명} ${region.시군구명}`;
-  return map;
-}, {});
+// 지역명 표시 함수 - sidoName, sigunguName 사용
+const toRegion = (sidoName, sigunguName) => {
+  if (!sidoName || !sigunguName) return '지역';
 
-const toRegion = (code) => {
-  if (!code) return '지역';
+  // 시도명 축약 처리
+  const shortSido = sidoName;
 
-  const regionName = regionMap[String(code)];
+  // 시군구명 축약 처리 (선택사항)
+  const shortSigungu = sigunguName.replace('시', '').replace('군', '').replace('구', '');
 
-  if (regionName) {
-    const parts = regionName.split(' ');
-    if (parts.length === 2) {
-      const sido = parts[0]
-        .replace('특별시', '')
-        .replace('광역시', '')
-        .replace('특별자치시', '')
-        .replace('특별자치도', '')
-        .replace('도', '');
-      return `${sido} ${parts[1]}`;
-    }
-    return regionName;
-  }
-
-  // 매핑되지 않은 코드는 원본 코드 반환
-  return code;
+  return `${shortSido} ${shortSigungu}`;
 };
 
 const toggleConfirm = (businessId) => {
@@ -192,9 +172,8 @@ const cancelConfirm = () => {
 const deleteBusiness = async (businessId) => {
   try {
     deletingId.value = businessId;
-    const res = await businessAPI.delete(businessId); // <- businessAPI에 DELETE 호출이 있어야 합니다.
+    const res = await businessAPI.delete(businessId);
 
-    // API 규약에 맞춰 성공 판별
     if (!res || res.success === false) {
       const msg = res?.message || '삭제에 실패했습니다. 잠시 후 다시 시도해주세요.';
       toast.error(msg);
@@ -205,6 +184,8 @@ const deleteBusiness = async (businessId) => {
     businesses.value = businesses.value.filter((b) => b.businessId !== businessId);
     toast.success('사업장을 삭제했습니다.');
   } catch (e) {
+    console.error('사업장 삭제 에러:', e);
+
     if (e?.response?.status === 403) {
       toast.error('내 소유의 사업장이 아닙니다.');
     } else if (e?.response?.status === 404) {
@@ -223,7 +204,7 @@ const deleteBusiness = async (businessId) => {
 </script>
 
 <style scoped>
-/** 싱테 표시 */
+/** 상태 표시 */
 .state-box {
   padding: 1.5rem;
   text-align: center;
@@ -265,7 +246,8 @@ const deleteBusiness = async (businessId) => {
 /** 상단 배지 - 개인/법인 */
 .card-top {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1rem;
 }
 .badge {
@@ -281,13 +263,16 @@ const deleteBusiness = async (businessId) => {
 
 /** 사업장명 */
 .title {
-  margin: 0.625rem 0.125rem 1.125rem 0.3125rem;
+  margin: 0.625rem 0.125rem 2.7rem 0.3125rem;
   font-size: 1.125rem;
   font-weight: 700;
   color: #333;
-  letter-spacing: -0.0125rem;
   line-height: 1.35;
-  min-height: 3rem; /* 두 줄도 안정적으로 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
 }
 
 /** 하단 태그 */
@@ -375,12 +360,6 @@ const deleteBusiness = async (businessId) => {
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
-}
-.card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
 }
 
 .btn-delete {

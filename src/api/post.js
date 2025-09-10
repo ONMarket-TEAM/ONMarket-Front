@@ -1,6 +1,5 @@
 import api from './index'
 
-// Post API
 export const postAPI = {
   getPostsByType: async (type, page = 0, size = 9, sort = 'createdAt,desc') => {
     try {
@@ -26,7 +25,7 @@ export const postAPI = {
     }
   },
 
-  // [수정됨] 상품 검색 API 호출 함수에서 available 관련 로직 모두 삭제
+  // 🔥 [최종 수정] 한글 검색 문제를 해결한 searchPosts 함수
   searchPosts: async (searchParams) => {
     try {
       const { type, keyword, company, page, size, sort } = searchParams;
@@ -38,20 +37,35 @@ export const postAPI = {
         support: 'SUPPORT'
       }[type.toLowerCase()] || type.toUpperCase();
 
-      const params = new URLSearchParams({
-        page: page || 0,
-        size: size || 9,
-        sort: sort || 'createdAt,desc'
-      });
-
-      if (keyword) params.append('keyword', keyword);
-      if (company) params.append('company', company);
+      // 기본 URL 경로 생성
+      let url = `/api/posts/type/${normalizedType}/search`;
       
-      const url = `/api/posts/type/${normalizedType}/search?${params.toString()}`;
+      // 쿼리 파라미터를 배열로 관리
+      const queryParts = [];
+      queryParts.push(`page=${page || 0}`);
+      queryParts.push(`size=${size || 9}`);
+      queryParts.push(`sort=${sort || 'createdAt,desc'}`);
+
+      // 키워드가 있을 경우, 수동으로 인코딩하여 추가
+      if (keyword && keyword.trim()) {
+        queryParts.push(`keyword=${encodeURIComponent(keyword.trim())}`);
+      }
+      
+      if (company && company.trim()) {
+        queryParts.push(`company=${encodeURIComponent(company.trim())}`);
+      }
+      
+      // URL 최종 조합
+      url += `?${queryParts.join('&')}`;
+
       const { data } = await api.get(url);
       return data;
     } catch (error) {
-      console.error(`게시물 검색 실패:`, error);
+      console.error('❌ 게시물 검색 실패:', {
+        error: error.message,
+        response: error.response?.data,
+        searchParams
+      });
       throw error;
     }
   },

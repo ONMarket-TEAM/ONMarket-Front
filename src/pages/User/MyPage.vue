@@ -126,16 +126,14 @@
             <li v-for="scrap in visibleScraps" :key="scrap.postId" class="scrap-item">
               <span class="scrap-title">{{ scrap.productName }}</span>
               <span class="scrap-dday" :class="getDdayClass(scrap.deadline)">{{
-                // formatDeadline(scrap.deadline)
                 scrap.deadline
               }}</span>
             </li>
           </ul>
 
-          <button v-if="scraps.length > 6" class="scrap-more" @click="goToMyScrap">
+          <button class="scrap-more" @click="goToMyScrap">
             <i class="fas fa-chevron-down"></i>
           </button>
-          <div v-else class="scrap-footer-space"></div>
         </aside>
 
         <!-- 설정 버튼 바 -->
@@ -171,7 +169,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import member from '@/api/member';
 import scrapAPI from '@/api/scrap';
 import notificationAPI from '@/api/notification';
@@ -204,6 +202,45 @@ const scrapError = ref('');
 const pushEnabled = ref(false);
 const visibleScraps = computed(() => scraps.value.slice(0, 6));
 
+/** AuthStore를 단일 출처로 사용: authStore.user가 바뀌면 me도 즉시 동기화 */
+watch(
+  () => authStore.user,
+  (u) => {
+    me.value = u;
+  },
+  { immediate: true, deep: true }
+);
+
+/** 서버에서 최신 사용자 정보 + 서명URL 로 스토어/로컬 동기화 (인스타 연동/해제 후 재사용) */
+const syncUserFromServer = async () => {
+  try {
+    const updated = await member.getMemberInfo();
+    me.value = updated;
+    if (updated) {
+      authStore.updateUserProfile({
+        nickname: updated.nickname,
+        username: updated.username,
+        email: updated.email,
+        phone: updated.phone,
+        birthDate: updated.birthDate,
+        profileImage: updated.profileImage,
+      });
+    }
+    // 추가: 서명 URL도 함께 동기화
+    try {
+      const imageData = await member.getCurrentProfileImage(); // { url }
+      const url = imageData?.url || null;
+      profileImageUrl.value = url;
+      authStore.updateUserProfile({ profileImageUrl: url });
+      avatarVersion.value++;
+    } catch {
+      /* best-effort */
+    }
+  } catch {
+    /* best-effort */
+  }
+};
+
 const loadScraps = async () => {
   scrapLoading.value = true;
   scrapError.value = '';
@@ -235,21 +272,16 @@ const registerServiceWorker = async () => {
   if (!('serviceWorker' in navigator)) {
     throw new Error('이 브라우저는 서비스워커를 지원하지 않습니다.');
   }
-
   if (!('PushManager' in window)) {
     throw new Error('이 브라우저는 웹 푸시를 지원하지 않습니다.');
   }
-
-  // 서비스워커 등록
   const registration = await navigator.serviceWorker.register('/sw.js');
   await navigator.serviceWorker.ready;
 
-  // 알림 권한 요청
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
     throw new Error('알림 권한이 거부되었습니다. 브라우저 설정에서 알림을 허용해주세요.');
   }
-
   return registration;
 };
 
@@ -257,13 +289,9 @@ const registerServiceWorker = async () => {
 const urlBase64ToUint8Array = (base64String) => {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
   return outputArray;
 };
 
@@ -277,23 +305,37 @@ function ab2b64url(buf) {
 }
 
 const createPushSubscription = async () => {
-  // 1) SW 확보
   const registration = await registerServiceWorker();
-
-  // 2) 권한 확인
   const perm = await Notification.requestPermission();
-  if (perm !== 'granted') {
-    throw new Error('알림 권한이 필요합니다.');
-  }
+  if (perm !== 'granted') throw new Error('알림 권한이 필요합니다.');
 
-  // 3) VAPID 키 체크
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-  if (!vapidPublicKey) {
+  if (!vapidPublicKey)
     throw new Error('VAPID 공개키가 설정되지 않았습니다. (.env: VITE_VAPID_PUBLIC_KEY)');
-  }
+  const vapidKeyUint8 = urlBase64ToUint8Array(vapidPublicKey);
 
-  // 4) 기존 구독 재사용 or 신규 구독
+  const uint8eq = (a, b) => {
+    if (!a || !b) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  };
+
   let subscription = await registration.pushManager.getSubscription();
+  if (subscription) {
+    const curKeyBuf = subscription.options?.applicationServerKey;
+    const curKey = curKeyBuf ? new Uint8Array(curKeyBuf) : null;
+    const isExpired =
+      typeof subscription.expirationTime === 'number' &&
+      subscription.expirationTime > 0 &&
+      Date.now() > subscription.expirationTime - 60_000;
+    if ((curKey && !uint8eq(curKey, vapidKeyUint8)) || isExpired) {
+      try {
+        await subscription.unsubscribe();
+      } catch {}
+      subscription = null;
+    }
+  }
   if (!subscription) {
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
@@ -301,37 +343,25 @@ const createPushSubscription = async () => {
     });
   }
 
-  // 5) 표준 방식으로 키 추출
   let p256dhKey = ab2b64url(subscription.getKey && subscription.getKey('p256dh'));
   let authKey = ab2b64url(subscription.getKey && subscription.getKey('auth'));
-
-  // 보조: 일부 브라우저의 toJSON().keys 사용
   if ((!p256dhKey || !authKey) && subscription.toJSON) {
     const raw = subscription.toJSON();
     if (!p256dhKey) p256dhKey = raw?.keys?.p256dh || null;
     if (!authKey) authKey = raw?.keys?.auth || null;
   }
-
-  if (!p256dhKey || !authKey) {
+  if (!p256dhKey || !authKey)
     throw new Error('브라우저가 구독 키(p256dh/auth)를 제공하지 않았습니다.');
-  }
 
-  return {
-    endpoint: subscription.endpoint,
-    p256dhKey,
-    authKey,
-  };
+  return { endpoint: subscription.endpoint, p256dhKey, authKey };
 };
 
-// 기존 푸시 구독 해제
 const unsubscribePush = async () => {
   if ('serviceWorker' in navigator) {
     const registration = await navigator.serviceWorker.getRegistration();
     if (registration) {
       const subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        await subscription.unsubscribe();
-      }
+      if (subscription) await subscription.unsubscribe();
     }
   }
 };
@@ -360,21 +390,20 @@ const handleInstagramLoginSuccess = async ({ username }) => {
     await snsStore.loginInstagram(username, 'dummy'); // password는 무시됨
     toast.success('Instagram 연동에 성공했습니다.');
     showInstagramModal.value = false;
+
+    // 연동 성공 후 최신 사용자 정보 동기화(서명 URL 포함)
+    await syncUserFromServer();
   } catch (e) {
     toast.error('Instagram 연동에 실패했습니다.');
   }
 };
 
-// 현재 아바타 URL 계산
+// 현재 아바타 URL 계산 (서명URL > 일반URL > 기본)
 const currentAvatar = computed(() => {
-  const base = profileImageUrl.value || me.value?.profileImage || DEFAULT_AVATAR;
-  if (!base) return DEFAULT_AVATAR;
+  const base = authStore.user?.profileImageUrl || authStore.user?.profileImage || DEFAULT_AVATAR;
 
-  if (isSignedUrl(base)) {
-    // 서명 URL: 쿼리 절대 변경 X, 해시만 붙여 리마운트 트리거
-    return `${base}#v=${avatarVersion.value}`;
-  }
-  // 퍼블릭 URL: 쿼리로 캐시 버스팅
+  if (!base) return DEFAULT_AVATAR;
+  if (isSignedUrl(base)) return `${base}#v=${avatarVersion.value}`;
   const sep = base.includes('?') ? '&' : '?';
   return `${base}${sep}v=${avatarVersion.value}`;
 });
@@ -405,10 +434,8 @@ const submitVerify = async () => {
     verifyError.value = '비밀번호를 입력해주세요.';
     return;
   }
-
   verifyLoading.value = true;
   verifyError.value = '';
-
   try {
     await member.verifyPassword(currentPassword.value.trim());
     closeVerifyModal();
@@ -423,7 +450,6 @@ const submitVerify = async () => {
 const goToBusinessList = () => {
   router.push('/user/mybusiness');
 };
-
 const goToMyScrap = () => {
   router.push('/user/myscraps');
 };
@@ -431,11 +457,9 @@ const goToMyScrap = () => {
 const openImageMenu = () => {
   showImageMenu.value = true;
 };
-
 const closeImageMenu = () => {
   showImageMenu.value = false;
 };
-
 const selectNewImage = () => {
   closeImageMenu();
   fileInput.value?.click();
@@ -443,11 +467,10 @@ const selectNewImage = () => {
 
 const setDefaultImage = async () => {
   closeImageMenu();
-
   try {
     await member.deleteProfileImage();
     profileImageUrl.value = null;
-    if (me.value) me.value = { ...me.value, profileImage: null };
+    authStore.updateUserProfile({ profileImage: null, profileImageUrl: null });
     avatarVersion.value++;
     toast.success('기본 이미지로 변경되었습니다.');
   } catch (e) {
@@ -471,20 +494,12 @@ const handleFileSelect = async (event) => {
   }
 
   try {
-    // 1) Presigned URL 발급 (백엔드)
     const presign = await member.getProfileImagePresignUrl(file.name, file.type);
-
-    // 2) S3 업로드 (클라이언트 → S3)
     await member.uploadImageToS3(presign.uploadUrl, file, file.type);
+    await member.confirmProfileImage(presign.key); // 서버 DB에 키 반영
 
-    // 3) 서버에 업로드 확정(키 등록/DB 반영) 후 최종 공개 URL 받기
-    const confirm = await member.confirmProfileImage(presign.key);
-
-    // 상태 업데이트
-    const newImageUrl = confirm.url; // 백엔드가 주는 최종 이미지 URL
-    profileImageUrl.value = newImageUrl;
-    if (me.value) me.value = { ...me.value, profileImage: newImageUrl };
-    avatarVersion.value++;
+    // 키 반영 후, 항상 서명 URL을 새로 받아서 스토어에 넣기
+    await loadProfileImage();
 
     toast.success('프로필 이미지가 변경되었습니다.');
   } catch (e) {
@@ -496,8 +511,11 @@ const handleFileSelect = async (event) => {
 
 const loadProfileImage = async () => {
   try {
-    const imageData = await member.getCurrentProfileImage();
-    profileImageUrl.value = imageData?.url || null;
+    const imageData = await member.getCurrentProfileImage(); // { url }
+    const url = imageData?.url || null;
+    profileImageUrl.value = url;
+    // 전역 스토어에도 서명 URL 저장 (Navbar/다른 페이지가 즉시 사용)
+    authStore.updateUserProfile({ profileImageUrl: url });
     avatarVersion.value++;
   } catch (e) {
     toast.error('프로필 이미지 조회에 실패했습니다.');
@@ -508,6 +526,8 @@ const disconnectInstagram = async () => {
   try {
     await snsStore.logoutInstagram();
     toast.success('Instagram 연동이 해제되었습니다.');
+    // 해제 후 최신 사용자 정보 동기화(서명 URL 포함)
+    await syncUserFromServer();
   } catch (e) {
     toast.error('Instagram 연동 해제에 실패했습니다.');
   }
@@ -519,6 +539,16 @@ const loadInfo = async () => {
 
   try {
     me.value = await member.getMemberInfo();
+    if (me.value) {
+      authStore.updateUserProfile({
+        nickname: me.value.nickname,
+        username: me.value.username,
+        email: me.value.email,
+        phone: me.value.phone,
+        birthDate: me.value.birthDate,
+        profileImage: me.value.profileImage,
+      });
+    }
     await snsStore.fetchInstagramStatus();
   } catch (e) {
     const errorMessage = e?.response?.data?.header?.message || '내 정보를 불러오지 못했습니다.';
@@ -535,7 +565,6 @@ const loadInfo = async () => {
 
 const handleLogout = async () => {
   if (!confirm('로그아웃하시겠습니까?')) return;
-
   try {
     authStore.logout();
     router.push('/');
@@ -546,9 +575,7 @@ const handleLogout = async () => {
 
 const handleWithdraw = async () => {
   if (!confirm('정말로 회원탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
-
   const result = await authStore.withdraw();
-
   if (result.success) {
     router.push('/');
   }
@@ -560,52 +587,28 @@ const onTogglePush = async () => {
 
   try {
     if (pushEnabled.value) {
-      // 알림 켜기 - 웹 푸시 구독
-      // 1. 브라우저 지원 확인
-      if (!('serviceWorker' in navigator)) {
+      if (!('serviceWorker' in navigator))
         throw new Error('이 브라우저는 서비스워커를 지원하지 않습니다.');
-      }
-      if (!('PushManager' in window)) {
-        throw new Error('이 브라우저는 웹 푸시를 지원하지 않습니다.');
-      }
+      if (!('PushManager' in window)) throw new Error('이 브라우저는 웹 푸시를 지원하지 않습니다.');
 
-      // 2. VAPID 키 확인
       const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      if (!vapidPublicKey) throw new Error('VAPID 공개키가 설정되지 않았습니다.');
 
-      if (!vapidPublicKey) {
-        throw new Error('VAPID 공개키가 설정되지 않았습니다.');
-      }
-
-      // 3. 구독 데이터 생성
       const subscriptionData = await createPushSubscription();
-
-      // 4. 백엔드 API 호출
       await notificationAPI.subscribe(subscriptionData);
-
       toast.success('알림이 활성화되었습니다.');
     } else {
-      // 알림 끄기 - 웹 푸시 구독 해제
-      // 1. 브라우저 구독 해제
       await unsubscribePush();
-
-      // 2. 백엔드 API 호출
       await notificationAPI.unsubscribe();
-
       toast.success('알림이 비활성화되었습니다.');
     }
   } catch (error) {
-    // 실패 시 원래 상태로 복원
     pushEnabled.value = originalState;
-
     let errorMessage = '알림 설정 변경에 실패했습니다.';
-    if (error.message.includes('권한')) {
+    if (error.message.includes('권한'))
       errorMessage = '알림 권한을 허용해주세요. 브라우저 설정에서 알림을 활성화할 수 있습니다.';
-    } else if (error.message.includes('지원하지 않습니다')) {
-      errorMessage = error.message;
-    } else if (error.message.includes('VAPID')) {
-      errorMessage = 'VAPID 키 설정을 확인해주세요.';
-    }
-
+    else if (error.message.includes('지원하지 않습니다')) errorMessage = error.message;
+    else if (error.message.includes('VAPID')) errorMessage = 'VAPID 키 설정을 확인해주세요.';
     toast.error(errorMessage);
   }
 };
@@ -615,7 +618,7 @@ const loadNotificationStatus = async () => {
   try {
     const status = await notificationAPI.getSubscriptionStatus();
     pushEnabled.value = status?.isSubscribed || false;
-  } catch (error) {
+  } catch {
     pushEnabled.value = false;
   }
 };
@@ -623,8 +626,7 @@ const loadNotificationStatus = async () => {
 const DEFAULT_AVATAR = default_image;
 const onImgErr = (e) => {
   e.target.src = DEFAULT_AVATAR;
-  profileImageUrl.value = null;
-  if (me.value) me.value = { ...me.value, profileImage: null };
+  // ❗ 스토어는 건드리지 않음 (일시적 오류로 전역 상태를 망가뜨리지 않기 위함)
   avatarVersion.value++;
 };
 
@@ -636,7 +638,7 @@ onMounted(() => {
 
   (async () => {
     await loadInfo();
-    await loadProfileImage();
+    await loadProfileImage(); // 🔸 초기 1회: 서명 URL을 스토어에 채운다
     await loadScraps();
     await loadNotificationStatus();
   })();
