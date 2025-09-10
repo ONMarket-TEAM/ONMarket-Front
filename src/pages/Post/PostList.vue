@@ -36,36 +36,30 @@
 
       <!-- 페이지네이션 -->
       <div v-if="pagination.totalPages > 1" class="pagination-container">
-        <!-- 이전 버튼 -->
         <button
           class="pagination-btn"
-          :class="{ disabled: currentPage === 1 }"
-          :disabled="currentPage === 1 || loading"
-          @click="changePage(currentPage - 1)"
+          :disabled="currentPage <= PAGE_BLOCK_SIZE || loading"
+          @click="goToPreviousBlock"
         >
           이전
         </button>
 
-        <!-- 페이지 번호 -->
-        <template v-for="page in paginationPages" :key="page">
-          <span v-if="page === '...'" class="pagination-btn disabled"> ... </span>
+        <button
+          v-for="page in paginationPages"
+          :key="page"
+          @click="changePage(page)"
+          :class="['pagination-btn', { active: page === currentPage }]"
+          :disabled="loading"
+        >
+          {{ page }}
+        </button>
 
-          <button
-            v-else
-            @click="changePage(page)"
-            :class="['pagination-btn', { active: page === currentPage }]"
-            :disabled="loading"
-          >
-            {{ page }}
-          </button>
-        </template>
-
-        <!-- 다음 버튼 -->
         <button
           class="pagination-btn"
-          :class="{ disabled: currentPage === pagination.totalPages }"
-          :disabled="currentPage === pagination.totalPages || loading"
-          @click="changePage(currentPage + 1)"
+          :disabled="
+            paginationPages[paginationPages.length - 1] === pagination.totalPages || loading
+          "
+          @click="goToNextBlock"
         >
           다음
         </button>
@@ -76,25 +70,36 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import PostCard from '@/components/post/PostCard.vue';
 import { postAPI, getErrorMessage } from '@/api/post';
 
 const route = useRoute();
+const router = useRouter();
+
+// [추가] 페이지네이션 블록 크기를 상수로 정의 (5개씩)
+const PAGE_BLOCK_SIZE = 5;
 
 const posts = ref([]);
 const loading = ref(false);
 const error = ref('');
-const pagination = ref({ totalPages: 1, totalItems: 0 });
+
+const pagination = ref({
+  totalPages: 0,
+  totalElements: 0,
+  pageNumber: 0,
+  size: 9,
+});
+
 const currentPage = ref(1);
 
 const pageTitle = computed(() =>
-  route.path === '/policies' ? '정부 지원금 보기' : '대출 상품 보기'
+  route.path.includes('/policies') ? '정부 지원금 보기' : '대출 상품 보기'
 );
 
 const currentPageType = computed(() => {
-  if (route.path === '/loans') return 'loans';
-  if (route.path === '/policies') return 'policies';
+  if (route.path.includes('/loans')) return 'loans';
+  if (route.path.includes('/policies')) return 'policies';
   return null;
 });
 
@@ -102,16 +107,25 @@ const fetchData = async () => {
   if (!currentPageType.value) return;
   loading.value = true;
   error.value = '';
-
   try {
-    const response = await postAPI.getPostsByType(currentPageType.value);
-    const postsData = response?.body?.data ?? [];
-
-    posts.value = transformPostsData(postsData);
-    pagination.value = {
-      totalPages: 1,
-      totalItems: postsData.length,
-    };
+    const response = await postAPI.getPostsByType(
+      currentPageType.value,
+      currentPage.value - 1,
+      pagination.value.size
+    );
+    const pageData = response?.body?.data;
+    if (pageData && pageData.content) {
+      posts.value = transformPostsData(pageData.content);
+      pagination.value = {
+        totalPages: pageData.totalPages,
+        totalElements: pageData.totalElements,
+        pageNumber: pageData.number,
+        size: pageData.size,
+      };
+    } else {
+      posts.value = [];
+      pagination.value.totalPages = 0;
+    }
   } catch (err) {
     error.value = getErrorMessage(err);
     posts.value = [];
@@ -132,7 +146,61 @@ const transformPostsData = (rawData) => {
   }));
 };
 
-watch(() => route.path, fetchData, { immediate: true });
+const changePage = (page) => {
+  if (page < 1 || page > pagination.value.totalPages || page === currentPage.value) {
+    return;
+  }
+  router.push({ path: route.path, query: { page } });
+};
+
+// [수정] 페이지네이션 UI를 블록 단위로 계산하도록 로직 변경
+const paginationPages = computed(() => {
+  const totalPages = pagination.value.totalPages;
+  if (!totalPages) return [];
+
+  // 현재 페이지가 속한 블록 계산 (0부터 시작)
+  const currentBlock = Math.floor((currentPage.value - 1) / PAGE_BLOCK_SIZE);
+
+  // 현재 블록의 시작 페이지와 끝 페이지 계산
+  const startPage = currentBlock * PAGE_BLOCK_SIZE + 1;
+  const endPage = Math.min(startPage + PAGE_BLOCK_SIZE - 1, totalPages);
+
+  const pages = [];
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i);
+  }
+  return pages;
+});
+
+// [추가] 다음 페이지 블록으로 이동하는 함수
+const goToNextBlock = () => {
+  const totalPages = pagination.value.totalPages;
+  const currentBlock = Math.floor((currentPage.value - 1) / PAGE_BLOCK_SIZE);
+  const nextPage = (currentBlock + 1) * PAGE_BLOCK_SIZE + 1;
+
+  if (nextPage <= totalPages) {
+    changePage(nextPage);
+  }
+};
+
+// [추가] 이전 페이지 블록으로 이동하는 함수
+const goToPreviousBlock = () => {
+  const currentBlock = Math.floor((currentPage.value - 1) / PAGE_BLOCK_SIZE);
+  const prevPage = (currentBlock - 1) * PAGE_BLOCK_SIZE + 1;
+
+  if (prevPage >= 1) {
+    changePage(prevPage);
+  }
+};
+
+watch(
+  () => [route.path, route.query.page],
+  ([newPath, newPageQuery]) => {
+    currentPage.value = parseInt(newPageQuery || '1', 10);
+    fetchData();
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>
@@ -178,8 +246,12 @@ watch(() => route.path, fetchData, { immediate: true });
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .error-message {
@@ -190,7 +262,7 @@ watch(() => route.path, fetchData, { immediate: true });
 }
 
 .retry-btn {
-  background-color: var(--color-sub); 
+  background-color: var(--color-sub);
   color: var(--color-white);
   border: none;
   padding: 0.75rem 1.5rem;
@@ -198,9 +270,8 @@ watch(() => route.path, fetchData, { immediate: true });
   cursor: pointer;
   font-size: 1rem;
   font-weight: 500;
-  transition: background-color 0.2s ease; 
+  transition: background-color 0.2s ease;
 }
-
 
 .retry-btn:hover {
   background: var(--color-main);
@@ -272,7 +343,12 @@ watch(() => route.path, fetchData, { immediate: true });
 }
 
 @keyframes skeleton-loading {
-  from { opacity: 1; }
-  to { opacity: 0.6; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.6;
+  }
 }
 </style>
+
