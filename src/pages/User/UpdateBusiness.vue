@@ -24,9 +24,13 @@
         <BusinessTypeSelect v-model="businessForm.businessType" :error="errors.businessType" />
       </div>
 
-      <!-- 사업 지역 -->
+      <!-- 사업 지역 - RegionInput 사용으로 변경 -->
       <div class="form-group">
-        <RegionCodeInput v-model="businessForm.regionCodeId" :error="errors.regionCodeId" />
+        <RegionInput
+          v-model:sidoName="businessForm.sidoName"
+          v-model:sigunguName="businessForm.sigunguName"
+          :error="errors.region"
+        />
       </div>
 
       <!-- 설립 연도 (읽기 전용) -->
@@ -67,7 +71,7 @@ import { useToastStore } from '@/stores/useToastStore';
 import IndustrySelect from '@/components/business/IndustrySelect.vue';
 import BusinessTypeSelect from '@/components/business/BusinessTypeSelect.vue';
 import BusinessNameInput from '@/components/business/BusinessName.vue';
-import RegionCodeInput from '@/components/business/RegionCodeInput.vue';
+import RegionInput from '@/components/business/RegionCodeInput.vue'; // RegionCodeInput 대신 RegionInput 사용
 import EstablishedYearInput from '@/components/business/EstablishedYearInput.vue';
 import AnnualRevenueSelect from '@/components/business/AnnualRevenueSelect.vue';
 import EmployeeCountInput from '@/components/business/EmployeeCountInput.vue';
@@ -86,7 +90,8 @@ const businessForm = reactive({
   businessName: '',
   industry: '',
   businessType: '',
-  regionCodeId: '',
+  sidoName: '',
+  sigunguName: '', // 추가
   establishedYear: null,
   annualRevenue: '',
   employeeCount: null,
@@ -95,11 +100,12 @@ const businessForm = reactive({
 // 기존과 비교하여 변경된 정보만 수정
 const original = ref(null);
 
+// errors도 수정
 const errors = reactive({
   businessName: '',
   industry: '',
   businessType: '',
-  regionCodeId: '',
+  region: '',
   annualRevenue: '',
   employeeCount: '',
 });
@@ -129,13 +135,14 @@ async function load() {
       return;
     }
 
-    // 백엔드 응답값 폼에 주입
+    // 백엔드 응답값 폼에 주입 - sidoName, sigunguName 사용
     const d = res.data;
     Object.assign(businessForm, {
       businessName: d.businessName ?? '',
       industry: d.industry ?? '',
       businessType: d.businessType ?? '',
-      regionCodeId: d.regionCodeId ?? '',
+      sidoName: d.sidoName ?? '',
+      sigunguName: d.sigunguName ?? '', // 추가
       establishedYear: d.establishedYear ?? null,
       annualRevenue: d.annualRevenue ?? '',
       employeeCount: d.employeeCount ?? null,
@@ -155,7 +162,7 @@ function validate() {
   resetErrors();
   let ok = true;
 
-  if (!businessForm.businessName) {
+  if (!businessForm.businessName?.trim()) {
     errors.businessName = '사업명을 입력하세요.';
     ok = false;
   }
@@ -167,8 +174,8 @@ function validate() {
     errors.businessType = '사업장 유형을 선택하세요.';
     ok = false;
   }
-  if (!businessForm.regionCodeId) {
-    errors.regionCodeId = '사업 지역을 선택하세요.';
+  if (!businessForm.sidoName || !businessForm.sigunguName) {
+    errors.region = '사업 지역을 선택하세요.';
     ok = false;
   }
   if (!businessForm.annualRevenue) {
@@ -183,13 +190,15 @@ function validate() {
   return ok;
 }
 
+// 변경된 필드만 추출하는 함수 수정
 function buildDiffPayload(curr, base) {
   const payload = {};
   [
     'businessName',
     'industry',
     'businessType',
-    'regionCodeId',
+    'sidoName',
+    'sigunguName', // 추가
     'annualRevenue',
     'employeeCount',
   ].forEach((field) => {

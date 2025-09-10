@@ -13,11 +13,12 @@ export default defineConfig({
     },
   },
   server: {
+    historyApiFallback: true,
+    host: '0.0.0.0',
     proxy: {
       '/api': {
         target: 'http://localhost:8080', // Spring 서버
         changeOrigin: true,
-        
       },
     },
   },
