@@ -126,16 +126,14 @@
             <li v-for="scrap in visibleScraps" :key="scrap.postId" class="scrap-item">
               <span class="scrap-title">{{ scrap.productName }}</span>
               <span class="scrap-dday" :class="getDdayClass(scrap.deadline)">{{
-                // formatDeadline(scrap.deadline)
                 scrap.deadline
               }}</span>
             </li>
           </ul>
 
-          <button v-if="scraps.length > 6" class="scrap-more" @click="goToMyScrap">
+          <button class="scrap-more" @click="goToMyScrap">
             <i class="fas fa-chevron-down"></i>
           </button>
-          <div v-else class="scrap-footer-space"></div>
         </aside>
 
         <!-- 설정 버튼 바 -->
@@ -291,9 +289,35 @@ const createPushSubscription = async () => {
   if (!vapidPublicKey) {
     throw new Error('VAPID 공개키가 설정되지 않았습니다. (.env: VITE_VAPID_PUBLIC_KEY)');
   }
+  const vapidKeyUint8 = urlBase64ToUint8Array(vapidPublicKey);
+
+  const uint8eq = (a, b) => {
+    if (!a || !b) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  };
 
   // 4) 기존 구독 재사용 or 신규 구독
   let subscription = await registration.pushManager.getSubscription();
+  // 기존 키와 다르면 재구독
+  if (subscription) {
+    const curKeyBuf = subscription.options?.applicationServerKey; // ArrayBuffer | undefined
+    const curKey = curKeyBuf ? new Uint8Array(curKeyBuf) : null;
+
+    const isExpired =
+      typeof subscription.expirationTime === 'number' &&
+      subscription.expirationTime > 0 &&
+      Date.now() > subscription.expirationTime - 60_000; // 만료 1분 전이면 재갱신
+
+    if ((curKey && !uint8eq(curKey, vapidKeyUint8)) || isExpired) {
+      try {
+        await subscription.unsubscribe();
+      } catch {}
+      subscription = null;
+    }
+  }
+
   if (!subscription) {
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,

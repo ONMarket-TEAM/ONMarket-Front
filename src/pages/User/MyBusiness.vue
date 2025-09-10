@@ -281,13 +281,16 @@ const deleteBusiness = async (businessId) => {
 
 /** 사업장명 */
 .title {
-  margin: 0.625rem 0.125rem 1.125rem 0.3125rem;
+  margin: 0.625rem 0.125rem 2.7rem 0.3125rem;
   font-size: 1.125rem;
   font-weight: 700;
   color: #333;
-  letter-spacing: -0.0125rem;
   line-height: 1.35;
-  min-height: 3rem; /* 두 줄도 안정적으로 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
 }
 
 /** 하단 태그 */
