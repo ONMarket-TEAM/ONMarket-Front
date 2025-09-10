@@ -114,29 +114,18 @@ const loginForm = reactive({
 });
 
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
 const togglePassword = () => {
   showPassword.value = !showPassword.value;
 };
+
 const handleLogin = async () => {
-  // 상세한 검증 및 메시지 제공
   const validationErrors = [];
-
-  // 1. 이메일 검증
-  if (!loginForm.email.trim()) {
-    validationErrors.push('이메일을 입력해주세요.');
-  } else if (!isValidEmail(loginForm.email)) {
+  if (!loginForm.email.trim()) validationErrors.push('이메일을 입력해주세요.');
+  else if (!isValidEmail(loginForm.email))
     validationErrors.push('올바른 이메일 형식으로 입력해주세요.');
-  }
-
-  // 2. 비밀번호 검증
-  if (!loginForm.password) {
-    validationErrors.push('비밀번호를 입력해주세요.');
-  } else if (loginForm.password.length < 6) {
+  if (!loginForm.password) validationErrors.push('비밀번호를 입력해주세요.');
+  else if (loginForm.password.length < 6)
     validationErrors.push('비밀번호는 6자 이상이어야 합니다.');
-  }
-
-  // 검증 실패 시 첫 번째 오류 메시지 표시
   if (validationErrors.length > 0) {
     toastStore.error(validationErrors[0]);
     return;
@@ -144,69 +133,63 @@ const handleLogin = async () => {
 
   try {
     isLoading.value = true;
+
     const result = await authStore.login(loginForm.email, loginForm.password, loginForm.rememberMe);
+
     if (result.success) {
-      // 로그인 성공 직후 사업장 조회
+      // 로그인 직후 전역 유저 하이드레이션(닉네임 + 프로필 이미지 URL까지)
+      await authStore.refreshUserInfo();
+
+      // 이후 로직은 그대로: 사업장 조회 → 적절한 라우팅
       try {
         const businessResult = await businessAPI.getMyBusinessList();
 
         if (
           !businessResult.success &&
-          businessResult.message.includes('사업장을 찾을 수 없습니다')
+          businessResult.message?.includes('사업장을 찾을 수 없습니다')
         ) {
-          // 신규 사용자 → 사업장 등록 페이지로
           toastStore.info('사업장 정보를 등록해주세요.');
-          router.push('/business/register');
+          await router.push('/business/register');
         } else {
-          // 기존 사용자 → 메인 페이지
           const redirectTo = router.currentRoute.value.query.redirect || '/';
           await router.push(redirectTo);
         }
       } catch (error) {
         toastStore.error('사업장 정보를 불러오는 중 오류가 발생했습니다.');
-        // 오류가 있어도 메인 페이지로 이동
         const redirectTo = router.currentRoute.value.query.redirect || '/';
         await router.push(redirectTo);
       }
     } else {
-      // 로그인 실패 시 구체적인 오류 메시지
       if (result.message) {
-        if (result.message.includes('이메일')) {
-        } else if (result.message.includes('비밀번호')) {
-          toastStore.error('비밀번호가 일치하지 않습니다.');
-        } else if (result.message.includes('계정')) {
+        if (result.message.includes('비밀번호')) toastStore.error('비밀번호가 일치하지 않습니다.');
+        else if (result.message.includes('계정'))
           toastStore.error('계정이 비활성화되어 있습니다. 고객센터에 문의해주세요.');
-        } else if (result.message.includes('잠금')) {
+        else if (result.message.includes('잠금'))
           toastStore.error('계정이 잠겨있습니다. 잠시 후 다시 시도해주세요.');
-        }
+        else toastStore.error('이메일 또는 비밀번호를 확인해주세요.');
       } else {
         toastStore.error('이메일 또는 비밀번호를 확인해주세요.');
       }
     }
   } catch (error) {
-    // 네트워크 오류 등 구체적인 오류 유형별 메시지
-    if (error.message && error.message.includes('Network')) {
-      toastStore.error('네트워크 연결을 확인해주세요.');
-    } else if (error.message && error.message.includes('timeout')) {
+    if (error.message?.includes('Network')) toastStore.error('네트워크 연결을 확인해주세요.');
+    else if (error.message?.includes('timeout'))
       toastStore.error('요청 시간이 초과되었습니다. 다시 시도해주세요.');
-    } else if (error.response && error.response.status === 429) {
+    else if (error.response?.status === 429)
       toastStore.error('너무 많은 로그인 시도입니다. 잠시 후 다시 시도해주세요.');
-    } else if (error.response && error.response.status >= 500) {
+    else if (error.response?.status >= 500)
       toastStore.error('서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.');
-    } else {
-      toastStore.error('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
-    }
+    else toastStore.error('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
   } finally {
     isLoading.value = false;
   }
 };
 
 const login = (provider) => {
-  if (provider === 'kakao') {
+  if (provider === 'kakao')
     window.location.href = 'http://localhost:8080/oauth2/authorization/kakao';
-  } else if (provider === 'google') {
+  else if (provider === 'google')
     window.location.href = 'http://localhost:8080/oauth2/authorization/google';
-  }
 };
 </script>
 

@@ -144,7 +144,6 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/useAuthStore';
-import memberApi from '@/api/member';
 import notificationApi from '@/api/notification';
 import { useToastStore } from '@/stores/useToastStore';
 import default_image from '@/assets/default_avatar.png';
@@ -163,90 +162,115 @@ const unreadCount = ref(0);
 const notificationLoading = ref(false);
 const markingAllAsRead = ref(false);
 
-// 사용자 메뉴 관련 상태
+// 사용자 메뉴/모바일 메뉴 상태
 const showUserMenu = ref(false);
-
-// 모바일 메뉴 상태
 const showMobileMenu = ref(false);
 
-// 현재 아바타 - authStore와 me 모두 확인
+/* ---------- 아바타(프로필 이미지) ---------- */
+// 캐시버스터용 버전
+const avatarVersion = ref(0);
+
+// 서명 URL 여부 판단
+const isSignedUrl = (url) => {
+  try {
+    const u = new URL(url);
+    return (
+      u.searchParams.has('X-Amz-Signature') ||
+      u.searchParams.has('X-Amz-Algorithm') ||
+      u.searchParams.has('X-Amz-Credential') ||
+      u.searchParams.has('Signature')
+    );
+  } catch {
+    return false;
+  }
+};
+
+// 전역 사용자 이미지가 바뀌면 강제 리프레시
+watch(
+  () => [authStore.user?.profileImageUrl, authStore.user?.profileImage],
+  ([nu1, nu2], [ou1, ou2]) => {
+    if (nu1 !== ou1 || nu2 !== ou2) avatarVersion.value++;
+  }
+);
+
+// 아바타 URL 계산 (서명URL > 일반URL > 기본)
 const currentAvatar = computed(() => {
-  // me.value가 있으면 우선 사용, 없으면 authStore 확인
-  const profileImage = me.value?.profileImage || authStore.user?.profileImage;
-  return profileImage || DEFAULT_AVATAR;
+  const base = authStore.user?.profileImageUrl || authStore.user?.profileImage || DEFAULT_AVATAR;
+
+  if (!base) return DEFAULT_AVATAR;
+  if (isSignedUrl(base)) return `${base}#v=${avatarVersion.value}`; // 서명 URL은 해시로
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}v=${avatarVersion.value}`; // 퍼블릭 URL은 쿼리 캐시버스트
 });
 
-// 현재 이름 - authStore와 me 모두 확인
-const currentName = computed(() => {
-  const name =
-    me.value?.nickname ||
-    me.value?.username ||
-    authStore.user?.nickname ||
-    authStore.user?.username ||
-    authStore.user?.name;
-  return name || '사용자';
-});
+// 닉네임 즉시 반영
+const currentName = computed(
+  () => authStore.user?.nickname || authStore.user?.username || authStore.user?.name || '사용자'
+);
 
-// 사용자 정보를 가져오는 함수
+/* ---------- 사용자 정보 하이드레이션 ---------- */
+let userFetchInFlight = false;
 const fetchUserInfo = async () => {
   if (!authStore.isAuthenticated) {
     me.value = null;
     return;
   }
+  // 전역에 이미 있으면 추가 호출 불필요
+  if (authStore.user) {
+    me.value = authStore.user;
+    return;
+  }
+  if (userFetchInFlight) return;
 
   try {
-    const userInfo = await authStore.refreshUserInfo();
-    if (userInfo) {
-      me.value = userInfo;
-    }
+    userFetchInFlight = true;
+    const userInfo = await authStore.refreshUserInfo?.(); // 내부에서 profileImageUrl까지 세팅
+    if (userInfo) me.value = userInfo;
   } catch (err) {
     console.error('회원 정보 불러오기 실패:', err);
     toast.error('회원 정보 불러오기 실패');
+  } finally {
+    userFetchInFlight = false;
   }
 };
 
-// authStore의 로그인 상태 변화 감지
+// 로그인 상태 변화에 따른 처리
 watch(
   () => authStore.isAuthenticated,
-  (newVal, oldVal) => {
+  async (newVal, oldVal) => {
     if (newVal && !oldVal) {
-      // 로그인되었을 때
-      fetchUserInfo();
-      fetchNotificationSummary();
+      await fetchUserInfo(); // 로그인 직후 1회만
+      await fetchNotificationSummary();
     } else if (!newVal && oldVal) {
-      // 로그아웃되었을 때
+      // 로그아웃 시 정리
       me.value = null;
       notifications.value = [];
       unreadCount.value = 0;
+      showNotifications.value = false;
+      showUserMenu.value = false;
+      showMobileMenu.value = false;
     }
   },
   { immediate: false }
 );
 
-// authStore의 사용자 정보 변화 감지
+// 전역 사용자 변경 → 로컬 미러 동기화
 watch(
   () => authStore.user,
   (newUser) => {
-    if (newUser && !me.value) {
-      fetchUserInfo();
-      fetchNotificationSummary();
-    }
+    me.value = newUser || null;
   },
-  { immediate: false, deep: true }
+  { immediate: true, deep: true }
 );
 
-// 이미지 에러 핸들러
+// 이미지 에러 핸들러(스토어/로컬 상태는 건드리지 않음)
 const onImgErr = (e) => {
   e.target.src = DEFAULT_AVATAR;
-  if (me.value) me.value.profileImage = null;
 };
 
-// 라우터 이동
-const navigateTo = (path) => {
-  router.push(path);
-};
+/* ---------- 라우터/토글 ---------- */
+const navigateTo = (path) => router.push(path);
 
-// 토글 관련
 const toggleMobileMenu = () => {
   showMobileMenu.value = !showMobileMenu.value;
   showNotifications.value = false;
@@ -255,14 +279,14 @@ const toggleMobileMenu = () => {
 const closeMobileMenu = () => {
   showMobileMenu.value = false;
 };
+
 const toggleNotifications = async () => {
   showNotifications.value = !showNotifications.value;
   showUserMenu.value = false;
   showMobileMenu.value = false;
 
-  // 알림 드롭다운 열릴 때마다 최신 알림 목록 조회
   if (showNotifications.value) {
-    await fetchNotifications();
+    await fetchNotifications(); // 로딩 중이면 내부에서 차단
   }
 };
 const toggleUserMenu = () => {
@@ -274,42 +298,36 @@ const closeUserMenu = () => {
   showUserMenu.value = false;
 };
 
-// 알림 요약 정보 조회 (읽지 않은 개수)
+/* ---------- 알림 ---------- */
+// 알림 요약 정보(미읽음 개수)
 const fetchNotificationSummary = async () => {
   if (!authStore.isAuthenticated) {
     unreadCount.value = 0;
     return;
   }
-
   try {
     const summary = await notificationApi.getNotificationSummary();
-    unreadCount.value = summary.unreadCount || 0;
+    unreadCount.value = summary?.unreadCount || 0;
   } catch (err) {
-    toast.error('알림 요약 정보 조회 실패:', err);
+    console.error('알림 요약 정보 조회 실패:', err);
   }
 };
 
-// 알림 목록 조회
+// 알림 목록
 const fetchNotifications = async () => {
   if (!authStore.isAuthenticated) {
     notifications.value = [];
     return;
   }
+  if (notificationLoading.value) return; // 중복 호출 방지
 
   try {
     notificationLoading.value = true;
     const response = await notificationApi.getNotifications(0, 20);
-    const unreadNotifications = notifications.value.filter((n) => !n.isRead);
-    unreadCount.value = unreadNotifications.length;
-
-    // 페이징된 데이터 처리
-    if (response.content) {
-      notifications.value = response.content;
-    } else if (Array.isArray(response)) {
-      notifications.value = response;
-    } else {
-      notifications.value = [];
-    }
+    const list = Array.isArray(response) ? response : response?.content || [];
+    notifications.value = list;
+    // 응답 기준으로 미읽음 개수 계산
+    unreadCount.value = list.reduce((acc, n) => acc + (n?.isRead ? 0 : 1), 0);
   } catch (err) {
     toast.error('알림을 불러오는 데 실패했습니다.');
     notifications.value = [];
@@ -318,43 +336,32 @@ const fetchNotifications = async () => {
   }
 };
 
-// 개별 알림 읽음 처리
+// 개별 알림 읽음
 const markNotificationAsRead = async (notification) => {
-  if (notification.isRead) return;
-
+  if (!notification || notification.isRead) return;
   try {
     await notificationApi.markNotificationAsRead(notification.notificationId);
-
-    // 로컬 상태 업데이트
     notification.isRead = true;
     unreadCount.value = Math.max(0, unreadCount.value - 1);
-
     toast.success('알림을 읽음 처리했습니다.');
   } catch (err) {
     toast.error('알림 읽음 처리에 실패했습니다.');
   }
 };
 
-// 알림 모두 읽음
+// 모두 읽음
 const markAllAsRead = async () => {
   if (markingAllAsRead.value) return;
-
   try {
     markingAllAsRead.value = true;
     const response = await notificationApi.markAllNotificationsAsRead();
-
-    // 로컬 상태 업데이트
-    notifications.value.forEach((notification) => {
-      notification.isRead = true;
+    notifications.value.forEach((n) => {
+      n.isRead = true;
     });
     unreadCount.value = 0;
-
-    const markedCount = response.markedCount || 0;
-    if (markedCount > 0) {
-      toast.success(`${markedCount}개의 알림을 읽음 처리했습니다.`);
-    } else {
-      toast.info('읽지 않은 알림이 없습니다.');
-    }
+    const markedCount = response?.markedCount ?? 0;
+    if (markedCount > 0) toast.success(`${markedCount}개의 알림을 읽음 처리했습니다.`);
+    else toast.info('읽지 않은 알림이 없습니다.');
   } catch (err) {
     toast.error('모든 알림 읽음 처리에 실패했습니다.');
   } finally {
@@ -362,7 +369,7 @@ const markAllAsRead = async () => {
   }
 };
 
-// 로그아웃 함수들 수정 - 사용자 정보 완전 초기화
+/* ---------- 로그아웃 ---------- */
 const handleLogout = () => {
   me.value = null;
   notifications.value = [];
@@ -371,7 +378,6 @@ const handleLogout = () => {
   showUserMenu.value = false;
   router.push('/');
 };
-
 const handleMobileLogout = () => {
   me.value = null;
   notifications.value = [];
@@ -381,25 +387,20 @@ const handleMobileLogout = () => {
   router.push('/');
 };
 
-// 외부 클릭 시 드롭다운 닫기
+/* ---------- 외부 클릭 닫기 ---------- */
 const handleClickOutside = (event) => {
-  if (!event.target.closest('.notification-wrapper')) {
-    showNotifications.value = false;
-  }
-  if (!event.target.closest('.user-profile-wrapper')) {
-    showUserMenu.value = false;
-  }
+  if (!event.target.closest('.notification-wrapper')) showNotifications.value = false;
+  if (!event.target.closest('.user-profile-wrapper')) showUserMenu.value = false;
   if (!event.target.closest('.navbar-menu') && !event.target.closest('.hamburger-btn')) {
     showMobileMenu.value = false;
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('click', handleClickOutside);
-
   if (authStore.isAuthenticated) {
-    fetchUserInfo();
-    fetchNotificationSummary();
+    await fetchUserInfo(); // 전역 유저 없을 때만 1회 호출
+    await fetchNotificationSummary(); // 마운트 1회
   }
 });
 
