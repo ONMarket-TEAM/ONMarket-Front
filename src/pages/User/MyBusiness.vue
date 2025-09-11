@@ -1,74 +1,129 @@
 <template>
   <div class="container section">
-    <h1>내 사업장</h1>
-    <hr />
+    <!-- 헤더 -->
+    <div class="page-header">
+      <h1 class="page-title">내 사업장</h1>
+      <p class="page-subtitle">등록된 사업장을 관리하고 새로운 사업장을 추가하세요</p>
+    </div>
 
     <!-- 로딩 -->
-    <div v-if="loading" class="state-box">불러오는 중 ...</div>
+    <div v-if="loading" class="loading-state">
+      <div class="loading-spinner"></div>
+      <p>불러오는 중...</p>
+    </div>
 
     <!-- 에러 -->
-    <div v-else-if="error" class="state-box error">에러: {{ error }}</div>
+    <div v-else-if="error" class="error-state">
+      <div class="error-icon">⚠️</div>
+      <h3>오류가 발생했습니다</h3>
+      <p>{{ error }}</p>
+    </div>
 
     <!-- 목록 -->
-    <div v-else>
-      <div v-if="businesses.length" class="grid">
+    <div v-else class="content-wrapper">
+      <div v-if="businesses.length" class="business-grid">
         <article
           v-for="b in businesses"
           :key="b.businessId"
-          class="card"
+          class="business-card"
           @click="goToUpdate(b.businessId)"
         >
-          <!-- 카드 상단 -->
-          <div class="card-top">
-            <span class="badge">{{ toBusinessType(b.businessType) }}</span>
-
-            <!-- 삭제 버튼 (우측 상단) -->
+          <!-- 카드 헤더 -->
+          <div class="card-header">
+            <span class="business-type-badge" :class="getBadgeClass(b.businessType)">
+              {{ toBusinessType(b.businessType) }}
+            </span>
             <button
-              class="btn-delete"
+              class="delete-trigger"
               @click.stop="toggleConfirm(b.businessId)"
               v-if="confirmingId !== b.businessId"
+              aria-label="삭제"
             >
-              ✕
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                />
+              </svg>
             </button>
           </div>
 
           <!-- 사업장명 -->
-          <h3 class="title">
+          <h3 class="business-name">
             {{ b.businessName || '사업장명 미등록' }}
           </h3>
 
-          <!-- 카드 하단 - sidoName, sigunguName 사용 -->
-          <div class="card-bottom">
-            <span class="chip">#{{ toRegion(b.sidoName, b.sigunguName) }}</span>
-            <span class="chip">#{{ toIndustry(b.industry) }}</span>
+          <!-- 메타 정보 -->
+          <div class="business-meta">
+            <div class="meta-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                />
+              </svg>
+              <span>{{ toRegion(b.sidoName, b.sigunguName) }}</span>
+            </div>
+            <div class="meta-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                />
+              </svg>
+              <span>{{ toIndustry(b.industry) }}</span>
+            </div>
           </div>
 
-          <!-- 삭제 확인 토글 -->
-          <div class="delete-confirm" v-if="confirmingId === b.businessId">
-            <p class="warn-text">정말로 이 사업장을 삭제할까요? 이 작업은 되돌릴 수 없습니다.</p>
-            <div class="confirm-actions">
-              <button class="btn-ghost" @click.stop="cancelConfirm">취소</button>
-              <button
-                class="btn-danger"
-                @click.stop="deleteBusiness(b.businessId)"
-                :disabled="deletingId === b.businessId"
-              >
-                <span v-if="deletingId === b.businessId">삭제 중...</span>
-                <span v-else>영구 삭제</span>
-              </button>
+          <!-- 삭제 확인 오버레이 -->
+          <div class="delete-overlay" v-if="confirmingId === b.businessId">
+            <div class="delete-content">
+              <div class="delete-header">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                  />
+                </svg>
+                <h4>사업장 삭제</h4>
+              </div>
+              <p>정말로 이 사업장을 삭제하시겠습니까?<br />이 작업은 되돌릴 수 없습니다.</p>
+              <div class="delete-actions">
+                <button class="btn-cancel" @click.stop="cancelConfirm">취소</button>
+                <button
+                  class="btn-delete-confirm"
+                  @click.stop="deleteBusiness(b.businessId)"
+                  :disabled="deletingId === b.businessId"
+                >
+                  <span v-if="deletingId === b.businessId" class="loading-text">
+                    <div class="mini-spinner"></div>
+                    삭제 중...
+                  </span>
+                  <span v-else>삭제하기</span>
+                </button>
+              </div>
             </div>
           </div>
         </article>
       </div>
 
-      <!-- 등록된 사업장이 없을 때 -->
-      <div v-else class="empty">
-        <p>등록된 사업장이 없습니다.</p>
+      <!-- 빈 상태 -->
+      <div v-else class="empty-state">
+        <div class="empty-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+            />
+          </svg>
+        </div>
+        <h3>등록된 사업장이 없습니다</h3>
+        <p>새로운 사업장을 추가하여 시작해보세요</p>
       </div>
 
       <!-- 사업장 추가 버튼 -->
-      <div class="footer-add">
-        <button class="add-btn" @click="goToRegister">사업장 추가하기</button>
+      <div class="add-section">
+        <button class="add-button" @click="goToRegister">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+          </svg>
+          사업장 추가하기
+        </button>
       </div>
     </div>
   </div>
@@ -136,6 +191,11 @@ const toBusinessType = (v) => {
   return map[v] || '유형미상';
 };
 
+const getBadgeClass = (v) => {
+  const map = { INDIVIDUAL: 'badge-individual', CORPORATE: 'badge-corporate' };
+  return map[v] || 'badge-default';
+};
+
 const toIndustry = (v) => {
   const map = {
     FNB: '음식업',
@@ -155,7 +215,7 @@ const toRegion = (sidoName, sigunguName) => {
   const shortSido = sidoName;
 
   // 시군구명 축약 처리 (선택사항)
-  const shortSigungu = sigunguName.replace('시', '').replace('군', '').replace('구', '');
+  const shortSigungu = sigunguName;
 
   return `${shortSido} ${shortSigungu}`;
 };
@@ -204,174 +264,440 @@ const deleteBusiness = async (businessId) => {
 </script>
 
 <style scoped>
-/** 상태 표시 */
-.state-box {
-  padding: 1.5rem;
+/* 페이지 헤더 */
+.page-header {
   text-align: center;
-  color: #333;
-}
-.state-box.error {
-  background: #fce8e8;
-  color: #9b1c1c;
-  border-radius: 0.75rem;
+  margin-bottom: 3rem;
+  padding: 2rem 0;
 }
 
-/** 카드 그리드 */
-.grid {
+.page-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0 0 0.5rem 0;
+  background: #333;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.page-subtitle {
+  font-size: 1.1rem;
+  color: #6b7280;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* 로딩 상태 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+/* 에러 상태 */
+.error-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  border-radius: 1rem;
+  border: 1px solid #fca5a5;
+}
+
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.error-state h3 {
+  color: #dc2626;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+}
+
+.error-state p {
+  color: #991b1b;
+  margin: 0;
+}
+
+/* 콘텐츠 래퍼 */
+.content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* 사업장 그리드 */
+.business-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
-  gap: 1.25rem;
-  margin-top: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
 }
 
-/** 카드 */
-.card {
-  background: var(--color-white);
-  border-radius: 0.75rem;
-  border: 0.0625rem solid #f3eee8;
-  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
-  padding: 1.25rem;
+/* 사업장 카드 */
+.business-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
   cursor: pointer;
-  outline: none;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-.card:hover {
-  transform: translateY(-0.125rem);
-  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
-  background: var(--color-light-2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
 }
 
-/** 상단 배지 - 개인/법인 */
-.card-top {
+.business-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--color-light-1);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.business-card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border-color: #d1d5db;
+}
+
+.business-card:hover::before {
+  transform: scaleX(1);
+}
+
+/* 카드 헤더 */
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
 }
-.badge {
-  display: inline-block;
-  padding: 0.375rem 1rem;
-  border-radius: 1.25rem;
-  font-size: 0.875rem;
+
+/* 사업장 유형 배지 */
+.business-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--color-sub);
-  background: var(--color-white);
-  border: 1px solid var(--color-sub);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-/** 사업장명 */
-.title {
-  margin: 0.625rem 0.125rem 2.7rem 0.3125rem;
-  font-size: 1.125rem;
+.badge-individual {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
+.badge-corporate {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #059669;
+  border: 1px solid #6ee7b7;
+}
+
+.badge-default {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+/* 삭제 버튼 */
+.delete-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-trigger:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  transform: scale(1.1);
+}
+
+/* 사업장명 */
+.business-name {
+  font-size: 1.25rem;
   font-weight: 700;
-  color: #333;
-  line-height: 1.35;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+  line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
-/** 하단 태그 */
-.card-bottom {
+/* 메타 정보 */
+.business-meta {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
-  flex-wrap: wrap;
-}
-.chip {
-  display: inline-block;
-  font-size: 0.75rem;
-  background: var(--color-light-3);
-  color: #666;
-  border-radius: 1rem;
-  padding: 0.375rem 0.75rem;
 }
 
-.empty {
-  text-align: center;
-  padding: 2.5rem 0 1.25rem;
-  color: #666;
-}
-
-.footer-add {
+.meta-item {
   display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.meta-item svg {
+  opacity: 0.7;
+}
+
+/* 삭제 확인 오버레이 */
+.delete-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(8px);
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  margin: 1.625rem 0 0.625rem;
+  animation: fadeIn 0.2s ease;
 }
 
-.add-btn {
-  width: 15rem;
-  height: 3.25rem;
-  border-radius: 1.25rem;
-  background: var(--color-white);
-  border: 0.0625rem solid #ddd;
+.delete-content {
+  text-align: center;
+  padding: 1.5rem;
+  max-width: 280px;
+}
+
+.delete-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  color: #dc2626;
+}
+
+.delete-header h4 {
+  margin: 0;
+  font-size: 1rem;
   font-weight: 600;
-  box-shadow: 0 0.375rem 1rem rgba(0, 0, 0, 0.08);
-  cursor: pointer;
-}
-.add-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 0.625rem 1.375rem rgba(0, 0, 0, 0.12);
 }
 
-.btn-danger {
-  background: #f44336;
-  color: #fff;
+.delete-content p {
+  color: #6b7280;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0 0 1.5rem 0;
+}
+
+.delete-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.btn-cancel {
+  padding: 0.5rem 1rem;
+  background: var(--color-light-1);
+  border: 1px solid var(--color-light-1);
+  border-radius: 0.5rem;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.btn-delete-confirm {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
   border: none;
   border-radius: 0.5rem;
-  padding: 0.5rem 0.875rem;
-  font-weight: 700;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
 }
-.btn-danger:disabled {
+
+.btn-delete-confirm:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+  transform: translateY(-1px);
+}
+
+.btn-delete-confirm:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+  transform: none;
 }
 
-.btn-ghost {
-  background: transparent;
-  border: 1px solid #ddd;
-  color: #555;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.875rem;
+.loading-text {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.mini-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* 빈 상태 */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #6b7280;
+}
+
+.empty-icon {
+  margin-bottom: 1.5rem;
+  opacity: 0.4;
+}
+
+.empty-state h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 0.5rem 0;
+}
+
+.empty-state p {
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* 추가 버튼 섹션 */
+.add-section {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  background: var(--color-light-1);
+  border: none;
+  border-radius: 9999px;
+  color: white;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-}
-.btn-ghost:hover {
-  background: #fafafa;
-}
-
-.delete-confirm {
-  margin-top: 0.875rem;
-  padding: 0.875rem;
-  border: 1px dashed #f44336;
-  border-radius: 0.5rem;
-  background: #fff5f5;
-}
-.warn-text {
-  margin: 0 0 0.5rem 0;
-  color: #b71c1c;
-  font-size: 0.9rem;
-}
-.confirm-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px 0 var(--color-light-1);
 }
 
-.btn-delete {
-  background: transparent;
-  border: none;
-  font-size: 1.1rem;
-  color: #999;
-  cursor: pointer;
-  transition: color 0.2s ease;
+.add-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px 0 var(--color-light-1);
 }
-.btn-delete:hover {
-  color: #f44336;
+
+.add-button:active {
+  transform: translateY(0);
+}
+
+/* 애니메이션 */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 2rem;
+  }
+
+  .page-subtitle {
+    font-size: 1rem;
+  }
+
+  .business-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .business-card {
+    padding: 1.25rem;
+  }
+
+  .page-header {
+    margin-bottom: 2rem;
+    padding: 1rem 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .delete-content {
+    padding: 1rem;
+  }
+
+  .add-button {
+    padding: 0.875rem 1.5rem;
+    font-size: 0.925rem;
+  }
 }
 </style>
 

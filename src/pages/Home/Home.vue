@@ -7,7 +7,12 @@
             <span v-if="activeSlide.chip" class="chip">{{ activeSlide.chip }}</span>
             <h1 class="hero-title" v-html="activeSlide.titleHTML"></h1>
             <button class="cta" @click="goRoute(activeSlide.ctaRoute)">
-              <img v-if="activeSlide.ctaRoute === '/promote'" :src="instaIcon" alt="Instagram Icon" class="cta-icon">
+              <img
+                v-if="activeSlide.ctaRoute === '/promote'"
+                :src="instaIcon"
+                alt="Instagram Icon"
+                class="cta-icon"
+              />
               {{ activeSlide.ctaLabel }}
             </button>
           </div>
@@ -62,21 +67,28 @@
         <article
           class="data-card"
           v-for="(item, i) in hotTop5"
-          :key="item.id"
+          :key="item.postId"
           @click="goDetail(item)"
         >
           <div class="thumb-wrapper">
-            <img v-if="item.imageUrl" :src="item.imageUrl" alt="상품 이미지" style="width:100%;height:100%;object-fit:cover;" />
+            <img
+              v-if="item.imageUrl"
+              :src="item.imageUrl"
+              alt="상품 이미지"
+              style="width: 100%; height: 100%; object-fit: cover"
+            />
             <span class="rank-badge">{{ i + 1 }}</span>
           </div>
           <div class="meta">
             <div class="meta-header">
-              <span class="category-tag" :class="item.categoryClass">{{ item.category }}</span>
-              <span class="card-id">D-{{ String(item.id).padStart(3, '0') }}</span>
+              <span class="category-tag" :class="getCategoryClass(item.postType)">{{
+                getCategoryLabel(item.postType)
+              }}</span>
+              <span class="card-id">{{ item.deadline || 'D-000' }}</span>
             </div>
-            <h3 class="title">{{ item.title }}</h3>
-            <p class="sub">{{ item.agency }}</p>
-            <p class="period">{{ item.period }}</p>
+            <h3 class="title">{{ item.productName }}</h3>
+            <p class="sub">{{ item.companyName }}</p>
+            <p class="period">{{ item.summary }}</p>
           </div>
         </article>
       </div>
@@ -129,7 +141,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 
 // 🔗 API 모듈 import
-import { fetchHotTop5Api } from '@/api/posts';
+import { postAPI } from '@/api/post';
 
 // 이미지 & 아이콘
 import p1 from '@/assets/poster.png';
@@ -146,25 +158,34 @@ const router = useRouter();
 const slides = ref([
   {
     bgStyle: { background: 'linear-gradient(180deg, #FDF4EE 0%, #FFE3DF 100%)' },
-    titleHTML: '카드뉴스로<br/><span class="highlight">간편하게</span><br/><span class="highlight">맞춤형</span><br/>대출 상품 · 정부 지원금을<br/>확인해보세요',
+    titleHTML:
+      '카드뉴스로<br/><span class="highlight">간편하게</span><br/><span class="highlight">맞춤형</span><br/>대출 상품 · 정부 지원금을<br/>확인해보세요',
     ctaLabel: '정부 지원금 바로가기',
     ctaRoute: '/policies',
-    images: [{ src: p1, alt: '대출 포스터 1' }, { src: p2, alt: '대출 포스터 2' }],
+    images: [
+      { src: p1, alt: '대출 포스터 1' },
+      { src: p2, alt: '대출 포스터 2' },
+    ],
     mainImage: null,
   },
   {
     chip: '',
     bgStyle: { background: 'linear-gradient(180deg, #EEF9FD 0%, #DAF3FF 100%)' },
-    titleHTML: '<span class="highlight">소상공인</span>을 위한<br/><span class="highlight">대출 상품</span><br/>지금 바로 확인하세요!',
+    titleHTML:
+      '<span class="highlight">소상공인</span>을 위한<br/><span class="highlight">대출 상품</span><br/>지금 바로 확인하세요!',
     ctaLabel: '대출 상품 바로가기',
     ctaRoute: '/loans',
-    images: [{ src: p3, alt: '지원금 포스터 A' }, { src: p4, alt: '지원금 포스터 B' }],
+    images: [
+      { src: p3, alt: '지원금 포스터 A' },
+      { src: p4, alt: '지원금 포스터 B' },
+    ],
     mainImage: null,
   },
   {
     chip: '',
     bgStyle: { background: 'linear-gradient(180deg, #F2EEFD 0%, #DEDAFF 100%)' },
-    titleHTML: '가게 <span class="highlight">홍보</span>가<br/>어려우신가요?<br/><span class="highlight">사진만</span> 올려주시면<br/>도와드릴게요!',
+    titleHTML:
+      '가게 <span class="highlight">홍보</span>가<br/>어려우신가요?<br/><span class="highlight">사진만</span> 올려주시면<br/>도와드릴게요!',
     ctaLabel: '게시글 올리기',
     ctaRoute: '/promote',
     images: [],
@@ -176,39 +197,117 @@ const currentIndex = ref(0);
 const activeSlide = computed(() => slides.value[currentIndex.value]);
 
 const go = (i) => (currentIndex.value = i);
-const goRoute = (path) => { if (path) router.push(path); };
+const goRoute = (path) => {
+  if (path) router.push(path);
+};
 
 // --- 자동 슬라이드 ---
 const intervalMs = 3800;
 let timer = null;
-const next = () => { currentIndex.value = (currentIndex.value + 1) % slides.value.length; };
-const play = () => { stop(); timer = setInterval(next, intervalMs); };
+const next = () => {
+  currentIndex.value = (currentIndex.value + 1) % slides.value.length;
+};
+const play = () => {
+  stop();
+  timer = setInterval(next, intervalMs);
+};
 const pause = () => stop();
-const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+const stop = () => {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+};
 
 // --- HOT TOP5 (API 연동) ---
 const hotTop5 = ref([]);
 
 const fetchHotTop5 = async () => {
   try {
-    hotTop5.value = await fetchHotTop5Api();
+    const list = await postAPI.getTopScrapedPosts(); // ← 배열이 바로 옴
+    hotTop5.value = Array.isArray(list) ? list : [];
+    console.log('HOT TOP5 데이터:', hotTop5.value);
   } catch (err) {
     console.error('HOT TOP5 불러오기 실패:', err);
+    hotTop5.value = [];
   }
 };
 
 const goDetail = (item) => {
-  if (!item || !item.id) return;
-  router.push(`/loans/${item.id}`);
+  if (!item || !item.postId) return;
+  router.push(`/loans/${item.postId}`);
+};
+
+// PostType에 따른 카테고리 라벨과 스타일 클래스 매핑
+const getCategoryLabel = (postType) => {
+  switch (postType) {
+    case 'LOAN':
+      return '대출';
+    case 'SUPPORT':
+      return '공공지원금';
+    default:
+      return '기타';
+  }
+};
+
+const getCategoryClass = (postType) => {
+  switch (postType) {
+    case 'LOAN':
+      return 'loan';
+    case 'SUPPORT':
+      return 'public';
+    default:
+      return 'loan';
+  }
 };
 
 // --- 추천상품 (임시 하드코딩) ---
 const recommendProducts = ref([
-  { id: 201, title: '소상공인 경영개선자금', agency: '소상공인시장진흥공단', type: '정책자금', rate: '3.0%', category: '대출', categoryClass: 'loan' },
-  { id: 202, title: '혁신성장 바우처', agency: '중기부', region: '전국', period: '2025.07.01 ~ 11.30', category: '공공지원금', categoryClass: 'public' },
-  { id: 203, title: '신용보증재단 창업자금', agency: '서울신용보증재단', type: '보증대출', rate: '4.2%', category: '대출', categoryClass: 'loan' },
-  { id: 204, title: '중소기업 R&D 지원사업', agency: '중기부', region: '전국', period: '2025.03.01 ~ 06.30', category: '공공지원금', categoryClass: 'public' },
-  { id: 205, title: '햇살론 유스', agency: '서민금융진흥원', type: '신용대출', rate: '8.5%', category: '대출', categoryClass: 'loan' },
+  {
+    id: 201,
+    title: '소상공인 경영개선자금',
+    agency: '소상공인시장진흥공단',
+    type: '정책자금',
+    rate: '3.0%',
+    category: '대출',
+    categoryClass: 'loan',
+  },
+  {
+    id: 202,
+    title: '혁신성장 바우처',
+    agency: '중기부',
+    region: '전국',
+    period: '2025.07.01 ~ 11.30',
+    category: '공공지원금',
+    categoryClass: 'public',
+  },
+  {
+    id: 203,
+    title: '신용보증재단 창업자금',
+    agency: '서울신용보증재단',
+    type: '보증대출',
+    rate: '4.2%',
+    category: '대출',
+    categoryClass: 'loan',
+  },
+  {
+    id: 204,
+    title: '중소기업 R&D 지원사업',
+    agency: '중기부',
+    region: '전국',
+    period: '2025.03.01 ~ 06.30',
+    category: '공공지원금',
+    categoryClass: 'public',
+  },
+  {
+    id: 205,
+    title: '햇살론 유스',
+    agency: '서민금융진흥원',
+    type: '신용대출',
+    rate: '8.5%',
+    category: '대출',
+    categoryClass: 'loan',
+  },
 ]);
 
 onMounted(() => {
@@ -217,7 +316,6 @@ onMounted(() => {
 });
 onBeforeUnmount(() => stop());
 </script>
-
 
 <style scoped>
 :root {

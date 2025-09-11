@@ -1,19 +1,20 @@
-import api from './index'
+import api from './index';
 
 export const postAPI = {
   getPostsByType: async (type, page = 0, size = 9, sort = 'createdAt,desc') => {
     try {
-      const normalizedType = {
-        loans: 'LOAN',
-        loan: 'LOAN',
-        policies: 'SUPPORT',
-        support: 'SUPPORT'
-      }[type.toLowerCase()] || type.toUpperCase();
+      const normalizedType =
+        {
+          loans: 'LOAN',
+          loan: 'LOAN',
+          policies: 'SUPPORT',
+          support: 'SUPPORT',
+        }[type.toLowerCase()] || type.toUpperCase();
 
       const params = new URLSearchParams({
         page,
         size,
-        sort
+        sort,
       });
 
       const url = `/api/posts/type/${normalizedType}?${params.toString()}`;
@@ -29,17 +30,18 @@ export const postAPI = {
   searchPosts: async (searchParams) => {
     try {
       const { type, keyword, company, page, size, sort } = searchParams;
-      
-      const normalizedType = {
-        loans: 'LOAN',
-        loan: 'LOAN',
-        policies: 'SUPPORT',
-        support: 'SUPPORT'
-      }[type.toLowerCase()] || type.toUpperCase();
+
+      const normalizedType =
+        {
+          loans: 'LOAN',
+          loan: 'LOAN',
+          policies: 'SUPPORT',
+          support: 'SUPPORT',
+        }[type.toLowerCase()] || type.toUpperCase();
 
       // 기본 URL 경로 생성
       let url = `/api/posts/type/${normalizedType}/search`;
-      
+
       // 쿼리 파라미터를 배열로 관리
       const queryParts = [];
       queryParts.push(`page=${page || 0}`);
@@ -50,11 +52,11 @@ export const postAPI = {
       if (keyword && keyword.trim()) {
         queryParts.push(`keyword=${encodeURIComponent(keyword.trim())}`);
       }
-      
+
       if (company && company.trim()) {
         queryParts.push(`company=${encodeURIComponent(company.trim())}`);
       }
-      
+
       // URL 최종 조합
       url += `?${queryParts.join('&')}`;
 
@@ -64,8 +66,19 @@ export const postAPI = {
       console.error('❌ 게시물 검색 실패:', {
         error: error.message,
         response: error.response?.data,
-        searchParams
+        searchParams,
       });
+      throw error;
+    }
+  },
+
+  // 스크랩 수 TOP 5 게시물 조회
+  getTopScrapedPosts: async () => {
+    try {
+      const { data } = await api.get(`/api/posts/top-scraped`);
+      return Array.isArray(data?.body?.data) ? data.body.data : [];
+    } catch (error) {
+      console.error('인기 게시물 조회 실패:', error);
       throw error;
     }
   },
@@ -78,8 +91,8 @@ export const postAPI = {
       console.error('게시물 조회 실패:', error);
       throw error;
     }
-  }
-}
+  },
+};
 
 // 스크랩 API
 export const scrapAPI = {
@@ -91,8 +104,8 @@ export const scrapAPI = {
       console.error('스크랩 토글 실패:', error);
       throw error;
     }
-  }
-}
+  },
+};
 
 // 댓글 API
 export const commentAPI = {
@@ -144,8 +157,8 @@ export const commentAPI = {
       console.error('댓글 삭제 실패:', error);
       throw error;
     }
-  }
-}
+  },
+};
 
 // 에러 메시지 유틸
 export const getErrorMessage = (error) => {
@@ -157,19 +170,27 @@ export const getErrorMessage = (error) => {
       error.response.statusText;
 
     switch (status) {
-      case 400: return `잘못된 요청입니다: ${message}`;
-      case 401: return '로그인이 필요하거나 인증이 만료되었습니다.';
-      case 403: return '접근 권한이 없습니다.';
-      case 404: return '요청한 데이터를 찾을 수 없습니다.';
-      case 422: return `입력 데이터가 올바르지 않습니다: ${message}`;
-      case 500: return '서버 내부 오류가 발생했습니다.';
-      default: return `서버 오류 (${status}): ${message}`;
+      case 400:
+        return `잘못된 요청입니다: ${message}`;
+      case 401:
+        return '로그인이 필요하거나 인증이 만료되었습니다.';
+      case 403:
+        return '접근 권한이 없습니다.';
+      case 404:
+        return '요청한 데이터를 찾을 수 없습니다.';
+      case 422:
+        return `입력 데이터가 올바르지 않습니다: ${message}`;
+      case 500:
+        return '서버 내부 오류가 발생했습니다.';
+      default:
+        return `서버 오류 (${status}): ${message}`;
     }
   } else if (error.request) {
     return '서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.';
   } else {
     return error.message || '알 수 없는 오류가 발생했습니다.';
   }
-}
+};
 
 export default { postAPI, scrapAPI, commentAPI, getErrorMessage };
+
