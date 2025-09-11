@@ -25,6 +25,7 @@
       <ul v-else class="grid">
         <li v-for="item in filtered" :key="item.postId" class="card" @click="goPost(item)">
           <div class="card-top">
+            <div class="company-name">{{ item.companyName }}</div>
             <div class="badge" :class="getDdayClass(item.deadline)">
               {{ item.deadline }}
             </div>
@@ -146,33 +147,66 @@ onMounted(async () => {
   color: #c21;
 }
 
-/* 그리드 & 카드 */
+/* 그리드 레이아웃 */
 .grid {
   list-style: none;
   margin: 0;
-  padding: 8px 0 0;
+  padding: 0.5rem 0 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
 }
 
+/* 카드 */
 .card {
-  background: #fff;
-  border-radius: 0.75rem;
-  border: 0.0625rem solid #f3eee8;
-  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
-  /* padding: 18px 18px 20px; */
-  padding: 1.25rem;
+  position: relative;
+  background: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
   cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
   min-height: 180px;
 }
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--color-light-1);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
 .card:hover {
-  transform: translateY(-0.125rem);
-  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
-  background: var(--color-light-2);
+  transform: translateY(-4px);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border-color: #d1d5db;
+}
+.card:hover::before {
+  transform: scaleX(1);
+}
+
+/* 카드 상단(배지 영역) */
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.company-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  padding: 0.375rem 0.375rem;
 }
 
 .badge {
@@ -181,7 +215,7 @@ onMounted(async () => {
   border-radius: 1.25rem;
   font-size: 0.875rem;
   font-weight: 600;
-  margin-bottom: 12px;
+  /* margin-bottom: 12px; */
   color: var(--color-sub);
   background: var(--color-white);
   border: 1px solid var(--color-sub);
@@ -196,11 +230,12 @@ onMounted(async () => {
 }
 .badge.expired {
   background: #eaeaea;
-  color: #999;
+  color: #635f5f;
+  border: 1px solid #999;
 }
 
 .title {
-  margin: 0.625rem 0.125rem 1.125rem 0.3125rem;
+  margin: 0.625rem 0.125rem 1.5rem 0.3125rem;
   font-size: 1.125rem;
   font-weight: 700;
   color: #333;
@@ -208,7 +243,7 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 .summary {
