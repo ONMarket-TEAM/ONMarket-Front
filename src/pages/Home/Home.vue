@@ -311,10 +311,12 @@ h2 {
   display: flex;
   align-items: center;
   gap: 12px;
+  text-align: center; /* 모든 h2 제목 가운데 정렬 */
+  justify-content: center; /* flex 아이템도 가운데 정렬 */
 }
 .hot-section > h2,
 .recommend-section > h2 {
-  font-size: 24px;
+  font-size: 30px;
   font-weight: 800;
   margin-bottom: 24px;
 }
@@ -527,19 +529,19 @@ h2 {
   max-width: 1200px;
   margin: 40px auto;
   padding: 0 24px;
-  width: 100%; /* 추가 */
-  box-sizing: border-box; /* 추가 */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .hot-card-grid {
-  display: flex; /* grid에서 flex로 변경 */
+  display: flex;
   gap: 20px;
   overflow-x: auto;
   overflow-y: visible;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   padding: 10px 0 20px 0;
-  width: 100%; /* 부모 너비에 맞춤 */
+  width: 100%;
 
   /* 스크롤바 스타일링 */
   scrollbar-width: thin;
@@ -547,14 +549,14 @@ h2 {
 }
 
 .card-grid {
-  display: flex; /* grid에서 flex로 변경 */
+  display: flex;
   gap: 20px;
   overflow-x: auto;
   overflow-y: visible;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   padding: 10px 0 20px 0;
-  width: 100%; /* 부모 너비에 맞춤 */
+  width: 100%;
 
   /* 스크롤바 스타일링 */
   scrollbar-width: thin;
@@ -587,6 +589,7 @@ h2 {
   background: #a1a1a1;
 }
 
+/* 통일된 카드 스타일 - 2:3 비율 (1024:1536) */
 .data-card {
   background: #fff;
   border-radius: 12px;
@@ -599,10 +602,10 @@ h2 {
     transform 0.3s ease,
     box-shadow 0.3s ease;
 
-  /* flex 아이템 설정 */
-  min-width: 280px; /* 최소 너비 */
-  width: 280px; /* 고정 너비 */
-  flex-shrink: 0; /* 축소 방지 */
+  /* 고정 너비와 최소 너비 설정 */
+  min-width: 240px;
+  width: 240px;
+  flex-shrink: 0;
   scroll-snap-align: start;
 }
 
@@ -614,43 +617,50 @@ h2 {
 .data-card:hover .card-image {
   transform: scale(1.05);
 }
+
+/* 2:3 비율 (1024:1536)에 맞춘 이미지 컨테이너 */
 .thumb-wrapper {
   position: relative;
   width: 100%;
-  aspect-ratio: 1/1.2;
+  aspect-ratio: 2/3; /* 1024:1536 비율 */
   background: #f0f0f0;
   display: flex;
   justify-content: center;
   align-items: center;
   overflow: hidden;
 }
+
 .card-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform 0.3s ease;
 }
+
 .image-placeholder {
   color: #ccc;
-  font-size: 2.5rem;
+  font-size: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   height: 100%;
 }
+
 .meta {
   padding: 16px;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
 }
+
 .meta-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 8px;
 }
+
 .category-tag {
   font-size: 11px;
   font-weight: 600;
@@ -658,26 +668,32 @@ h2 {
   border-radius: 999px;
   white-space: nowrap;
 }
+
 .category-tag.public {
   background: #e0f7fa;
   color: #00796b;
 }
+
 .category-tag.loan {
   background: #f3e5f5;
   color: #6a1b9a;
 }
+
 .card-id {
   font-size: 12px;
   color: #bdbdbd;
   font-weight: 500;
   align-self: center;
 }
+
+/* 제목 가운데 정렬 */
 .title {
-  margin: 0;
-  font-size: 16px;
+  margin: 8px 0;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.4;
   color: #212121;
+  text-align: center; /* 가운데 정렬 */
   height: 2.8em;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -685,34 +701,65 @@ h2 {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+
 .sub {
   margin: 4px 0 6px;
   font-size: 13px;
   color: #757575;
+  text-align: center; /* 가운데 정렬 */
 }
+
 .period {
   margin: 0;
   font-size: 12px;
   color: #9e9e9e;
   font-weight: 400;
+  text-align: center; /* 가운데 정렬 */
+  height: 2.4em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-/* HOT TOP5 전용 */
+/* HOT TOP5 전용 랭킹 배지 */
 .rank-badge {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  width: 24px;
-  height: 24px;
+  top: 12px;
+  left: 12px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: #ff4d4d;
+  background: linear-gradient(135deg, #ff4d4d, #ff6b6b);
   color: #fff;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(255, 77, 77, 0.3);
+  z-index: 5;
+}
+
+/* 모바일 반응형 - 높이 제한 제거 */
+@media (max-width: 768px) {
+  .data-card {
+    min-width: 200px;
+    width: 200px;
+  }
+
+  .title {
+    font-size: 14px;
+  }
+
+  .rank-badge {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    top: 6px;
+    left: 6px;
+  }
 }
 
 /* ===== FOOTER ===== */
@@ -747,6 +794,4 @@ h2 {
   font-size: 12px;
   color: #b5b5b5;
   padding: 10px 0 24px;
-}
-</style>
-
+}</style>
