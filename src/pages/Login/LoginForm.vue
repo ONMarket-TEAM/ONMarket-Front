@@ -144,17 +144,24 @@ const handleLogin = async () => {
       try {
         const businessResult = await businessAPI.getMyBusinessList();
 
+        console.log('🏢 사업장 조회 결과:', businessResult);
+
+        // 🔧 수정된 조건문: 사업장 데이터가 없는 경우 체크
         if (
-          !businessResult.success &&
-          businessResult.message?.includes('사업장을 찾을 수 없습니다')
+          !businessResult.success ||
+          !businessResult.data ||
+          (Array.isArray(businessResult.data) && businessResult.data.length === 0)
         ) {
+          console.log('✅ 사업장 없음 - 등록 페이지로 이동');
           toastStore.info('사업장 정보를 등록해주세요.');
           await router.push('/business/register');
         } else {
+          console.log('✅ 사업장 있음 - 메인으로 이동');
           const redirectTo = router.currentRoute.value.query.redirect || '/';
           await router.push(redirectTo);
         }
       } catch (error) {
+        console.error('🚨 사업장 조회 에러:', error);
         toastStore.error('사업장 정보를 불러오는 중 오류가 발생했습니다.');
         const redirectTo = router.currentRoute.value.query.redirect || '/';
         await router.push(redirectTo);
