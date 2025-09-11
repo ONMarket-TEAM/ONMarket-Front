@@ -345,7 +345,8 @@ defineExpose({
 <style scoped>
 .recommend-section {
   padding: 60px 0;
-  background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
+  /* background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%); */
+  background: transparent;
 }
 
 .container {
