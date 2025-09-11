@@ -293,7 +293,6 @@
         <i class="fas fa-arrow-up"></i>
       </button>
     </transition>
-    
   </div>
 </template>
 
@@ -302,6 +301,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'; // [수정됨] onUn
 import { useRoute } from 'vue-router';
 import { postAPI, scrapAPI, commentAPI, getErrorMessage } from '@/api/post';
 import { useToastStore } from '@/stores/useToastStore';
+import { useUserTracking } from '@/composables/useUserTracking'; // 추가
 
 const route = useRoute();
 const toastStore = useToastStore();
@@ -341,6 +341,8 @@ const canSubmitEdit = computed(() => {
     return selectedRating.value > 0 && commentText.value.trim().length > 0;
   }
 });
+
+const { trackLinkClick, trackScrap, trackRating, trackComment } = useUserTracking(productId);
 
 // 현재 사용자 정보 가져오기
 const getCurrentUser = () => {
@@ -460,6 +462,10 @@ const submitEditComment = async () => {
     await fetchComments();
     closeModal();
     toastStore.success('댓글이 수정되었습니다!');
+    // 평점이 변경된 경우 추적
+    if (!editingComment.value.parentCommentId && selectedRating.value > 0) {
+      trackRating(selectedRating.value);
+    }
   } catch (err) {
     toastStore.error(getErrorMessage(err));
   } finally {
@@ -512,6 +518,8 @@ const toggleLike = async () => {
     if (scrapData) {
       productDetail.value.scraped = scrapData.scraped;
       productDetail.value.scrapCount = scrapData.scrapCount ?? 0;
+
+      trackScrap(scrapData.scraped);
     }
   } catch (err) {
     toastStore.error(getErrorMessage(err));
@@ -527,6 +535,8 @@ const applyProduct = () => {
     return;
   }
   if (confirm('이 정책에 신청하시겠습니까?')) {
+    trackLinkClick();
+
     window.open(productDetail.value.joinLink, '_blank');
     toastStore.info('새 창에서 신청 페이지가 열렸습니다.');
   }
@@ -588,6 +598,12 @@ const submitComment = async () => {
     await fetchComments();
     closeModal();
     toastStore.success('후기가 등록되었습니다!');
+    // 댓글 작성 추적
+    trackComment();
+    // 평점 추적
+    if (selectedRating.value > 0) {
+      trackRating(selectedRating.value);
+    }
   } catch (err) {
     toastStore.error(getErrorMessage(err));
   } finally {
@@ -612,6 +628,7 @@ const submitReply = async () => {
     await fetchComments();
     closeModal();
     toastStore.success('답글이 등록되었습니다!');
+    trackComment();
   } catch (err) {
     toastStore.error(getErrorMessage(err));
   } finally {
@@ -652,7 +669,7 @@ const handleScroll = () => {
 const scrollToTop = () => {
   window.scrollTo({
     top: 0,
-    behavior: 'smooth'
+    behavior: 'smooth',
   });
 };
 
@@ -1348,7 +1365,9 @@ onUnmounted(() => {
   font-size: 1.2rem;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   z-index: 100;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .scroll-top-btn:hover {
@@ -1367,3 +1386,4 @@ onUnmounted(() => {
   opacity: 0;
 }
 </style>
+
