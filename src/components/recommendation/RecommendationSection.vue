@@ -13,6 +13,18 @@
               : '로그인하고 나만을 위한 맞춤 상품을 확인해보세요'
           }}
         </p>
+        <!-- 🔥 디버깅용 새로고침 버튼 추가 -->
+        <div v-if="userEmail && isDevelopment" class="debug-controls">
+          <button @click="forceRefreshRecommendations" class="debug-btn" :disabled="refreshing">
+            {{ refreshing ? '갱신 중...' : '강제 새로고침' }}
+          </button>
+          <button @click="getRealTimeRecommendations" class="debug-btn" :disabled="refreshing">
+            실시간 조회
+          </button>
+          <button @click="clearCacheAndRefresh" class="debug-btn" :disabled="refreshing">
+            캐시 클리어
+          </button>
+        </div>
       </div>
 
       <!-- 비회원 로그인 유도 -->
@@ -53,7 +65,9 @@
       <!-- 로그인 사용자 - 로딩 상태 -->
       <div v-else-if="loading" class="loading-container">
         <div class="loading-spinner"></div>
-        <p>맞춤 추천 상품을 분석하는 중...</p>
+        <p>
+          {{ refreshing ? '새로운 맞춤 추천을 생성하는 중...' : '맞춤 추천 상품을 분석하는 중...' }}
+        </p>
       </div>
 
       <!-- 로그인 사용자 - 에러 상태 -->
@@ -62,10 +76,16 @@
           <i class="fas fa-exclamation-triangle"></i>
         </div>
         <p class="error-message">{{ error }}</p>
-        <button class="retry-btn" @click="fetchRecommendations">
-          <i class="fas fa-redo"></i>
-          다시 시도
-        </button>
+        <div class="error-actions">
+          <button class="retry-btn" @click="fetchRecommendations">
+            <i class="fas fa-redo"></i>
+            다시 시도
+          </button>
+          <button class="realtime-btn" @click="getRealTimeRecommendations">
+            <i class="fas fa-bolt"></i>
+            실시간 조회
+          </button>
+        </div>
       </div>
 
       <!-- 로그인 사용자 - 빈 상태 -->
@@ -89,16 +109,29 @@
 
       <!-- 로그인 사용자 - 추천 상품 카드 그리드 -->
       <div v-else class="recommendations-wrapper">
+        <!-- 🔥 업데이트 알림 -->
+        <div v-if="showUpdateNotification" class="update-notification">
+          <i class="fas fa-check-circle"></i>
+          <span>최신 맞춤 추천이 업데이트되었습니다!</span>
+          <button @click="hideUpdateNotification" class="close-notification">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
         <div class="card-scroll-wrapper">
           <div class="card-grid" ref="cardGrid">
             <div
               v-for="(item, index) in displayRecommendations"
               :key="item.id"
               class="card-item"
-              :class="{ 'animate-in': isVisible }"
+              :class="{ 'animate-in': isVisible, 'newly-updated': item.isNewlyUpdated }"
               :style="{ animationDelay: `${index * 100}ms` }"
             >
-              <RecommendationCard :recommendation="item" @click="handleCardClick(item)" />
+              <RecommendationCard
+                :recommendation="item"
+                @click="handleCardClick(item)"
+                @scrap="handleScrapFromCard"
+              />
             </div>
           </div>
         </div>
@@ -125,9 +158,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { recommendationAPI, trackingHelpers } from '@/api/recommendation';
+import {
+  recommendationAPI,
+  trackingHelpers,
+  recommendationEventBus,
+  RecommendationEvents,
+} from '@/api/recommendation';
 import RecommendationCard from './RecommendationCard.vue';
 
 const router = useRouter();
@@ -135,13 +173,18 @@ const router = useRouter();
 // 상태 관리
 const recommendations = ref([]);
 const loading = ref(false);
+const refreshing = ref(false);
 const error = ref('');
 const isVisible = ref(false);
+const showUpdateNotification = ref(false);
 
 // 스크롤 관련 상태
 const cardGrid = ref(null);
 const canScrollLeft = ref(false);
 const canScrollRight = ref(false);
+
+// 🔥 개발 모드 확인
+const isDevelopment = computed(() => process.env.NODE_ENV === 'development');
 
 // 사용자 정보
 const userEmail = computed(() => {
@@ -164,7 +207,7 @@ const displayRecommendations = computed(() => {
 });
 
 /**
- * 추천 상품 데이터 가져오기 (로그인 사용자만)
+ * 🔥 기본 추천 상품 데이터 가져오기 (캐시 사용)
  */
 const fetchRecommendations = async () => {
   if (!userEmail.value) {
@@ -175,14 +218,20 @@ const fetchRecommendations = async () => {
   loading.value = true;
   error.value = '';
 
-  console.log('개인화 추천 상품 조회 시작, 사용자:', userEmail.value);
+  console.log('기본 추천 상품 조회 시작, 사용자:', userEmail.value);
 
   try {
     const response = await recommendationAPI.getPersonalRecommendations();
-    const recommendationData = response?.body?.data || response?.data || [];
-    console.log('개인화 추천 데이터:', recommendationData);
-    recommendations.value = transformRecommendationData(recommendationData);
+    const recommendationData =
+      response?.data?.recommendations || response?.body?.data || response?.data || [];
+    console.log('기본 추천 데이터:', recommendationData);
 
+    const transformedData = transformRecommendationData(recommendationData);
+
+    // 🔥 변환된 데이터 검증
+    validateRecommendationsData(transformedData);
+
+    recommendations.value = transformedData;
     console.log('최종 추천 데이터:', recommendations.value);
 
     // 데이터 로드 후 애니메이션 시작
@@ -197,30 +246,207 @@ const fetchRecommendations = async () => {
   }
 };
 
+const validateRecommendationsData = (recommendations) => {
+  console.log('🔍 추천 데이터 검증 시작:', recommendations.length, '건');
+
+  recommendations.forEach((rec, index) => {
+    if (!rec.id && rec.id !== 0) {
+      console.error(`❌ 추천 ${index}: id 없음`, rec);
+    } else if (typeof rec.id !== 'number' || rec.id < 0) {
+      console.error(`❌ 추천 ${index}: 유효하지 않은 id`, { id: rec.id, type: typeof rec.id });
+    } else {
+      console.log(`✅ 추천 ${index}: 유효한 id = ${rec.id}`);
+    }
+  });
+};
+
+/**
+ * 🔥 실시간 추천 상품 데이터 가져오기 (캐시 무시)
+ */
+const getRealTimeRecommendations = async () => {
+  if (!userEmail.value) {
+    console.log('비로그인 사용자 - 실시간 추천 조회 안함');
+    return;
+  }
+
+  loading.value = true;
+  refreshing.value = true;
+  error.value = '';
+
+  console.log('실시간 추천 상품 조회 시작, 사용자:', userEmail.value);
+
+  try {
+    const response = await recommendationAPI.getRealtimeRecommendations();
+    const recommendationData =
+      response?.data?.recommendations || response?.body?.data || response?.data || [];
+    console.log('실시간 추천 데이터:', recommendationData);
+
+    const newRecommendations = transformRecommendationData(recommendationData, true);
+    recommendations.value = newRecommendations;
+    console.log('최종 실시간 추천 데이터:', recommendations.value);
+
+    // 업데이트 알림 표시
+    showUpdateNotification.value = true;
+    setTimeout(() => {
+      showUpdateNotification.value = false;
+    }, 3000);
+
+    // 이벤트 발생
+    recommendationEventBus.emit(RecommendationEvents.RECOMMENDATIONS_UPDATED, {
+      source: 'realtime',
+      count: newRecommendations.length,
+    });
+
+    await nextTick();
+    isVisible.value = true;
+    updateScrollButtons();
+  } catch (err) {
+    console.error('실시간 추천 상품 조회 실패:', err);
+    error.value = `실시간 추천을 불러오는데 실패했습니다. ${err.message}`;
+  } finally {
+    loading.value = false;
+    refreshing.value = false;
+  }
+};
+
+/**
+ * 🔥 강제 추천 갱신
+ */
+const forceRefreshRecommendations = async () => {
+  if (!userEmail.value) return;
+
+  loading.value = true;
+  refreshing.value = true;
+  error.value = '';
+
+  console.log('강제 추천 갱신 시작, 사용자:', userEmail.value);
+
+  try {
+    const response = await recommendationAPI.forceRefreshRecommendations();
+    const recommendationData =
+      response?.data?.recommendations || response?.body?.data || response?.data || [];
+    console.log('강제 갱신 추천 데이터:', recommendationData);
+
+    const newRecommendations = transformRecommendationData(recommendationData, true);
+    recommendations.value = newRecommendations;
+
+    // 업데이트 알림 표시
+    showUpdateNotification.value = true;
+    setTimeout(() => {
+      showUpdateNotification.value = false;
+    }, 3000);
+
+    // 이벤트 발생
+    recommendationEventBus.emit(RecommendationEvents.RECOMMENDATIONS_UPDATED, {
+      source: 'force_refresh',
+      count: newRecommendations.length,
+    });
+
+    await nextTick();
+    isVisible.value = true;
+    updateScrollButtons();
+  } catch (err) {
+    console.error('강제 추천 갱신 실패:', err);
+    error.value = `추천 갱신에 실패했습니다. ${err.message}`;
+  } finally {
+    loading.value = false;
+    refreshing.value = false;
+  }
+};
+
+/**
+ * 🔥 캐시 클리어 후 새로고침
+ */
+const clearCacheAndRefresh = async () => {
+  if (!userEmail.value) return;
+
+  loading.value = true;
+  refreshing.value = true;
+  error.value = '';
+
+  try {
+    // 1. 캐시 클리어
+    await recommendationAPI.clearCache();
+    console.log('캐시 클리어 완료');
+
+    // 2. 새 추천 조회
+    await getRealTimeRecommendations();
+  } catch (err) {
+    console.error('캐시 클리어 후 새로고침 실패:', err);
+    error.value = `캐시 클리어 및 새로고침에 실패했습니다. ${err.message}`;
+  } finally {
+    loading.value = false;
+    refreshing.value = false;
+  }
+};
+
+/**
+ * 🔥 중요한 상호작용 후 자동 갱신 처리
+ */
+const handleCriticalInteractionUpdate = async (eventData) => {
+  console.log('중요한 상호작용 감지, 추천 자동 갱신:', eventData);
+
+  // 일정 시간 후 자동으로 실시간 추천 갱신
+  setTimeout(async () => {
+    try {
+      await getRealTimeRecommendations();
+      console.log('중요한 상호작용 후 추천 자동 갱신 완료');
+    } catch (error) {
+      console.error('중요한 상호작용 후 추천 자동 갱신 실패:', error);
+    }
+  }, 2000); // 2초 후 갱신
+};
+
 /**
  * 추천 데이터 변환
  */
-const transformRecommendationData = (data) => {
-  console.log('추천 데이터 변환 시작:', data);
+const transformRecommendationData = (data, isNewlyUpdated = false) => {
+  console.log('🔄 추천 데이터 변환 시작:', data);
 
   if (!Array.isArray(data)) {
-    console.warn('추천 데이터가 배열이 아님:', data);
+    console.warn('⚠️ 추천 데이터가 배열이 아님:', data);
     return [];
   }
 
-  return data.map((item) => ({
-    id: item.postId,
-    title: item.productName || '상품명 없음',
-    agency: item.companyName || '기관명 없음',
-    period: item.deadline || '상시모집',
-    category: getPostTypeLabel(item.postType),
-    categoryClass: getPostTypeCategoryClass(item.postType),
-    type: 'recommendation',
-    interestScore: item.interestScore,
-    recommendationReason: item.recommendationReason,
-    imageUrl: item.imageUrl,
-    postType: item.postType,
-  }));
+  return data
+    .map((item, index) => {
+      // 🔥 각 item의 postId 검증
+      if (!item.postId && item.postId !== 0) {
+        console.error(`❌ 추천 데이터 ${index}번째 항목의 postId가 없음:`, {
+          item,
+          index,
+          hasPostId: 'postId' in item,
+          itemKeys: Object.keys(item),
+        });
+        return null; // null 반환하여 나중에 필터링
+      }
+
+      const numericPostId = Number(item.postId);
+      if (isNaN(numericPostId) || numericPostId < 0) {
+        console.error(`❌ 추천 데이터 ${index}번째 항목의 postId가 유효하지 않음:`, {
+          originalPostId: item.postId,
+          numericPostId,
+          index,
+        });
+        return null; // null 반환하여 나중에 필터링
+      }
+
+      return {
+        id: numericPostId, // 🔥 검증된 숫자 ID 사용
+        title: item.productName || '상품명 없음',
+        agency: item.companyName || '기관명 없음',
+        period: item.deadline || '상시모집',
+        category: getPostTypeLabel(item.postType),
+        categoryClass: getPostTypeCategoryClass(item.postType),
+        type: 'recommendation',
+        interestScore: item.interestScore,
+        recommendationReason: item.recommendationReason,
+        imageUrl: item.imageUrl,
+        postType: item.postType,
+        isNewlyUpdated: isNewlyUpdated,
+      };
+    })
+    .filter((item) => item !== null); // null 제거
 };
 
 /**
@@ -251,19 +477,175 @@ const getPostTypeCategoryClass = (postType) => {
  * 카드 클릭 처리
  */
 const handleCardClick = (item) => {
-  console.log('카드 클릭:', item);
+  try {
+    // 🔥 상세한 item 검증 로깅
+    console.log('🔍 handleCardClick 호출됨:', {
+      item: JSON.stringify(item, null, 2),
+    });
 
-  // 클릭 추적
-  if (userEmail.value && item.type === 'recommendation') {
-    trackingHelpers.trackView(item.id);
-  }
+    // item과 id 검증
+    if (!item) {
+      console.error('❌ handleCardClick: item이 없음:', item);
+      return;
+    }
 
-  // 상세 페이지로 이동
-  if (item.postType === 'SUPPORT') {
-    router.push(`/policies/${item.id}`);
-  } else {
-    router.push(`/loans/${item.id}`);
+    if (!item.id && item.id !== 0) {
+      // 0도 유효한 ID일 수 있음
+      console.error('❌ handleCardClick: item.id가 없음:', {
+        item,
+        itemId: item.id,
+        hasId: 'id' in item,
+        itemKeys: Object.keys(item),
+      });
+      return;
+    }
+
+    const numericPostId = Number(item.id);
+    if (isNaN(numericPostId) || numericPostId < 0) {
+      // 0 이상이면 유효
+      console.error('❌ handleCardClick: item.id를 유효한 숫자로 변환할 수 없음:', {
+        originalId: item.id,
+        numericId: numericPostId,
+        isNaN: isNaN(numericPostId),
+        isNegative: numericPostId < 0,
+      });
+      return;
+    }
+
+    console.log('✅ 카드 클릭 검증 통과:', {
+      originalId: item.id,
+      validatedId: numericPostId,
+      item,
+    });
+
+    // 클릭 추적 (비동기로 처리하여 페이지 이동에 영향 주지 않음)
+    if (userEmail.value && item.type === 'recommendation') {
+      trackingHelpers.trackView(numericPostId).catch((error) => {
+        console.warn('⚠️ 카드 클릭 추적 실패 (무시):', error);
+      });
+    }
+
+    // 상세 페이지로 이동
+    const routePath =
+      item.postType === 'SUPPORT' ? `/policies/${numericPostId}` : `/loans/${numericPostId}`;
+
+    console.log('🔗 페이지 이동:', routePath);
+    router.push(routePath);
+  } catch (error) {
+    console.error('❌ 카드 클릭 처리 실패:', {
+      error: error.message,
+      item,
+      stack: error.stack,
+    });
+
+    // 페이지 이동은 계속 시도
+    try {
+      if (item?.id) {
+        const fallbackPath =
+          item?.postType === 'SUPPORT' ? `/policies/${item.id}` : `/loans/${item.id}`;
+        console.log('🔗 폴백 페이지 이동:', fallbackPath);
+        router.push(fallbackPath);
+      }
+    } catch (routeError) {
+      console.error('❌ 폴백 페이지 이동도 실패:', routeError);
+    }
   }
+};
+
+/**
+ * 🔥 카드에서 스크랩 처리 (중요한 상호작용)
+ */
+const handleScrapFromCard = async (postId, isScrap) => {
+  try {
+    // 🔥 상세한 postId 검증 로깅
+    console.log('🔍 handleScrapFromCard 호출됨:', {
+      postId,
+      isScrap,
+      postIdType: typeof postId,
+      postIdValue: JSON.stringify(postId),
+    });
+
+    // postId 검증
+    if (postId === null || postId === undefined || postId === '') {
+      console.error('❌ handleScrapFromCard: postId가 유효하지 않음:', {
+        postId,
+        type: typeof postId,
+        isNull: postId === null,
+        isUndefined: postId === undefined,
+        isEmpty: postId === '',
+      });
+      return;
+    }
+
+    // postId를 숫자로 변환
+    const numericPostId = Number(postId);
+    if (isNaN(numericPostId) || numericPostId <= 0) {
+      console.error('❌ handleScrapFromCard: postId를 유효한 숫자로 변환할 수 없음:', {
+        originalPostId: postId,
+        numericPostId,
+        isNaN: isNaN(numericPostId),
+        isNegativeOrZero: numericPostId <= 0,
+      });
+      return;
+    }
+
+    console.log('✅ postId 검증 통과:', { originalPostId: postId, validatedPostId: numericPostId });
+
+    // 중요한 상호작용으로 즉시 추천 갱신 요청
+    console.log('🚀 스크랩 추적 시작:', { postId: numericPostId, isScrap });
+
+    const result = await trackingHelpers.trackScrap(numericPostId, isScrap);
+
+    console.log('✅ 스크랩 처리 결과:', result);
+
+    // 새로운 추천이 있으면 갱신
+    if (result?.data?.success && result.data.newRecommendations?.length > 0) {
+      recommendations.value = transformRecommendationData(result.data.newRecommendations);
+      console.log('🔄 스크랩 후 새 추천 적용:', recommendations.value.length, '건');
+
+      // 데이터 로드 후 애니메이션 시작
+      await nextTick();
+      isVisible.value = true;
+      updateScrollButtons();
+    } else {
+      console.warn('⚠️ 스크랩 후 새 추천이 없어서 기존 유지');
+
+      // 대안: 2초 후 일반 추천 새로고침 시도
+      setTimeout(async () => {
+        try {
+          console.log('🔄 지연 새로고침 시도');
+          await fetchRecommendations();
+          console.log('✅ 지연 새로고침 완료');
+        } catch (error) {
+          console.error('❌ 지연 새로고침 실패:', error);
+        }
+      }, 2000);
+    }
+
+    // 이벤트 발생
+    recommendationEventBus.emit(RecommendationEvents.CRITICAL_INTERACTION, {
+      type: isScrap ? 'SCRAP' : 'UNSCRAP',
+      postId: numericPostId,
+      timestamp: Date.now(),
+    });
+
+    console.log('✅ 스크랩 상호작용 처리 완료:', { postId: numericPostId, isScrap });
+  } catch (error) {
+    console.error('❌ 스크랩 상호작용 처리 실패:', {
+      error: error.message,
+      postId,
+      isScrap,
+      stack: error.stack,
+    });
+    // UI는 이미 변경되었으므로 사용자에게는 성공으로 보임
+  }
+};
+
+/**
+ * 업데이트 알림 숨기기
+ */
+const hideUpdateNotification = () => {
+  showUpdateNotification.value = false;
 };
 
 /**
@@ -334,14 +716,33 @@ onMounted(() => {
 
   // 리사이즈 이벤트 리스너 추가
   window.addEventListener('resize', updateScrollButtons);
+
+  // 🔥 중요한 상호작용 이벤트 리스너 등록
+  recommendationEventBus.on(
+    RecommendationEvents.CRITICAL_INTERACTION,
+    handleCriticalInteractionUpdate
+  );
+  recommendationEventBus.on(RecommendationEvents.FORCE_REFRESH, getRealTimeRecommendations);
+});
+
+// 컴포넌트 언마운트
+onUnmounted(() => {
+  // 이벤트 리스너 제거
+  window.removeEventListener('resize', updateScrollButtons);
+  recommendationEventBus.off(
+    RecommendationEvents.CRITICAL_INTERACTION,
+    handleCriticalInteractionUpdate
+  );
+  recommendationEventBus.off(RecommendationEvents.FORCE_REFRESH, getRealTimeRecommendations);
 });
 
 // 외부에서 새로고침할 수 있도록 expose
 defineExpose({
   refresh: fetchRecommendations,
+  refreshRealtime: getRealTimeRecommendations,
+  forceRefresh: forceRefreshRecommendations,
 });
 </script>
-
 <style scoped>
 .recommend-section {
   padding: 60px 0;

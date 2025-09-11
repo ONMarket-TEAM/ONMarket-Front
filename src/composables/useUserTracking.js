@@ -1,172 +1,144 @@
-// @/composables/useUserTracking.js
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+// @/composables/useUserTracking.js - 백엔드와 동기화된 버전
+
 import { trackingHelpers } from '@/api/recommendation';
 
-export function useUserTracking(postId) {
-  const startTime = ref(Date.now());
-  const maxScrollPercentage = ref(0);
-  const isTracking = ref(false);
-  const viewTrackingTimeout = ref(null);
-  const scrollTrackingTimeout = ref(null);
-
+/**
+ * 사용자 행동 추적을 위한 composable
+ * 백엔드 InteractionRequest DTO와 완전히 호환되는 구조
+ */
+export function useUserTracking(productId) {
   /**
-   * 뷰 추적 시작
+   * 게시물 조회 추적
+   * @param {number|null} durationSeconds - 체류 시간 (초)
+   * @param {number|null} scrollPercentage - 스크롤 비율 (0-100)
    */
-  const startViewTracking = () => {
-    if (!postId.value || isTracking.value) return;
-
-    isTracking.value = true;
-    startTime.value = Date.now();
-
-    // 즉시 VIEW 이벤트 기록
-    trackingHelpers.trackView(postId.value);
-
-    // 5초 후에 체류시간과 함께 다시 기록
-    viewTrackingTimeout.value = setTimeout(() => {
-      const duration = Math.floor((Date.now() - startTime.value) / 1000);
-      trackingHelpers.trackDuration(postId.value, duration, maxScrollPercentage.value);
-    }, 5000);
-  };
-
-  /**
-   * 뷰 추적 종료
-   */
-  const stopViewTracking = () => {
-    if (!isTracking.value) return;
-
-    const duration = Math.floor((Date.now() - startTime.value) / 1000);
-
-    // 최소 3초 이상 머물렀을 때만 기록
-    if (duration >= 3) {
-      trackingHelpers.trackDuration(postId.value, duration, maxScrollPercentage.value);
+  const trackView = (durationSeconds = null, scrollPercentage = null) => {
+    if (!productId?.value && !productId) {
+      console.warn('trackView: productId가 없음');
+      return Promise.resolve({ data: { success: false, error: 'productId 없음' } });
     }
 
-    isTracking.value = false;
-
-    if (viewTrackingTimeout.value) {
-      clearTimeout(viewTrackingTimeout.value);
-      viewTrackingTimeout.value = null;
-    }
+    const postId = productId?.value || productId;
+    return trackingHelpers.trackView(postId, durationSeconds, scrollPercentage);
   };
 
   /**
    * 스크롤 추적
+   * @param {number} scrollPercentage - 스크롤 비율 (0-100)
    */
-  const trackScroll = () => {
-    if (!postId.value || !isTracking.value) return;
-
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const windowHeight = window.innerHeight;
-    const documentHeight = document.documentElement.scrollHeight;
-
-    const scrollPercentage = Math.min(
-      100,
-      Math.round(((scrollTop + windowHeight) / documentHeight) * 100)
-    );
-
-    if (scrollPercentage > maxScrollPercentage.value) {
-      maxScrollPercentage.value = scrollPercentage;
-
-      // 스크롤 이벤트 debounce 처리
-      if (scrollTrackingTimeout.value) {
-        clearTimeout(scrollTrackingTimeout.value);
-      }
-
-      scrollTrackingTimeout.value = setTimeout(() => {
-        trackingHelpers.trackScroll(postId.value, scrollPercentage);
-      }, 1000);
+  const trackScroll = (scrollPercentage) => {
+    if (!productId?.value && !productId) {
+      console.warn('trackScroll: productId가 없음');
+      return Promise.resolve({ data: { success: false, error: 'productId 없음' } });
     }
+
+    const postId = productId?.value || productId;
+    return trackingHelpers.trackScroll(postId, scrollPercentage);
   };
 
   /**
-   * 링크 클릭 추적
+   * 체류시간 추적
+   * @param {number} durationSeconds - 체류 시간 (초)
+   * @param {number|null} scrollPercentage - 스크롤 비율 (0-100)
+   */
+  const trackDuration = (durationSeconds, scrollPercentage = null) => {
+    if (!productId?.value && !productId) {
+      console.warn('trackDuration: productId가 없음');
+      return Promise.resolve({ data: { success: false, error: 'productId 없음' } });
+    }
+
+    const postId = productId?.value || productId;
+    return trackingHelpers.trackDuration(postId, durationSeconds, scrollPercentage);
+  };
+
+  /**
+   * 링크 클릭 추적 (중요한 상호작용)
    */
   const trackLinkClick = () => {
-    if (!postId.value) return;
-    trackingHelpers.trackLinkClick(postId.value);
+    if (!productId?.value && !productId) {
+      console.error('trackLinkClick: productId가 없음');
+      throw new Error('productId가 필요합니다');
+    }
+
+    const postId = productId?.value || productId;
+    return trackingHelpers.trackLinkClick(postId);
   };
 
   /**
-   * 스크랩 추적
+   * 스크랩 추적 (중요한 상호작용)
+   * @param {boolean} isScrap - 스크랩 여부 (true: 스크랩, false: 스크랩 해제)
    */
   const trackScrap = (isScrap) => {
-    if (!postId.value) return;
-    trackingHelpers.trackScrap(postId.value, isScrap);
+    if (!productId?.value && !productId) {
+      console.error('trackScrap: productId가 없음');
+      throw new Error('productId가 필요합니다');
+    }
+
+    const postId = productId?.value || productId;
+    return trackingHelpers.trackScrap(postId, isScrap);
   };
 
   /**
-   * 평점 추적
+   * 평점 추적 (중요한 상호작용)
+   * @param {number} rating - 평점 (1-5)
    */
   const trackRating = (rating) => {
-    if (!postId.value) return;
-    trackingHelpers.trackRating(postId.value, rating);
+    if (!productId?.value && !productId) {
+      console.error('trackRating: productId가 없음');
+      throw new Error('productId가 필요합니다');
+    }
+
+    if (!rating || rating < 1 || rating > 5) {
+      console.error('trackRating: 유효하지 않은 평점', rating);
+      throw new Error('평점은 1-5 사이여야 합니다');
+    }
+
+    const postId = productId?.value || productId;
+    return trackingHelpers.trackRating(postId, rating);
   };
 
   /**
-   * 댓글 추적
+   * 댓글 추적 (일반 상호작용)
    */
   const trackComment = () => {
-    if (!postId.value) return;
-    trackingHelpers.trackComment(postId.value);
+    if (!productId?.value && !productId) {
+      console.warn('trackComment: productId가 없음');
+      return Promise.resolve({ data: { success: false, error: 'productId 없음' } });
+    }
+
+    const postId = productId?.value || productId;
+    return trackingHelpers.trackComment(postId);
   };
 
   /**
-   * 페이지 가시성 변경 처리
+   * 페이지 방문 시 기본 추적 (조회수)
+   * @param {number|null} durationSeconds - 체류 시간
+   * @param {number|null} scrollPercentage - 스크롤 비율
    */
-  const handleVisibilityChange = () => {
-    if (document.hidden) {
-      stopViewTracking();
-    } else if (postId.value) {
-      startViewTracking();
-    }
+  const trackPageVisit = (durationSeconds = null, scrollPercentage = null) => {
+    return trackView(durationSeconds, scrollPercentage);
   };
 
   /**
-   * 페이지 언로드 처리
+   * 종합적인 페이지 이탈 추적
+   * @param {number} durationSeconds - 총 체류 시간
+   * @param {number} maxScrollPercentage - 최대 스크롤 비율
    */
-  const handleBeforeUnload = () => {
-    stopViewTracking();
+  const trackPageExit = (durationSeconds, maxScrollPercentage) => {
+    // 체류시간과 스크롤 정보를 함께 기록
+    return trackDuration(durationSeconds, maxScrollPercentage);
   };
-
-  // 라이프사이클 훅
-  onMounted(() => {
-    nextTick(() => {
-      if (postId.value) {
-        startViewTracking();
-      }
-    });
-
-    // 이벤트 리스너 등록
-    window.addEventListener('scroll', trackScroll, { passive: true });
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-  });
-
-  onUnmounted(() => {
-    stopViewTracking();
-
-    // 이벤트 리스너 제거
-    window.removeEventListener('scroll', trackScroll);
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-    window.removeEventListener('beforeunload', handleBeforeUnload);
-
-    // 타이머 정리
-    if (viewTrackingTimeout.value) {
-      clearTimeout(viewTrackingTimeout.value);
-    }
-    if (scrollTrackingTimeout.value) {
-      clearTimeout(scrollTrackingTimeout.value);
-    }
-  });
 
   return {
-    maxScrollPercentage,
-    isTracking,
-    startViewTracking,
-    stopViewTracking,
+    trackView,
+    trackScroll,
+    trackDuration,
     trackLinkClick,
     trackScrap,
     trackRating,
-    trackComment
+    trackComment,
+    trackPageVisit,
+    trackPageExit,
   };
 }
+
