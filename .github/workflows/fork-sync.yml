@@ -1,0 +1,32 @@
+name: Auto Sync Fork
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 매일 03:00 UTC, 필요에 맞게 변경
+  workflow_dispatch: # 수동 실행 가능
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/ONMarket-TEAM/ONMarket-Front.git
+          git fetch upstream
+
+      - name: Merge upstream/main
+        run: |
+          git checkout main
+          git merge upstream/main --allow-unrelated-histories -m "Auto sync from upstream"
+
+      - name: Push changes to fork
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push origin main
