@@ -36,9 +36,9 @@
     </p>
 
     <div class="ai-card-wrapper">
-      <button class="back-fab" type="button" @click="$emit('back-to-step2')" aria-label="go back">
+      <!-- <button class="back-fab" type="button" @click="$emit('back-to-step2')" aria-label="go back">
         ‹
-      </button>
+      </button> -->
       <div class="ai-card">
         <div class="ai-card__header">
           <div class="title">

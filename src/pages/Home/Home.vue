@@ -67,7 +67,7 @@
         <article
           class="data-card"
           v-for="(item, i) in hotTop5"
-          :key="item.id"
+          :key="item.postId"
           @click="goDetail(item)"
         >
           <div class="thumb-wrapper">
@@ -81,12 +81,14 @@
           </div>
           <div class="meta">
             <div class="meta-header">
-              <span class="category-tag" :class="item.categoryClass">{{ item.category }}</span>
-              <span class="card-id">D-{{ String(item.id).padStart(3, '0') }}</span>
+              <span class="category-tag" :class="getCategoryClass(item.postType)">{{
+                getCategoryLabel(item.postType)
+              }}</span>
+              <span class="card-id">{{ item.deadline || 'D-000' }}</span>
             </div>
-            <h3 class="title">{{ item.title }}</h3>
-            <p class="sub">{{ item.agency }}</p>
-            <p class="period">{{ item.period }}</p>
+            <h3 class="title">{{ item.productName }}</h3>
+            <p class="sub">{{ item.companyName }}</p>
+            <p class="period">{{ item.summary }}</p>
           </div>
         </article>
       </div>
@@ -120,6 +122,7 @@ import { useRouter } from 'vue-router';
 // 🔗 API 모듈 import
 import { fetchHotTop5Api } from '@/api/posts';
 import RecommendationSection from '@/components/recommendation/RecommendationSection.vue';
+import { postAPI } from '@/api/post';
 
 // 이미지 & 아이콘
 import p1 from '@/assets/poster.png';
@@ -209,15 +212,41 @@ const hotTop5 = ref([]);
 
 const fetchHotTop5 = async () => {
   try {
-    hotTop5.value = await fetchHotTop5Api();
+    const list = await postAPI.getTopScrapedPosts(); // ← 배열이 바로 옴
+    hotTop5.value = Array.isArray(list) ? list : [];
+    console.log('HOT TOP5 데이터:', hotTop5.value);
   } catch (err) {
     console.error('HOT TOP5 불러오기 실패:', err);
+    hotTop5.value = [];
   }
 };
 
 const goDetail = (item) => {
-  if (!item || !item.id) return;
-  router.push(`/loans/${item.id}`);
+  if (!item || !item.postId) return;
+  router.push(`/loans/${item.postId}`);
+};
+
+// PostType에 따른 카테고리 라벨과 스타일 클래스 매핑
+const getCategoryLabel = (postType) => {
+  switch (postType) {
+    case 'LOAN':
+      return '대출';
+    case 'SUPPORT':
+      return '공공지원금';
+    default:
+      return '기타';
+  }
+};
+
+const getCategoryClass = (postType) => {
+  switch (postType) {
+    case 'LOAN':
+      return 'loan';
+    case 'SUPPORT':
+      return 'public';
+    default:
+      return 'loan';
+  }
 };
 
 // --- 추천상품 (임시 하드코딩) ---
