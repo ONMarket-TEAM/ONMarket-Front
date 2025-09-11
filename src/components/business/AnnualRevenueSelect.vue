@@ -70,7 +70,7 @@ const revenueRanges = computed(() => [
   font-size: 0.9rem;
   color: #333;
   text-align: left;
-  padding-top: 0.9rem; 
+  padding-top: 0.9rem;
   line-height: 1.2;
 }
 
