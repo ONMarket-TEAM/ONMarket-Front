@@ -15,7 +15,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20.x'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
@@ -55,6 +55,33 @@ jobs:
             
             echo "Starting frontend deployment for $ENV environment"
             
+            # 현재 어느 포트에서 백엔드가 실행 중인지 확인
+            if [ "$ENV" = "staging" ]; then
+              if pgrep -f "server.port=8080" > /dev/null; then
+                BACKEND_PORT=8080
+              elif pgrep -f "server.port=8082" > /dev/null; then
+                BACKEND_PORT=8082
+              else
+                BACKEND_PORT=8080  # 기본값
+              fi
+            else
+              if pgrep -f "server.port=8081" > /dev/null; then
+                BACKEND_PORT=8081
+              elif pgrep -f "server.port=8083" > /dev/null; then
+                BACKEND_PORT=8083
+              else
+                BACKEND_PORT=8081  # 기본값
+              fi
+            fi
+            
+            echo "Backend is running on port: $BACKEND_PORT"
+            
+            # nginx 설정 파일 업데이트
+            sudo cp /etc/nginx/conf.d/onmarket-frontend.conf /etc/nginx/conf.d/onmarket-frontend.conf.backup
+            sudo sed -i "s/proxy_pass http:\/\/localhost:[0-9]*/proxy_pass http:\/\/localhost:$BACKEND_PORT/" /etc/nginx/conf.d/onmarket-frontend.conf
+            
+            echo "Updated nginx proxy_pass to port $BACKEND_PORT"
+            
             # 기존 파일 백업
             if [ -d "/home/ec2-user/front-dist" ]; then
               sudo rm -rf /home/ec2-user/front-dist-backup
@@ -75,9 +102,10 @@ jobs:
             if [ $? -eq 0 ]; then
               sudo systemctl reload nginx
               echo "Frontend deployment completed successfully!"
-              echo "$(date): Frontend $ENV deployed" >> /home/ec2-user/frontend-deployment-history.log
+              echo "$(date): Frontend $ENV deployed with backend port $BACKEND_PORT" >> /home/ec2-user/frontend-deployment-history.log
             else
               echo "Nginx configuration error. Rolling back..."
+              sudo cp /etc/nginx/conf.d/onmarket-frontend.conf.backup /etc/nginx/conf.d/onmarket-frontend.conf
               if [ -d "/home/ec2-user/front-dist-backup" ]; then
                 sudo rm -rf /home/ec2-user/front-dist
                 sudo mv /home/ec2-user/front-dist-backup /home/ec2-user/front-dist
