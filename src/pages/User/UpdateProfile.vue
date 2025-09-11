@@ -334,7 +334,7 @@ onMounted(async () => {
     opacity 0.15s;
 }
 .btn.primary {
-  background: #111;
+  background: var(--color-main);
   color: #fff;
   border: none;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);

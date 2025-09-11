@@ -1110,7 +1110,7 @@ onMounted(() => {
     opacity 0.15s;
 }
 .btn.primary {
-  background: #111;
+  background: var(--color-main);
   color: #fff;
   border: none;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
