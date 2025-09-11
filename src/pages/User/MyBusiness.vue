@@ -201,14 +201,12 @@ const toggleMenu = (businessId) => {
 };
 
 const closeMenu = () => {
-  console.log('closeMenu 호출됨');
   activeMenuId.value = null;
 };
 
 const setAsMain = async (businessId) => {
   try {
     const res = await businessAPI.setMain(businessId);
-    console.log(res);
     if (res?.header?.status === 'OK') {
       mainBusinessId.value = businessId;
       toast.success(res.header.message || '메인 사업장이 변경되었습니다.');
