@@ -120,7 +120,6 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 
 // 🔗 API 모듈 import
-import { fetchHotTop5Api } from '@/api/posts';
 import RecommendationSection from '@/components/recommendation/RecommendationSection.vue';
 import { postAPI } from '@/api/post';
 
