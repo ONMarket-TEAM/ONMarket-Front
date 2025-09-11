@@ -104,5 +104,10 @@ export const businessAPI = {
       };
     }
   },
+
+  setMain: async (businessId) => {
+    const { data } = await api.patch(`/api/business/${businessId}/main`);
+    return data;
+  },
 };
 

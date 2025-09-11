@@ -165,7 +165,11 @@
       </template>
     </div>
 
-    <div v-if="isModalOpen && !isReplyMode && !isEditMode" class="modal-overlay" @click="closeModal">
+    <div
+      v-if="isModalOpen && !isReplyMode && !isEditMode"
+      class="modal-overlay"
+      @click="closeModal"
+    >
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>상품 후기를 남겨주세요!</h2>
@@ -258,7 +262,11 @@
         <div class="comment-form">
           <textarea
             v-model="commentText"
-            :placeholder="editingComment.parentCommentId ? '답글 내용을 수정해주세요' : '후기 내용을 수정해주세요'"
+            :placeholder="
+              editingComment.parentCommentId
+                ? '답글 내용을 수정해주세요'
+                : '후기 내용을 수정해주세요'
+            "
             class="comment-textarea"
             :maxlength="editingComment.parentCommentId ? 300 : 500"
           ></textarea>
@@ -285,7 +293,6 @@
         <i class="fas fa-arrow-up"></i>
       </button>
     </transition>
-    
   </div>
 </template>
 
@@ -294,6 +301,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'; // [수정됨] onUn
 import { useRoute } from 'vue-router';
 import { postAPI, scrapAPI, commentAPI, getErrorMessage } from '@/api/post';
 import { useToastStore } from '@/stores/useToastStore';
+import { useUserTracking } from '@/composables/useUserTracking'; // 추가
 
 const route = useRoute();
 const toastStore = useToastStore();
@@ -333,6 +341,8 @@ const canSubmitEdit = computed(() => {
     return selectedRating.value > 0 && commentText.value.trim().length > 0;
   }
 });
+
+const { trackLinkClick, trackScrap, trackRating, trackComment } = useUserTracking(productId);
 
 // 현재 사용자 정보 가져오기
 const getCurrentUser = () => {
@@ -452,6 +462,9 @@ const submitEditComment = async () => {
     await fetchComments();
     closeModal();
     toastStore.success('댓글이 수정되었습니다!');
+    if (!editingComment.value.parentCommentId && selectedRating.value > 0) {
+      trackRating(selectedRating.value);
+    }
   } catch (err) {
     toastStore.error(getErrorMessage(err));
   } finally {
@@ -504,6 +517,7 @@ const toggleLike = async () => {
     if (scrapData) {
       productDetail.value.scraped = scrapData.scraped;
       productDetail.value.scrapCount = scrapData.scrapCount ?? 0;
+      trackScrap(scrapData.scraped);
     }
   } catch (err) {
     toastStore.error(getErrorMessage(err));
@@ -519,6 +533,7 @@ const applyProduct = () => {
     return;
   }
   if (confirm('이 상품에 가입하시겠습니까?')) {
+    trackLinkClick();
     window.open(productDetail.value.joinLink, '_blank');
     toastStore.info('새 창에서 가입 페이지가 열렸습니다.');
   }
@@ -580,6 +595,10 @@ const submitComment = async () => {
     await fetchComments();
     closeModal();
     toastStore.success('후기가 등록되었습니다!');
+    trackComment();
+    if (selectedRating.value > 0) {
+      trackRating(selectedRating.value);
+    }
   } catch (err) {
     toastStore.error(getErrorMessage(err));
   } finally {
@@ -603,7 +622,9 @@ const submitReply = async () => {
     });
     await fetchComments();
     closeModal();
+
     toastStore.success('답글이 등록되었습니다!');
+    trackComment();
   } catch (err) {
     toastStore.error(getErrorMessage(err));
   } finally {
@@ -644,7 +665,7 @@ const handleScroll = () => {
 const scrollToTop = () => {
   window.scrollTo({
     top: 0,
-    behavior: 'smooth'
+    behavior: 'smooth',
   });
 };
 
@@ -1340,7 +1361,9 @@ onUnmounted(() => {
   font-size: 1.2rem;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   z-index: 100;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .scroll-top-btn:hover {
@@ -1359,3 +1382,4 @@ onUnmounted(() => {
   opacity: 0;
 }
 </style>
+

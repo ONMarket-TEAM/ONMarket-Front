@@ -94,28 +94,7 @@
       </div>
     </section>
 
-    <section class="recommend-section">
-      <h2>사용자 맞춤 추천 상품</h2>
-      <div class="card-grid">
-        <article
-          class="data-card"
-          v-for="(item, i) in recommendProducts"
-          :key="item.id"
-          @click="$router.push(`/loans/${item.id}`)"
-        >
-          <div class="thumb-wrapper"></div>
-          <div class="meta">
-            <div class="meta-header">
-              <span class="category-tag" :class="item.categoryClass">{{ item.category }}</span>
-              <span class="card-id">R-{{ String(item.id).padStart(3, '0') }}</span>
-            </div>
-            <h3 class="title">{{ item.title }}</h3>
-            <p class="sub">{{ item.agency }} · {{ item.region || item.type }}</p>
-            <p class="period">{{ item.period || item.rate }}</p>
-          </div>
-        </article>
-      </div>
-    </section>
+    <RecommendationSection ref="recommendationRef" />
 
     <footer class="site-footer">
       <div class="footer-inner">
@@ -141,6 +120,8 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 
 // 🔗 API 모듈 import
+import { fetchHotTop5Api } from '@/api/posts';
+import RecommendationSection from '@/components/recommendation/RecommendationSection.vue';
 import { postAPI } from '@/api/post';
 
 // 이미지 & 아이콘
@@ -153,6 +134,13 @@ import instaIcon from '@/assets/insta.png';
 import likeIcon from '@/assets/like.png';
 
 const router = useRouter();
+const recommendationRef = ref(null);
+
+const refreshRecommendations = () => {
+  if (recommendationRef.value) {
+    recommendationRef.value.refresh();
+  }
+};
 
 // --- 슬라이드 정의 ---
 const slides = ref([
@@ -313,8 +301,19 @@ const recommendProducts = ref([
 onMounted(() => {
   play();
   fetchHotTop5();
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'accessToken') {
+      refreshRecommendations();
+    }
+  });
 });
-onBeforeUnmount(() => stop());
+onBeforeUnmount(() => {
+  stop();
+  window.removeEventListener('storage', refreshRecommendations);
+});
+defineExpose({
+  refreshRecommendations,
+});
 </script>
 
 <style scoped>
@@ -550,6 +549,7 @@ h2 {
   max-width: 1200px;
   margin: 40px auto;
   padding: 0 24px;
+  overflow-x: hidden;
 }
 
 .hot-card-grid {
