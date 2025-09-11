@@ -2,13 +2,14 @@
   <section class="upload-section">
 
     <p class="service-info">
-  <span class="tooltip-trigger"><i class="fa-solid fa-circle-info"></i> '내 가게 알리기'란?</span>
-  <span class="tooltip-text">
-    ‘내 가게 알리기’ 서비스는 가게 홍보에 어려움을 겪는 소상공인들을 위한 서비스입니다. <br>
-    업로드한 사진(예: 메뉴, 인테리어 등)을 분석하여 최적화된 홍보 문구를 작성하고, <br>
-    인스타그램에 바로 업로드까지 지원합니다.
-  </span>
-</p>
+      <span class="tooltip-trigger"><i class="fa-solid fa-circle-info"></i> '내 가게 알리기'란?</span>
+      <span class="tooltip-text">
+        '내 가게 알리기' 서비스는 가게 홍보에 어려움을 겪는 소상공인들을 위한 서비스입니다. <br>
+        업로드한 사진(예: 메뉴, 인테리어 등)을 분석하여 최적화된 홍보 문구를 작성하고, <br>
+        인스타그램에 바로 업로드까지 지원합니다.
+      </span>
+    </p>
+
     <div class="upload-drop" :class="{ 'has-images': uploadedImages.length > 0 }" @drop.prevent="handleDrop" @dragover.prevent>
       <input
         type="file"
@@ -24,7 +25,8 @@
           <div class="header-left">
             <h3>업로드된 이미지 <span class="count-text">({{ uploadedImages.length }}/20)</span></h3>
             <p class="ai-info">
-              * 온마켓이 앞의 3장을 분석하여 최적화된 콘텐츠를 생성해드려요
+              *  온마켓이 앞의 3장을 분석하여 최적화된 콘텐츠를 생성해드려요 <br>
+              *  사진을 드래그하여 정렬 순서를 바꿀 수 있어요
             </p>
           </div>
           <button class="add-more-btn" type="button" @click="openPicker" :disabled="isUploading || uploadedImages.length >= 20">
@@ -34,32 +36,35 @@
           </button>
         </div>
 
-        <div class="images-grid">
-          <div
-            v-for="(image, index) in uploadedImages"
-            :key="image.id"
-            class="image-item"
-            :class="{ 'will-analyze': index < 3 }"
-          >
-            <div class="image-wrapper">
-              <img :src="image.previewUrl" :alt="`업로드된 이미지 ${index + 1}`" />
-              <div class="image-overlay">
-                <button class="remove-btn" @click="removeImage(image.id)" aria-label="이미지 제거">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17.5 6.5L6.5 17.5M6.5 6.5L17.5 17.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </button>
+        <!-- 이미지 그리드: 드래그 앤 드롭 적용 -->
+        <draggable
+          :list="localImages"
+          @end="onDragEnd"
+          item-key="id"
+          class="images-grid"
+          :animation="200"
+          ghost-class="dragging"
+        >
+          <template #item="{ element: image, index }">
+            <div class="image-item" :class="{ 'will-analyze': index < 3 }">
+              <div class="image-wrapper">
+                <img :src="image.previewUrl" :alt="`업로드된 이미지 ${index + 1}`" />
+                <div class="image-overlay">
+                  <button class="remove-btn" @click="removeImage(image.id)">
+                    ✕
+                  </button>
+                </div>
+                <div v-if="index < 3" class="analyze-badge">
+                  AI 분석 {{ index + 1 }}
+                </div>
               </div>
-              <div v-if="index < 3" class="analyze-badge">
-                AI 분석 {{ index + 1 }}
+              <div class="image-meta">
+                <span class="image-number">{{ index + 1 }}</span>
+                <span class="filename">{{ image.filename || `이미지 ${index + 1}` }}</span>
               </div>
             </div>
-            <div class="image-meta">
-              <span class="image-number">{{ index + 1 }}</span>
-              <span class="filename">{{ image.filename || `이미지 ${index + 1}` }}</span>
-            </div>
-          </div>
-        </div>
+          </template>
+        </draggable>
 
         <div class="upload-status">
           <p v-if="isUploading">새 이미지 업로드 중...</p>
@@ -107,23 +112,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
+import draggable from 'vuedraggable';
 
 const props = defineProps({
-  uploadedImages: {
-    type: Array,
-    default: () => []
-  },
-  isUploading: {
-    type: Boolean,
-    default: false
-  }
+  uploadedImages: { type: Array, default: () => [] },
+  isUploading: { type: Boolean, default: false }
 });
 
-const emit = defineEmits(['upload-files', 'remove-image']);
+const emit = defineEmits(['upload-files', 'remove-image', 'update-order']);
 
 const fileInput = ref(null);
 const gray600 = ref('#9AA0A6');
+
+// 로컬 이미지 배열을 만들어서 드래그 가능하게 함
+const localImages = computed({
+  get() {
+    return props.uploadedImages;
+  },
+  set(value) {
+    // 순서가 변경되면 부모에게 알림
+    emit('update-order', value);
+  }
+});
 
 onMounted(() => {
   const v = getComputedStyle(document.documentElement).getPropertyValue('--color-gray-600');
@@ -153,6 +164,11 @@ function handleDrop(e) {
 
 function removeImage(imageId) {
   emit('remove-image', imageId);
+}
+
+function onDragEnd() {
+  // 드래그 완료 후 자동으로 부모에게 업데이트된 순서 전달
+  // localImages의 setter가 자동으로 호출되므로 별도 처리 불필요
 }
 </script>
 
@@ -326,6 +342,7 @@ function removeImage(imageId) {
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transition: all 0.2s ease;
+  cursor: move; /* 드래그 가능하다는 것을 시각적으로 표시 */
 }
 
 .image-item:hover {
@@ -492,5 +509,11 @@ function removeImage(imageId) {
   font-weight: 600;
   background: var(--color-highlight-bg, #fff2f2);
   color: var(--color-highlight-text, #FF7474);
+}
+
+.dragging {
+  opacity: 0.6;
+  border: 2px dashed var(--color-sub);
+  transform: rotate(5deg);
 }
 </style>
