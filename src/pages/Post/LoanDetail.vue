@@ -12,17 +12,7 @@
       </div>
 
       <template v-else>
-        <div class="product-image">
-          <img
-            v-if="productDetail.imageUrl && !imageError"
-            :src="productDetail.imageUrl"
-            :alt="productDetail.productName"
-            @error="imageError = true"
-          />
-          <div v-else class="image-placeholder">
-            <div class="placeholder-text">이미지를 불러올 수 없습니다</div>
-          </div>
-        </div>
+
 
         <div class="product-info">
           <div class="product-header">
@@ -52,7 +42,17 @@
               </button>
             </div>
           </div>
-
+          <div class="product-image">
+          <img
+            v-if="productDetail.imageUrl && !imageError"
+            :src="productDetail.imageUrl"
+            :alt="productDetail.productName"
+            @error="imageError = true"
+          />
+          <div v-else class="image-placeholder">
+            <div class="placeholder-text">이미지를 불러올 수 없습니다</div>
+          </div>
+        </div>
           <div class="product-description">
             <div
               v-if="productDetail.detailContent"
@@ -775,7 +775,7 @@ onUnmounted(() => {
 /* 상품 정보 스타일 */
 .product-image {
   width: 100%;
-  height: 18.75rem;
+  height: 100%;
   background: var(--color-light-2);
   border-radius: 0.75rem;
   margin-bottom: 1.5rem;
