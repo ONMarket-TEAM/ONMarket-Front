@@ -327,7 +327,7 @@ watch(searchKeyword, (newValue) => {
 <style scoped>
 .post-list-container {
   min-height: 100vh;
-  background: var(--color-light-1);
+  background: var(--color-light-3);
 }
 
 .container.section {

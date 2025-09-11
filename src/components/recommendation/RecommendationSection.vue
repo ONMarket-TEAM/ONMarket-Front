@@ -13,18 +13,6 @@
               : '로그인하고 나만을 위한 맞춤 상품을 확인해보세요'
           }}
         </p>
-        <!-- 🔥 디버깅용 새로고침 버튼 추가 -->
-        <div v-if="userEmail && isDevelopment" class="debug-controls">
-          <button @click="forceRefreshRecommendations" class="debug-btn" :disabled="refreshing">
-            {{ refreshing ? '갱신 중...' : '강제 새로고침' }}
-          </button>
-          <button @click="getRealTimeRecommendations" class="debug-btn" :disabled="refreshing">
-            실시간 조회
-          </button>
-          <button @click="clearCacheAndRefresh" class="debug-btn" :disabled="refreshing">
-            캐시 클리어
-          </button>
-        </div>
       </div>
 
       <!-- 비회원 로그인 유도 -->

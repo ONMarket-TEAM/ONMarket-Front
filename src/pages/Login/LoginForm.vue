@@ -186,9 +186,10 @@ const handleLogin = async () => {
 };
 
 const login = (provider) => {
-  const baseUrl = window.location.origin; // 현재 도메인 자동 감지
+  // const baseUrl = window.location.origin;
 
-  if (provider === 'kakao') window.location.href = `http://localhost:8080/oauth2/authorization/kakao`;
+  if (provider === 'kakao')
+    window.location.href = `http://localhost:8080/oauth2/authorization/kakao`;
   else if (provider === 'google')
     window.location.href = `http://localhost:8080/oauth2/authorization/google`;
 };
