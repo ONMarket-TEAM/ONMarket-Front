@@ -72,11 +72,18 @@
         >
           <div class="thumb-wrapper">
             <img
-              v-if="item.imageUrl"
+              v-if="item.imageUrl && !imageErrors[item.postId]"
               :src="item.imageUrl"
-              alt="상품 이미지"
-              style="width: 100%; height: 100%; object-fit: cover"
+              :alt="item.productName || '상품 이미지'"
+              class="card-image"
+              @error="handleImageError(item.postId)"
+              @load="handleImageLoad(item.postId)"
             />
+            <!-- 로딩 상태나 이미지 없을 때 -->
+            <div v-if="!item.imageUrl || imageErrors[item.postId]" class="image-placeholder">
+              <i class="fas fa-image"></i>
+            </div>
+
             <span class="rank-badge">{{ i + 1 }}</span>
           </div>
           <div class="meta">
@@ -139,6 +146,19 @@ const refreshRecommendations = () => {
   if (recommendationRef.value) {
     recommendationRef.value.refresh();
   }
+};
+
+// --- 이미지 에러 상태 관리 추가 ---
+const imageErrors = ref({});
+const imageLoading = ref({});
+
+const handleImageError = (postId) => {
+  imageErrors.value[postId] = true;
+  imageLoading.value[postId] = false;
+};
+
+const handleImageLoad = (postId) => {
+  imageLoading.value[postId] = false;
 };
 
 // --- 슬라이드 정의 ---
@@ -213,6 +233,14 @@ const fetchHotTop5 = async () => {
   try {
     const list = await postAPI.getTopScrapedPosts(); // ← 배열이 바로 옴
     hotTop5.value = Array.isArray(list) ? list : [];
+
+    imageErrors.value = {};
+    imageLoading.value = {};
+    hotTop5.value.forEach((item) => {
+      if (item.postId) {
+        imageLoading.value[item.postId] = true;
+      }
+    });
     console.log('HOT TOP5 데이터:', hotTop5.value);
   } catch (err) {
     console.error('HOT TOP5 불러오기 실패:', err);
@@ -582,6 +610,10 @@ h2 {
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
+
+.data-card:hover .card-image {
+  transform: scale(1.05);
+}
 .thumb-wrapper {
   position: relative;
   width: 100%;
@@ -590,6 +622,22 @@ h2 {
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
+}
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.image-placeholder {
+  color: #ccc;
+  font-size: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 .meta {
   padding: 16px;
