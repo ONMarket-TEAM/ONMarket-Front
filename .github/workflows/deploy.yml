@@ -24,10 +24,10 @@ jobs:
       - name: Set environment variables
         run: |
           if [ "${{ github.ref }}" = "refs/heads/develop" ]; then
-            echo "VITE_API_URL=http://3.34.91.104:8080" >> .env.production
+            echo "VITE_API_URL=/api" >> .env.production
             echo "DEPLOY_ENV=staging" >> $GITHUB_ENV
           else
-            echo "VITE_API_URL=http://3.34.91.104:8081" >> .env.production
+            echo "VITE_API_URL=/api" >> .env.production
             echo "DEPLOY_ENV=production" >> $GITHUB_ENV
           fi
 
