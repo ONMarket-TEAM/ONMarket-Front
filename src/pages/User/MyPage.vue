@@ -123,7 +123,12 @@
           </div>
 
           <ul v-else class="scrap-list">
-            <li v-for="scrap in visibleScraps" :key="scrap.postId" class="scrap-item">
+            <li
+              v-for="scrap in visibleScraps"
+              :key="scrap.postId"
+              class="scrap-item clickable"
+              @click="goToScrapDetail(scrap)"
+            >
               <span class="scrap-title">{{ scrap.productName }}</span>
               <span class="scrap-dday" :class="getDdayClass(scrap.deadline)">{{
                 scrap.deadline
@@ -453,6 +458,15 @@ const goToBusinessList = () => {
 const goToMyScrap = () => {
   router.push('/user/myscraps');
 };
+const goToScrapDetail = (scrap) => {
+  if (scrap.postType === 'LOAN') {
+    router.push(`/loans/${scrap.postId}`);
+  } else if (scrap.postType === 'SUPPORT') {
+    router.push(`/policies/${scrap.postId}`);
+  } else {
+    toast.warning('알 수 없는 PostType:', scrap.postType);
+  }
+};
 
 const openImageMenu = () => {
   showImageMenu.value = true;
@@ -625,9 +639,13 @@ const loadNotificationStatus = async () => {
 
 const DEFAULT_AVATAR = default_image;
 const onImgErr = (e) => {
+  // 이미 기본 이미지인 경우 더 이상 처리하지 않음 (무한루프 방지)
+  if (e.target.src === DEFAULT_AVATAR || e.target.src.endsWith('default_avatar.png')) {
+    return;
+  }
+
   e.target.src = DEFAULT_AVATAR;
-  // ❗ 스토어는 건드리지 않음 (일시적 오류로 전역 상태를 망가뜨리지 않기 위함)
-  avatarVersion.value++;
+  // avatarVersion++ 제거 (재요청하지 않음)
 };
 
 onMounted(() => {
@@ -658,7 +676,7 @@ onMounted(() => {
   background: #fff;
   border: 1px solid #ececec;
   border-radius: 18px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  /* box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); */
 }
 .user-info {
   padding: 28px 20px;
@@ -766,8 +784,9 @@ onMounted(() => {
 
 .chip-btn {
   appearance: none;
-  background: var(--color-main);
-  color: #333;
+  background: var(--color-light-1);
+  /* color: #333; */
+  color: white;
   padding: 5px 9px;
   margin-bottom: 8px;
   border-radius: 14px;
