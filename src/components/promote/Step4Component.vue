@@ -27,7 +27,7 @@
             <div v-if="generatedBestTime || generatedImpact" class="final-metrics">
               <div v-if="generatedBestTime" class="metric">
                 <div class="metric-label"><span class="clock-icon" /> 최적 게시 시간</div>
-                <div class="metric-value">{{ generatedBestTime }}</div>
+                <div class="metric-value">{{ generatedBestTime }}에 게시하면 더 많은 관심을 받을 확률이 높습니다.</div>
               </div>
               <div v-if="generatedImpact" class="metric">
                 <div class="metric-label"><span class="spark-icon" /> 예상 효과</div>
@@ -156,7 +156,8 @@
       <h3 class="modal-title">인스타 업로드 완료!</h3>
       <p class="upload-message">
         <strong>{{ snsStore.instagram.username }}</strong> 계정에<br>
-        게시물이 업로드되었습니다.
+        게시물이 업로드되었습니다. <br>
+        지금 바로 확인해보세요!
       </p>
     </div>
   </div>
