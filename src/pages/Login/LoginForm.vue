@@ -191,7 +191,7 @@ const login = (provider) => {
   if (provider === 'kakao')
     window.location.href = `http://localhost:8080/oauth2/authorization/kakao`;
   else if (provider === 'google')
-    window.location.href = `http://localhost:8080/oauth2/authorization/google`;;
+    window.location.href = `http://localhost:8080/oauth2/authorization/google`;
 };
 </script>
 
