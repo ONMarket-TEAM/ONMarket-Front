@@ -41,16 +41,16 @@
             </div>
           </div>
           <div class="product-image">
-          <img
-            v-if="productDetail.imageUrl && !imageError"
-            :src="productDetail.imageUrl"
-            :alt="productDetail.productName"
-            @error="imageError = true"
-          />
-          <div v-else class="image-placeholder">
-            <div class="placeholder-text">이미지를 불러올 수 없습니다</div>
+            <img
+              v-if="productDetail.imageUrl && !imageError"
+              :src="productDetail.imageUrl"
+              :alt="productDetail.productName"
+              @error="imageError = true"
+            />
+            <div v-else class="image-placeholder">
+              <div class="placeholder-text">이미지를 불러올 수 없습니다</div>
+            </div>
           </div>
-        </div>
 
           <div class="product-description">
             <div
@@ -296,16 +296,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'; // [수정됨] onUnmounted 추가
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { postAPI, scrapAPI, commentAPI, getErrorMessage } from '@/api/post';
 import { useToastStore } from '@/stores/useToastStore';
-import { useUserTracking } from '@/composables/useUserTracking'; // 추가
+import { useUserTracking } from '@/composables/useUserTracking';
 
 const route = useRoute();
 const toastStore = useToastStore();
 
-// 반응형 데이터
 const productDetail = ref({});
 const commentData = ref({ comments: [], totalCount: 0 });
 const loading = ref(false);
@@ -318,7 +317,6 @@ const deleteLoading = ref(null);
 const editLoading = ref(null);
 const currentUser = ref(null);
 
-// 모달 상태
 const isModalOpen = ref(false);
 const isReplyMode = ref(false);
 const isEditMode = ref(false);
@@ -329,7 +327,6 @@ const commentText = ref('');
 const commentSubmitting = ref(false);
 const editingComment = ref(null);
 
-// computed 속성
 const productId = computed(() => route.params.id);
 const canSubmit = computed(() => selectedRating.value > 0 && commentText.value.trim().length > 0);
 const canSubmitReply = computed(() => commentText.value.trim().length > 0);
@@ -355,30 +352,19 @@ const getCurrentUser = () => {
       username: payload.username || payload.name,
     };
   } catch (error) {
+    console.error('토큰 파싱 에러:', error);
     return null;
   }
 };
 
-// 댓글 소유자 확인 함수
+// 댓글 소유자 확인 함수 수정
 const isCommentOwner = (comment) => {
   if (!currentUser.value || !comment) return false;
-  if (comment.isOwner === true) return true;
-  if (comment.isOwner === false) return false;
-  if (comment.userId && currentUser.value.userId) {
-    return comment.userId === currentUser.value.userId;
+
+  if (comment.email && currentUser.value.email) {
+    return comment.email === currentUser.value.email;
   }
-  if (comment.author && currentUser.value.email) {
-    if (comment.author.includes('@')) {
-      return comment.author === currentUser.value.email;
-    }
-    if (currentUser.value.username) {
-      return comment.author === currentUser.value.username;
-    }
-  }
-  if (comment.author && currentUser.value.email) {
-    const emailUsername = currentUser.value.email.split('@')[0];
-    return comment.author === emailUsername;
-  }
+
   return false;
 };
 
@@ -424,16 +410,24 @@ const fetchComments = async () => {
   }
 };
 
-// 댓글 수정 모달 열기 함수
+// 댓글 수정 모달 열기 함수 수정
 const openEditModal = (comment) => {
   if (!currentUser.value) {
     toastStore.error('로그인이 필요합니다.');
     return;
   }
+
   if (!isCommentOwner(comment)) {
-    toastStore.error('수정 권한이 없습니다.');
+    toastStore.error('본인이 작성한 댓글만 수정할 수 있습니다.');
+    console.log('권한 확인 실패:', {
+      currentUserMemberId: currentUser.value.memberId,
+      commentMemberId: comment.memberId,
+      currentUserUsername: currentUser.value.username,
+      commentAuthor: comment.author,
+    });
     return;
   }
+
   editingComment.value = comment;
   commentText.value = comment.content || '';
   selectedRating.value = comment.rating || 0;
@@ -457,14 +451,16 @@ const submitEditComment = async () => {
     if (!editingComment.value.parentCommentId && selectedRating.value > 0) {
       updateData.rating = selectedRating.value;
     }
+
     await commentAPI.updateComment(editingComment.value.commentId, updateData);
     await fetchComments();
-    closeModal();
     toastStore.success('댓글이 수정되었습니다!');
-    // 평점이 변경된 경우 추적
+
     if (!editingComment.value.parentCommentId && selectedRating.value > 0) {
       trackRating(selectedRating.value);
     }
+
+    closeModal();
   } catch (err) {
     toastStore.error(getErrorMessage(err));
   } finally {
@@ -475,19 +471,38 @@ const submitEditComment = async () => {
 // 댓글 삭제
 const deleteComment = async (commentId) => {
   const comment = findCommentById(commentId);
-  if (!comment || !isCommentOwner(comment)) {
-    toastStore.error('삭제 권한이 없습니다.');
+  if (!comment) {
+    toastStore.error('댓글을 찾을 수 없습니다.');
     return;
   }
+
+  if (!currentUser.value) {
+    toastStore.error('로그인이 필요합니다.');
+    return;
+  }
+
+  if (!isCommentOwner(comment)) {
+    toastStore.error('본인이 작성한 댓글만 삭제할 수 있습니다.');
+    console.log('삭제 권한 확인 실패:', {
+      currentUserMemberId: currentUser.value.memberId,
+      commentMemberId: comment.memberId,
+      currentUserUsername: currentUser.value.username,
+      commentAuthor: comment.author,
+    });
+    return;
+  }
+
   if (!confirm('댓글을 삭제하시겠습니까?\n답글이 있다면 함께 삭제됩니다.')) {
     return;
   }
+
   deleteLoading.value = commentId;
   try {
     await commentAPI.deleteComment(commentId);
     await fetchComments();
     toastStore.success('댓글이 삭제되었습니다.');
   } catch (err) {
+    console.error('댓글 삭제 오류:', err);
     toastStore.error(getErrorMessage(err));
   } finally {
     deleteLoading.value = null;
@@ -654,7 +669,6 @@ const formatDate = (dateString) => {
 
 const formatContent = (content) => (content ? content.replace(/\n/g, '<br>') : '');
 
-// [추가됨] Scroll to Top 관련 로직
 const showScrollTopButton = ref(false);
 
 const handleScroll = () => {
@@ -672,16 +686,13 @@ const scrollToTop = () => {
   });
 };
 
-// 컴포넌트 마운트 및 언마운트 시 로직
 onMounted(async () => {
   currentUser.value = getCurrentUser();
   await fetchProductDetail();
   await fetchComments();
-  // [추가됨] 스크롤 이벤트 리스너 등록
   window.addEventListener('scroll', handleScroll);
 });
 
-// [추가됨] 컴포넌트가 사라질 때 이벤트 리스너 제거
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
 });

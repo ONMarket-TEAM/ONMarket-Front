@@ -297,16 +297,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'; // [수정됨] onUnmounted 추가
+import { ref, computed, onMounted, onUnmounted } from 'vue'; 
 import { useRoute } from 'vue-router';
 import { postAPI, scrapAPI, commentAPI, getErrorMessage } from '@/api/post';
 import { useToastStore } from '@/stores/useToastStore';
-import { useUserTracking } from '@/composables/useUserTracking'; // 추가
+import { useUserTracking } from '@/composables/useUserTracking'; 
 
 const route = useRoute();
 const toastStore = useToastStore();
 
-// 반응형 데이터
 const productDetail = ref({});
 const commentData = ref({ comments: [], totalCount: 0 });
 const loading = ref(false);
@@ -319,7 +318,6 @@ const deleteLoading = ref(null);
 const editLoading = ref(null);
 const currentUser = ref(null);
 
-// 모달 상태
 const isModalOpen = ref(false);
 const isReplyMode = ref(false);
 const isEditMode = ref(false);
@@ -330,7 +328,6 @@ const commentText = ref('');
 const commentSubmitting = ref(false);
 const editingComment = ref(null);
 
-// computed 속성
 const productId = computed(() => route.params.id);
 const canSubmit = computed(() => selectedRating.value > 0 && commentText.value.trim().length > 0);
 const canSubmitReply = computed(() => commentText.value.trim().length > 0);
@@ -356,30 +353,19 @@ const getCurrentUser = () => {
       username: payload.username || payload.name,
     };
   } catch (error) {
+    console.error('토큰 파싱 에러:', error);
     return null;
   }
 };
 
-// 댓글 소유자 확인 함수
+// 댓글 소유자 확인 함수 수정
 const isCommentOwner = (comment) => {
   if (!currentUser.value || !comment) return false;
-  if (comment.isOwner === true) return true;
-  if (comment.isOwner === false) return false;
-  if (comment.userId && currentUser.value.userId) {
-    return comment.userId === currentUser.value.userId;
+
+  if (comment.email && currentUser.value.email) {
+    return comment.email === currentUser.value.email;
   }
-  if (comment.author && currentUser.value.email) {
-    if (comment.author.includes('@')) {
-      return comment.author === currentUser.value.email;
-    }
-    if (currentUser.value.username) {
-      return comment.author === currentUser.value.username;
-    }
-  }
-  if (comment.author && currentUser.value.email) {
-    const emailUsername = currentUser.value.email.split('@')[0];
-    return comment.author === emailUsername;
-  }
+
   return false;
 };
 
@@ -458,13 +444,17 @@ const submitEditComment = async () => {
     if (!editingComment.value.parentCommentId && selectedRating.value > 0) {
       updateData.rating = selectedRating.value;
     }
+    
     await commentAPI.updateComment(editingComment.value.commentId, updateData);
     await fetchComments();
-    closeModal();
     toastStore.success('댓글이 수정되었습니다!');
+
     if (!editingComment.value.parentCommentId && selectedRating.value > 0) {
       trackRating(selectedRating.value);
     }
+    
+    closeModal();
+
   } catch (err) {
     toastStore.error(getErrorMessage(err));
   } finally {
@@ -651,7 +641,6 @@ const formatDate = (dateString) => {
 
 const formatContent = (content) => (content ? content.replace(/\n/g, '<br>') : '');
 
-// [추가됨] Scroll to Top 관련 로직
 const showScrollTopButton = ref(false);
 
 const handleScroll = () => {
@@ -669,16 +658,13 @@ const scrollToTop = () => {
   });
 };
 
-// 컴포넌트 마운트 및 언마운트 시 로직
 onMounted(async () => {
   currentUser.value = getCurrentUser();
   await fetchProductDetail();
   await fetchComments();
-  // [추가됨] 스크롤 이벤트 리스너 등록
   window.addEventListener('scroll', handleScroll);
 });
 
-// [추가됨] 컴포넌트가 사라질 때 이벤트 리스너 제거
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
 });

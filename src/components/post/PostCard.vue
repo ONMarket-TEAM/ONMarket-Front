@@ -72,7 +72,7 @@ const goToDetail = () => {
 
 .company-name {
   font-weight: bold;
-  color: var(--color-sub);
+  color: var(#333);
   font-size: 0.875rem;
 }
 

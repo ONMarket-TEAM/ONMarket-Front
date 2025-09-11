@@ -380,7 +380,7 @@ watch(searchKeyword, (newValue) => {
 .sort-options-list {
   position: absolute;
   top: 110%;
-  right: 0; /* 오른쪽 정렬을 위해 left: 0 대신 right: 0 사용 */
+  right: 0; 
   background-color: var(--color-white);
   border-radius: 0.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -388,7 +388,7 @@ watch(searchKeyword, (newValue) => {
   margin: 0;
   list-style: none;
   z-index: 10;
-  width: 150px; /* 드롭다운 너비 고정 */
+  width: 150px; 
   text-align: center;
 }
 
@@ -420,7 +420,7 @@ watch(searchKeyword, (newValue) => {
   align-items: center;
   gap: 1rem;
   margin-bottom: 0;
-  margin-left: auto; /* 검색창을 오른쪽으로 밀어내기 위해 추가 */
+  margin-left: auto; 
 }
 
 .search-bar {
