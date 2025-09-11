@@ -701,7 +701,7 @@ const deleteBusiness = async (businessId) => {
   align-items: center;
   gap: 0.75rem;
   padding: 1rem 2rem;
-  background: var(--color-light-1);
+  background: var(--color-sub);
   border: none;
   border-radius: 9999px;
   color: white;

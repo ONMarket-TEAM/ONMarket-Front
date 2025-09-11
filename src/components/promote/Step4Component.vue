@@ -4,14 +4,10 @@
       <!-- 왼쪽 영역: 최종 생성 콘텐츠 -->
       <div class="final-left">
         <div class="final-box">
-          <div class="final-box__title">
-            <span class="red-icon" /> 최종 생성된 콘텐츠
-          </div>
+          <div class="final-box__title"><span class="red-icon" /> 최종 생성된 콘텐츠</div>
           <div class="final-box__body">
             <div class="final-caption">
-              <div class="final-caption__header">
-                <span class="green-dot" /> 완성된 캡션
-              </div>
+              <div class="final-caption__header"><span class="green-dot" /> 완성된 캡션</div>
               <div class="final-caption__inner">
                 <div class="final-caption__text">
                   {{ generatedText || '캡션이 생성되지 않았습니다.' }}
@@ -27,7 +23,9 @@
             <div v-if="generatedBestTime || generatedImpact" class="final-metrics">
               <div v-if="generatedBestTime" class="metric">
                 <div class="metric-label"><span class="clock-icon" /> 최적 게시 시간</div>
-                <div class="metric-value">{{ generatedBestTime }}에 게시하면 더 많은 관심을 받을 확률이 높습니다.</div>
+                <div class="metric-value">
+                  {{ generatedBestTime }}에 게시하면 더 많은 관심을 받을 확률이 높습니다.
+                </div>
               </div>
               <div v-if="generatedImpact" class="metric">
                 <div class="metric-label"><span class="spark-icon" /> 예상 효과</div>
@@ -49,11 +47,7 @@
               >
                 <i class="fa-regular fa-copy"></i> 텍스트 복사
               </button>
-              <button
-                class="download-btn post-btn"
-                type="button"
-                @click="uploadToInstagram"
-              >
+              <button class="download-btn post-btn" type="button" @click="uploadToInstagram">
                 <i class="fa-brands fa-instagram"></i> 게시글 업로드
               </button>
             </div>
@@ -61,8 +55,12 @@
 
           <!-- 안내 문구 추가 -->
           <div class="action-guide">
-            <div class="guide-item">* 텍스트 복사를 통해 직접 인스타그램에서 편집하고 문구를 넣을 수 있습니다.</div>
-            <div class="guide-item">* 게시글 업로드 시, 인스타그램 로그인 연동 후 해당 계정에 바로 게시물을 업로드합니다.</div>
+            <div class="guide-item">
+              * 텍스트 복사를 통해 직접 인스타그램에서 편집하고 문구를 넣을 수 있습니다.
+            </div>
+            <div class="guide-item">
+              * 게시글 업로드 시, 인스타그램 로그인 연동 후 해당 계정에 바로 게시물을 업로드합니다.
+            </div>
           </div>
         </div>
       </div>
@@ -73,7 +71,11 @@
           <!-- 헤더 -->
           <div class="insta-header">
             <div class="insta-user">
-              <img class="insta-profile" :src="snsStore.instagram.profileImage || defaultAvatar" alt="프로필" />
+              <img
+                class="insta-profile"
+                :src="snsStore.instagram.profileImage || defaultAvatar"
+                alt="프로필"
+              />
               <span>{{ snsStore.instagram.username || 'username' }}</span>
               <span class="preview-tag">(미리보기)</span>
             </div>
@@ -90,18 +92,10 @@
               alt="게시글 이미지"
             />
             <div v-else class="image-placeholder">사진 없음</div>
-            <button
-              v-if="uploadedImages.length > 1"
-              class="img-prev"
-              @click="prevImage"
-            >
+            <button v-if="uploadedImages.length > 1" class="img-prev" @click="prevImage">
               <i class="fa-solid fa-chevron-left"></i>
             </button>
-            <button
-              v-if="uploadedImages.length > 1"
-              class="img-next"
-              @click="nextImage"
-            >
+            <button v-if="uploadedImages.length > 1" class="img-next" @click="nextImage">
               <i class="fa-solid fa-chevron-right"></i>
             </button>
           </div>
@@ -122,7 +116,9 @@
             <span class="insta-username">{{ snsStore.instagram.username || 'username' }}</span>
             <span v-if="!showFullCaption">
               {{ firstLineAI }}
-              <span v-if="hasMoreLines" class="more-btn" @click="showFullCaption = true">...더보기</span>
+              <span v-if="hasMoreLines" class="more-btn" @click="showFullCaption = true"
+                >...더보기</span
+              >
             </span>
             <span v-else>
               {{ props.generatedText }}
@@ -130,9 +126,7 @@
           </div>
 
           <!-- 댓글 -->
-          <div class="insta-comments">
-            댓글 12개 모두 보기
-          </div>
+          <div class="insta-comments">댓글 12개 모두 보기</div>
 
           <!-- 시간 정보 -->
           <div class="insta-time">1시간 전</div>
@@ -148,20 +142,20 @@
 
         <!-- 업로드 완료 모달 -->
         <div v-if="showUploadCompleteModal" class="modal-overlay">
-  <div class="upload-complete-modal">
-    <div class="modal-content-center">
-      <div class="success-icon">
-        <i class="fa-solid fa-check"></i>
-      </div>
-      <h3 class="modal-title">인스타 업로드 완료!</h3>
-      <p class="upload-message">
-        <strong>{{ snsStore.instagram.username }}</strong> 계정에<br>
-        게시물이 업로드되었습니다. <br>
-        지금 바로 확인해보세요!
-      </p>
-    </div>
-  </div>
-</div>
+          <div class="upload-complete-modal">
+            <div class="modal-content-center">
+              <div class="success-icon">
+                <i class="fa-solid fa-check"></i>
+              </div>
+              <h3 class="modal-title">인스타 업로드 완료!</h3>
+              <p class="upload-message">
+                <strong>{{ snsStore.instagram.username }}</strong> 계정에<br />
+                게시물이 업로드되었습니다. <br />
+                지금 바로 확인해보세요!
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -169,10 +163,13 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import InstagramLoginModal from '../sns/insta/InstagramLoginModal.vue';
 import { useSnsStore } from '@/stores/useSnsStore';
 import { useToastStore } from '@/stores/useToastStore';
 import defaultAvatar from '@/assets/default_avatar.png';
+
+const router = useRouter();
 
 const props = defineProps({
   uploadedImages: { type: Array, default: () => [] },
@@ -214,7 +211,9 @@ const firstLineAI = computed(() => {
 });
 const hasMoreLines = computed(() => {
   if (!props.generatedText) return false;
-  return props.generatedText.includes('\n') || props.generatedText.length > firstLineAI.value.length;
+  return (
+    props.generatedText.includes('\n') || props.generatedText.length > firstLineAI.value.length
+  );
 });
 
 // 인스타 업로드 함수
@@ -236,10 +235,10 @@ watch(showUploadCompleteModal, (newVal) => {
   if (newVal) {
     setTimeout(() => {
       showUploadCompleteModal.value = false;
+      router.push('/');
     }, 3000);
   }
 });
-
 </script>
 
 <style scoped>
@@ -471,7 +470,7 @@ watch(showUploadCompleteModal, (newVal) => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0,0,0,0.3);
+  background: rgba(0, 0, 0, 0.3);
   color: white;
   border: none;
   border-radius: 50%;
@@ -483,15 +482,19 @@ watch(showUploadCompleteModal, (newVal) => {
   cursor: pointer;
   z-index: 10;
 }
-.img-prev { left: 8px; }
-.img-next { right: 8px; }
+.img-prev {
+  left: 8px;
+}
+.img-next {
+  right: 8px;
+}
 
 /* 이미지 개수 표시 */
 .image-counter {
   position: absolute;
   top: 12px;
   right: 12px;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
   color: white;
   padding: 4px 8px;
   border-radius: 12px;
@@ -515,18 +518,18 @@ watch(showUploadCompleteModal, (newVal) => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.4);
+  background: rgba(255, 255, 255, 0.4);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .dot.active {
-  background: rgba(255,255,255,0.9);
+  background: rgba(255, 255, 255, 0.9);
   transform: scale(1.2);
 }
 
 .dot:hover {
-  background: rgba(255,255,255,0.7);
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .image-placeholder {
@@ -676,7 +679,7 @@ watch(showUploadCompleteModal, (newVal) => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -708,7 +711,7 @@ watch(showUploadCompleteModal, (newVal) => {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: #E1306C;
+  background: #e1306c;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -741,5 +744,5 @@ watch(showUploadCompleteModal, (newVal) => {
     transform: translateY(0);
   }
 }
-
 </style>
+
