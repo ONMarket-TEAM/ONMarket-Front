@@ -1,10 +1,7 @@
 <template>
   <div class="container section">
-    <!-- 헤더 -->
-    <div class="page-header">
-      <h1 class="page-title">내 사업장</h1>
-      <p class="page-subtitle">등록된 사업장을 관리하고 새로운 사업장을 추가하세요</p>
-    </div>
+    <h1>내 사업장</h1>
+    <hr />
 
     <!-- 로딩 -->
     <div v-if="loading" class="loading-state">
@@ -22,34 +19,45 @@
     <!-- 목록 -->
     <div v-else class="content-wrapper">
       <div v-if="businesses.length" class="business-grid">
-        <article
-          v-for="b in businesses"
-          :key="b.businessId"
-          class="business-card"
-          @click="goToUpdate(b.businessId)"
-        >
+        <article v-for="b in businesses" :key="b.businessId" class="business-card">
           <!-- 카드 헤더 -->
           <div class="card-header">
             <span class="business-type-badge" :class="getBadgeClass(b.businessType)">
               {{ toBusinessType(b.businessType) }}
             </span>
-            <button
-              class="delete-trigger"
-              @click.stop="toggleConfirm(b.businessId)"
-              v-if="confirmingId !== b.businessId"
-              aria-label="삭제"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
-                />
-              </svg>
-            </button>
+
+            <!-- 토글 메뉴 버튼 -->
+            <div class="menu-container">
+              <button class="menu-trigger" @click.stop="toggleMenu(b.businessId)" aria-label="메뉴">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path
+                    d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+                  />
+                </svg>
+              </button>
+
+              <!-- 드롭다운 메뉴 -->
+              <div v-if="activeMenuId === b.businessId" class="dropdown-menu">
+                <button class="menu-item" @click.stop="goToUpdate(b.businessId)">수정하기</button>
+
+                <button
+                  v-if="b.businessId !== mainBusinessId"
+                  class="menu-item"
+                  @click.stop="setAsMain(b.businessId)"
+                >
+                  메인으로 지정
+                </button>
+                <button class="menu-item delete-item" @click.stop="toggleConfirm(b.businessId)">
+                  삭제하기
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- 사업장명 -->
           <h3 class="business-name">
             {{ b.businessName || '사업장명 미등록' }}
+            <span v-if="b.businessId === mainBusinessId" class="main-badge">메인</span>
           </h3>
 
           <!-- 메타 정보 -->
@@ -78,7 +86,7 @@
               <div class="delete-header">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                   <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
                   />
                 </svg>
                 <h4>사업장 삭제</h4>
@@ -126,6 +134,9 @@
         </button>
       </div>
     </div>
+
+    <!-- 메뉴 외부 클릭 감지용 오버레이 -->
+    <div v-if="activeMenuId" class="menu-overlay" @click="closeMenu"></div>
   </div>
 </template>
 
@@ -134,6 +145,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { businessAPI } from '@/api/business';
 import { useToastStore } from '@/stores/useToastStore';
+import memberAPI from '@/api/member';
 
 const router = useRouter();
 const businesses = ref([]);
@@ -142,18 +154,24 @@ const error = ref('');
 const toast = useToastStore();
 const confirmingId = ref(null);
 const deletingId = ref(null);
+const mainBusinessId = ref(null);
+const activeMenuId = ref(null); // 활성 메뉴 추가
 
 /** 사업장 목록 로드 */
 const load = async () => {
   loading.value = true;
   error.value = '';
   try {
-    const result = await businessAPI.getMyBusinessList();
+    const [bizResult, member] = await Promise.all([
+      businessAPI.getMyBusinessList(),
+      memberAPI.getMemberInfo(),
+    ]);
 
-    if (result.success) {
-      businesses.value = result.data;
+    if (bizResult.success) {
+      businesses.value = bizResult.data;
+      mainBusinessId.value = member.mainBusinessId;
     } else {
-      error.value = result.message || '사업장 목록을 불러오지 못했습니다.';
+      error.value = bizResult.message || '사업장 목록을 불러오지 못했습니다.';
       toast.error(error.value);
     }
   } catch (e) {
@@ -175,6 +193,33 @@ onMounted(load);
 /** 각 사업장으로 이동 */
 const goToUpdate = (businessId) => {
   router.push({ name: 'UpdateBusiness', params: { businessId } });
+};
+
+/** 메뉴 토글 */
+const toggleMenu = (businessId) => {
+  activeMenuId.value = activeMenuId.value === businessId ? null : businessId;
+};
+
+const closeMenu = () => {
+  console.log('closeMenu 호출됨');
+  activeMenuId.value = null;
+};
+
+const setAsMain = async (businessId) => {
+  try {
+    const res = await businessAPI.setMain(businessId);
+    console.log(res);
+    if (res?.header?.status === 'OK') {
+      mainBusinessId.value = businessId;
+      toast.success(res.header.message || '메인 사업장이 변경되었습니다.');
+      closeMenu();
+    } else {
+      toast.error(res?.header?.message || '메인 사업장 변경 실패');
+    }
+  } catch (e) {
+    console.error('메인 변경 에러:', e);
+    toast.error('메인 사업장 변경 중 오류가 발생했습니다.');
+  }
 };
 
 /** 새 사업장 등록 */
@@ -207,21 +252,14 @@ const toIndustry = (v) => {
   return map[v] || '업종';
 };
 
-// 지역명 표시 함수 - sidoName, sigunguName 사용
 const toRegion = (sidoName, sigunguName) => {
   if (!sidoName || !sigunguName) return '지역';
-
-  // 시도명 축약 처리
-  const shortSido = sidoName;
-
-  // 시군구명 축약 처리 (선택사항)
-  const shortSigungu = sigunguName;
-
-  return `${shortSido} ${shortSigungu}`;
+  return `${sidoName} ${sigunguName}`;
 };
 
 const toggleConfirm = (businessId) => {
   confirmingId.value = confirmingId.value === businessId ? null : businessId;
+  closeMenu(); // 메뉴 닫기
 };
 
 const cancelConfirm = () => {
@@ -240,7 +278,6 @@ const deleteBusiness = async (businessId) => {
       return;
     }
 
-    // 목록에서 제거
     businesses.value = businesses.value.filter((b) => b.businessId !== businessId);
     toast.success('사업장을 삭제했습니다.');
   } catch (e) {
@@ -264,31 +301,6 @@ const deleteBusiness = async (businessId) => {
 </script>
 
 <style scoped>
-/* 페이지 헤더 */
-.page-header {
-  text-align: center;
-  margin-bottom: 3rem;
-  padding: 2rem 0;
-}
-
-.page-title {
-  font-size: 2.5rem;
-  font-weight: 800;
-  color: #1a1a1a;
-  margin: 0 0 0.5rem 0;
-  background: #333;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.page-subtitle {
-  font-size: 1.1rem;
-  color: #6b7280;
-  margin: 0;
-  font-weight: 400;
-}
-
 /* 로딩 상태 */
 .loading-state {
   display: flex;
@@ -302,6 +314,8 @@ const deleteBusiness = async (businessId) => {
 .loading-spinner {
   width: 48px;
   height: 48px;
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid var(--color-light-1);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
@@ -313,6 +327,7 @@ const deleteBusiness = async (businessId) => {
   padding: 3rem 2rem;
   border-radius: 1rem;
   border: 1px solid #fca5a5;
+  background: #fef2f2;
 }
 
 .error-icon {
@@ -352,12 +367,10 @@ const deleteBusiness = async (businessId) => {
   border-radius: 1rem;
   border: 1px solid #e5e7eb;
   padding: 1.5rem;
-  cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.1),
     0 1px 2px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
 }
 
 .business-card::before {
@@ -370,14 +383,6 @@ const deleteBusiness = async (businessId) => {
   background: var(--color-light-1);
   transform: scaleX(0);
   transition: transform 0.3s ease;
-}
-
-.business-card:hover {
-  transform: translateY(-4px);
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.1),
-    0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  border-color: #d1d5db;
 }
 
 .business-card:hover::before {
@@ -422,8 +427,13 @@ const deleteBusiness = async (businessId) => {
   border: 1px solid #d1d5db;
 }
 
-/* 삭제 버튼 */
-.delete-trigger {
+/* 메뉴 컨테이너 */
+.menu-container {
+  position: relative;
+}
+
+/* 메뉴 트리거 버튼 */
+.menu-trigger {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -437,10 +447,71 @@ const deleteBusiness = async (businessId) => {
   transition: all 0.2s ease;
 }
 
-.delete-trigger:hover {
-  background: #fee2e2;
+.menu-trigger:hover {
+  background: #f3f4f6;
+  color: #374151;
+  transform: scale(1.05);
+}
+
+/* 드롭다운 메뉴 */
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 9999 !important; /* 매우 높은 z-index */
+  min-width: 140px;
+  background: white;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  padding: 0.5rem 0;
+  display: block !important; /* 강제로 표시 */
+
+  animation: dropdownSlideIn 0.15s ease-out;
+  margin-top: 0.25rem;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.menu-item:hover {
+  background: #f9fafb;
+  color: #111827;
+}
+
+.menu-item.delete-item {
   color: #dc2626;
-  transform: scale(1.1);
+}
+
+.menu-item.delete-item:hover {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* 메뉴 오버레이 */
+.menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: transparent;
 }
 
 /* 사업장명 */
@@ -455,6 +526,17 @@ const deleteBusiness = async (businessId) => {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+.main-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-sub) 0%, var(--color-sub) 100%);
+  border-radius: 0.375rem;
 }
 
 /* 메타 정보 */
@@ -490,6 +572,7 @@ const deleteBusiness = async (businessId) => {
   align-items: center;
   justify-content: center;
   animation: fadeIn 0.2s ease;
+  z-index: 60;
 }
 
 .delete-content {
@@ -531,7 +614,7 @@ const deleteBusiness = async (businessId) => {
   background: var(--color-light-1);
   border: 1px solid var(--color-light-1);
   border-radius: 0.5rem;
-  color: #374151;
+  color: white;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -541,6 +624,7 @@ const deleteBusiness = async (businessId) => {
 .btn-cancel:hover {
   background: #f3f4f6;
   border-color: #9ca3af;
+  color: #374151;
 }
 
 .btn-delete-confirm {
@@ -627,12 +711,12 @@ const deleteBusiness = async (businessId) => {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 14px 0 var(--color-light-1);
+  box-shadow: 0 4px 14px 0 rgba(var(--color-light-1-rgb), 0.39);
 }
 
 .add-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px 0 var(--color-light-1);
+  box-shadow: 0 10px 25px 0 rgba(var(--color-light-1-rgb), 0.39);
 }
 
 .add-button:active {
@@ -657,6 +741,17 @@ const deleteBusiness = async (businessId) => {
   100% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes dropdownSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -697,6 +792,11 @@ const deleteBusiness = async (businessId) => {
   .add-button {
     padding: 0.875rem 1.5rem;
     font-size: 0.925rem;
+  }
+
+  .dropdown-menu {
+    right: -0.5rem;
+    min-width: 120px;
   }
 }
 </style>
