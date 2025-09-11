@@ -6,7 +6,7 @@
         <p class="login-subtitle">계정에 로그인하세요</p>
       </div>
 
-      <form @submit.prevent="handleLogin" class="login-form">
+      <form @submit.prevent="handleLogin" class="login-form" novalidate>
         <div class="form-group">
           <label for="email" class="form-label">이메일</label>
           <input
@@ -21,14 +21,19 @@
 
         <div class="form-group">
           <label for="password" class="form-label">비밀번호</label>
-          <input
-            id="password"
-            v-model="loginForm.password"
-            type="password"
-            class="form-input"
-            placeholder="비밀번호를 입력하세요"
-            required
-          />
+          <div class="input-pwd">
+            <input
+              id="password"
+              v-model="loginForm.password"
+              :type="showPassword ? 'text' : 'password'"
+              class="form-input"
+              placeholder="비밀번호를 입력하세요"
+              required
+            />
+            <button type="button" class="icon-btn" @click="togglePassword">
+              <i :class="showPassword ? 'fas fa-eye' : 'fas fa-eye-slash'"></i>
+            </button>
+          </div>
         </div>
 
         <div class="form-options">
@@ -61,11 +66,28 @@
             <router-link to="/login/find-password" class="find-link"> 비밀번호 찾기 </router-link>
           </div>
         </div>
-      </div>
 
-      <!-- 로그인 성공/실패 메시지 -->
-      <div v-if="message" :class="['message', messageType]">
-        {{ message }}
+        <div class="social-login">
+          <!-- 구분선 -->
+          <div class="divider">
+            <div class="line"></div>
+            <span class="divider-text">SNS LOGIN</span>
+            <div class="line"></div>
+          </div>
+
+          <!-- 버튼들 -->
+          <div class="social-buttons">
+            <!-- 카카오 -->
+            <button @click="login('kakao')" class="social-btn kakao">
+              <img src="@/assets/kakao_logo.png" alt="Kakao" />
+            </button>
+
+            <!-- 구글 -->
+            <button @click="login('google')" class="social-btn google">
+              <img src="@/assets/google_logo.png" alt="Google" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -75,14 +97,15 @@
 import { ref, reactive } from 'vue';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useRouter } from 'vue-router';
-import { businessAPI } from '@/api/business'; // ✅ 추가
+import { businessAPI } from '@/api/business';
+import { useToastStore } from '@/stores/useToastStore';
 
 const authStore = useAuthStore();
+const toastStore = useToastStore();
 const router = useRouter();
 
 const isLoading = ref(false);
-const message = ref('');
-const messageType = ref('');
+const showPassword = ref(false);
 
 const loginForm = reactive({
   email: '',
@@ -91,49 +114,82 @@ const loginForm = reactive({
 });
 
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const togglePassword = () => {
+  showPassword.value = !showPassword.value;
+};
 
 const handleLogin = async () => {
-  if (!loginForm.email || !loginForm.password) {
-    message.value = '이메일과 비밀번호를 입력하세요.';
-    messageType.value = 'error';
-    return;
-  }
-
-  if (!isValidEmail(loginForm.email)) {
-    message.value = '올바른 이메일 형식이 아닙니다.';
-    messageType.value = 'error';
+  const validationErrors = [];
+  if (!loginForm.email.trim()) validationErrors.push('이메일을 입력해주세요.');
+  else if (!isValidEmail(loginForm.email))
+    validationErrors.push('올바른 이메일 형식으로 입력해주세요.');
+  if (!loginForm.password) validationErrors.push('비밀번호를 입력해주세요.');
+  else if (loginForm.password.length < 6)
+    validationErrors.push('비밀번호는 6자 이상이어야 합니다.');
+  if (validationErrors.length > 0) {
+    toastStore.error(validationErrors[0]);
     return;
   }
 
   try {
     isLoading.value = true;
-    const result = await authStore.login(loginForm.email, loginForm.password);
+
+    const result = await authStore.login(loginForm.email, loginForm.password, loginForm.rememberMe);
 
     if (result.success) {
-      message.value = '로그인 성공!';
-      messageType.value = 'success';
+      // 로그인 직후 전역 유저 하이드레이션(닉네임 + 프로필 이미지 URL까지)
+      await authStore.refreshUserInfo();
 
-      // ✅ 로그인 성공 직후 사업장 조회
-      const businessResult = await businessAPI.getAll();
+      // 이후 로직은 그대로: 사업장 조회 → 적절한 라우팅
+      try {
+        const businessResult = await businessAPI.getMyBusinessList();
 
-      if (!businessResult.success && businessResult.message.includes('사업장을 찾을 수 없습니다')) {
-        // 신규 사용자 → 사업장 등록 페이지로
-        router.push('/business/register');
-      } else {
-        // 기존 사용자 → 메인 페이지
+        if (
+          !businessResult.success &&
+          businessResult.message?.includes('사업장을 찾을 수 없습니다')
+        ) {
+          toastStore.info('사업장 정보를 등록해주세요.');
+          await router.push('/business/register');
+        } else {
+          const redirectTo = router.currentRoute.value.query.redirect || '/';
+          await router.push(redirectTo);
+        }
+      } catch (error) {
+        toastStore.error('사업장 정보를 불러오는 중 오류가 발생했습니다.');
         const redirectTo = router.currentRoute.value.query.redirect || '/';
         await router.push(redirectTo);
       }
     } else {
-      message.value = result.message;
-      messageType.value = 'error';
+      if (result.message) {
+        if (result.message.includes('비밀번호')) toastStore.error('비밀번호가 일치하지 않습니다.');
+        else if (result.message.includes('계정'))
+          toastStore.error('계정이 비활성화되어 있습니다. 고객센터에 문의해주세요.');
+        else if (result.message.includes('잠금'))
+          toastStore.error('계정이 잠겨있습니다. 잠시 후 다시 시도해주세요.');
+        else toastStore.error('이메일 또는 비밀번호를 확인해주세요.');
+      } else {
+        toastStore.error('이메일 또는 비밀번호를 확인해주세요.');
+      }
     }
   } catch (error) {
-    message.value = error.message || '로그인 중 오류가 발생했습니다.';
-    messageType.value = 'error';
+    if (error.message?.includes('Network')) toastStore.error('네트워크 연결을 확인해주세요.');
+    else if (error.message?.includes('timeout'))
+      toastStore.error('요청 시간이 초과되었습니다. 다시 시도해주세요.');
+    else if (error.response?.status === 429)
+      toastStore.error('너무 많은 로그인 시도입니다. 잠시 후 다시 시도해주세요.');
+    else if (error.response?.status >= 500)
+      toastStore.error('서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    else toastStore.error('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
   } finally {
     isLoading.value = false;
   }
+};
+
+const login = (provider) => {
+  if (provider === 'kakao')
+  window.location.href = "https://onmarket.duckdns.org/oauth2/authorization/kakao";
+  else if (provider === 'google')
+  window.location.href = "https://onmarket.duckdns.org/oauth2/authorization/google";
 };
 </script>
 
@@ -216,8 +272,37 @@ const handleLogin = async () => {
   color: #666;
 }
 
+/* 체크박스 공통 스타일 */
 .checkbox {
+  display: none;
+}
+
+.checkmark {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  transition: all 0.3s ease;
+  position: relative;
+  flex-shrink: 0;
   margin-right: 0.5rem;
+}
+
+.checkbox:checked + .checkmark {
+  background: var(--color-main);
+  border-color: var(--color-main);
+}
+
+.checkbox:checked + .checkmark::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
 }
 
 .forgot-password {
@@ -300,25 +385,107 @@ const handleLogin = async () => {
   color: var(--color-main);
   text-decoration: underline;
 }
+/* 비밀번호 입력 컨테이너 */
+.input-pwd {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
 
-.message {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
+/* 입력창 */
+.input-pwd .form-input {
+  flex: 1;
+  padding-right: 40px; /* 버튼 겹치지 않게 여백 */
+}
+
+/* 아이콘 버튼 */
+.icon-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  font-size: 16px;
+  color: #666;
+  padding: 5px;
+}
+
+.icon-btn:hover {
+  color: #333;
+}
+
+.social-login {
   text-align: center;
+  margin-top: 1.5rem;
 }
 
-.message.success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+/* SNS LOGIN 구분선 */
+.divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 1.5rem 0;
 }
 
-.message.error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+.line {
+  flex-grow: 1;
+  height: 1px;
+  background: #d1d5db; /* 회색 라인 */
+}
+
+.divider-text {
+  margin: 0 1rem;
+  color: #666;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* 버튼 영역 */
+.social-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+/* 공통 버튼 스타일 */
+.social-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.25rem;
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease;
+}
+
+.social-btn:hover {
+  transform: scale(1.05);
+}
+
+/* 플랫폼별 색상 */
+.kakao {
+  background: #fee500;
+}
+
+.kakao img {
+  width: 28px;
+  height: 28px;
+}
+
+.google {
+  background: #ffffff;
+  font-size: 1.4rem;
+}
+.google img {
+  width: 28px;
+  height: 28px;
 }
 </style>
 

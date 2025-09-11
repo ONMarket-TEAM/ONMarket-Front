@@ -57,13 +57,20 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/user/updateBusiness',
-      component: () => import('@/pages/User/UpdateBusiness.vue'),
+      path: '/user/mybusiness',
+      component: () => import('@/pages/User/MyBusiness.vue'),
       meta: { requiresAuth: true },
     },
     {
-      path: '/user/mybusiness',
-      component: () => import('@/pages/User/MyBusiness.vue'),
+      path: '/user/mybusiness/:businessId/edit',
+      name: 'UpdateBusiness',
+      component: () => import('@/pages/User/UpdateBusiness.vue'),
+      meta: { requiresAuth: true },
+      props: (route) => ({ businessId: Number(route.params.businessId) }),
+    },
+    {
+      path: '/user/myscraps',
+      component: () => import('@/pages/User/MyScraps.vue'),
       meta: { requiresAuth: true },
     },
 
@@ -92,6 +99,11 @@ const router = createRouter({
       component: () => import('@/pages/Post/PolicyDetail.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/promote',
+      component: () => import('@/pages/SNS/CaptionGenerater.vue'),
+      meta: { requiresAuth: true },
+    },
 
     /* 404 not found 페이지 */
     {
@@ -114,24 +126,40 @@ const router = createRouter({
 
 // 라우터 가드 설정
 router.beforeEach(async (to, from, next) => {
-  // Pinia 스토어는 라우터 가드 내에서 동적으로 가져와야 함
   const authStore = useAuthStore();
+
+  // URL에서 소셜 로그인 토큰 확인 (추가)
+  const accessToken = to.query.accessToken;
+  const refreshToken = to.query.refreshToken;
+
+  if (accessToken && refreshToken) {
+    // 토큰을 localStorage에 저장
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+
+    // AuthStore에 토큰 설정
+    authStore.setTokens(accessToken, refreshToken);
+
+    // 쿼리 파라미터 제거하고 같은 경로로 리다이렉트
+    next({ path: to.path, query: {} });
+    return;
+  }
+
+  // AuthStore 초기화
+  authStore.initializeAuth();
+
   const isAuthenticated = authStore.isAuthenticated;
 
-  // 인증이 필요한 페이지인지 확인
   if (to.meta.requiresAuth && !isAuthenticated) {
-    // 로그인이 필요한 페이지에 미인증 사용자가 접근하는 경우
     next({
       path: '/login',
-      query: { redirect: to.fullPath }, // 로그인 후 원래 페이지로 리다이렉트
+      query: { redirect: to.fullPath },
     });
     return;
   }
 
-  // 이미 로그인한 사용자가 로그인 관련 페이지에 접근하는 경우
   if (to.meta.hideForAuth && isAuthenticated) {
-    // 리다이렉트 쿼리가 있으면 해당 페이지로, 없으면 대시보드로
-    const redirectTo = from.query?.redirect || '/dashboard';
+    const redirectTo = from.query?.redirect || '/';
     next(redirectTo);
     return;
   }
