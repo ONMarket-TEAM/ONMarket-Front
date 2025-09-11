@@ -4,21 +4,60 @@
       <div class="section-header">
         <h2>
           <i class="fas fa-sparkles"></i>
-          {{ userEmail ? '맞춤 추천 상품' : '인기 추천 상품' }}
+          {{ userEmail ? '맞춤 추천 상품' : '개인 맞춤 추천' }}
         </h2>
         <p class="section-subtitle">
-          {{ userEmail ? '회원님을 위한 특별한 추천' : '많은 사람들이 선택한 인기 상품' }}
+          {{
+            userEmail
+              ? '회원님을 위한 특별한 추천'
+              : '로그인하고 나만을 위한 맞춤 상품을 확인해보세요'
+          }}
         </p>
       </div>
 
-      <!-- 로딩 상태 -->
-      <div v-if="loading" class="loading-container">
-        <div class="loading-spinner"></div>
-        <p>추천 상품을 불러오는 중...</p>
+      <!-- 비회원 로그인 유도 -->
+      <div v-if="!userEmail" class="login-prompt-container">
+        <div class="login-prompt-content">
+          <div class="login-prompt-icon">
+            <i class="fas fa-user-circle"></i>
+          </div>
+          <h3>나만을 위한 맞춤 상품을 찾아보세요!</h3>
+          <p>로그인하시면 회원님의 관심사와 조건에 맞는<br />개인화된 금융상품을 추천해드려요</p>
+          <div class="login-prompt-features">
+            <div class="feature-item">
+              <i class="fas fa-chart-line"></i>
+              <span>AI 기반 개인화 추천</span>
+            </div>
+            <div class="feature-item">
+              <i class="fas fa-heart"></i>
+              <span>관심상품 저장 및 관리</span>
+            </div>
+            <div class="feature-item">
+              <i class="fas fa-bell"></i>
+              <span>맞춤 알림 서비스</span>
+            </div>
+          </div>
+          <div class="login-prompt-actions">
+            <button @click="goToLogin" class="login-btn primary">
+              <i class="fas fa-sign-in-alt"></i>
+              로그인하기
+            </button>
+            <button @click="goToSignup" class="signup-btn secondary">
+              <i class="fas fa-user-plus"></i>
+              회원가입
+            </button>
+          </div>
+        </div>
       </div>
 
-      <!-- 에러 상태 (로그인 사용자만) -->
-      <div v-else-if="error && userEmail" class="error-container">
+      <!-- 로그인 사용자 - 로딩 상태 -->
+      <div v-else-if="loading" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>맞춤 추천 상품을 분석하는 중...</p>
+      </div>
+
+      <!-- 로그인 사용자 - 에러 상태 -->
+      <div v-else-if="error" class="error-container">
         <div class="error-icon">
           <i class="fas fa-exclamation-triangle"></i>
         </div>
@@ -29,8 +68,8 @@
         </button>
       </div>
 
-      <!-- 빈 상태 (로그인 사용자만) -->
-      <div v-else-if="recommendations.length === 0 && userEmail" class="empty-container">
+      <!-- 로그인 사용자 - 빈 상태 -->
+      <div v-else-if="recommendations.length === 0" class="empty-container">
         <div class="empty-illustration">
           <i class="fas fa-search"></i>
         </div>
@@ -48,7 +87,7 @@
         </div>
       </div>
 
-      <!-- 추천 상품 카드 그리드 -->
+      <!-- 로그인 사용자 - 추천 상품 카드 그리드 -->
       <div v-else class="recommendations-wrapper">
         <div class="card-scroll-wrapper">
           <div class="card-grid" ref="cardGrid">
@@ -89,7 +128,6 @@
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { recommendationAPI, trackingHelpers } from '@/api/recommendation';
-import { fetchHotTop5Api } from '@/api/posts';
 import RecommendationCard from './RecommendationCard.vue';
 
 const router = useRouter();
@@ -126,27 +164,24 @@ const displayRecommendations = computed(() => {
 });
 
 /**
- * 추천 상품 데이터 가져오기
+ * 추천 상품 데이터 가져오기 (로그인 사용자만)
  */
 const fetchRecommendations = async () => {
+  if (!userEmail.value) {
+    console.log('비로그인 사용자 - 추천 조회 안함');
+    return;
+  }
+
   loading.value = true;
   error.value = '';
 
-  console.log('추천 상품 조회 시작, 사용자:', userEmail.value);
+  console.log('개인화 추천 상품 조회 시작, 사용자:', userEmail.value);
 
   try {
-    if (userEmail.value) {
-      console.log('로그인 사용자 - 개인화 추천 조회');
-      const response = await recommendationAPI.getPersonalRecommendations();
-      const recommendationData = response?.body?.data || response?.data || [];
-      console.log('개인화 추천 데이터:', recommendationData);
-      recommendations.value = transformRecommendationData(recommendationData);
-    } else {
-      console.log('비로그인 사용자 - HOT TOP5 조회');
-      const hotTop5Data = await fetchHotTop5Api();
-      console.log('HOT TOP5 데이터:', hotTop5Data);
-      recommendations.value = transformHotTop5Data(hotTop5Data);
-    }
+    const response = await recommendationAPI.getPersonalRecommendations();
+    const recommendationData = response?.body?.data || response?.data || [];
+    console.log('개인화 추천 데이터:', recommendationData);
+    recommendations.value = transformRecommendationData(recommendationData);
 
     console.log('최종 추천 데이터:', recommendations.value);
 
@@ -157,25 +192,6 @@ const fetchRecommendations = async () => {
   } catch (err) {
     console.error('추천 상품 조회 실패:', err);
     error.value = `추천 상품을 불러오는데 실패했습니다. ${err.message}`;
-
-    // 실패 시 HOT TOP5로 폴백 (로그인 사용자인 경우만)
-    if (userEmail.value) {
-      console.log('폴백으로 HOT TOP5 시도...');
-      try {
-        const hotTop5Data = await fetchHotTop5Api();
-        console.log('폴백 HOT TOP5 데이터:', hotTop5Data);
-        recommendations.value = transformHotTop5Data(hotTop5Data);
-        error.value = '';
-        console.log('폴백 성공');
-
-        await nextTick();
-        isVisible.value = true;
-        updateScrollButtons();
-      } catch (fallbackErr) {
-        console.error('폴백 데이터 조회도 실패:', fallbackErr);
-        error.value = `데이터를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.`;
-      }
-    }
   } finally {
     loading.value = false;
   }
@@ -208,32 +224,6 @@ const transformRecommendationData = (data) => {
 };
 
 /**
- * HOT TOP5 데이터 변환
- */
-const transformHotTop5Data = (data) => {
-  console.log('HOT TOP5 데이터 변환 시작:', data);
-
-  if (!Array.isArray(data)) {
-    console.warn('HOT TOP5 데이터가 배열이 아님:', data);
-    return [];
-  }
-
-  return data
-    .filter((item) => item && item.id) // 유효한 데이터만 필터링
-    .map((item) => ({
-      id: item.id,
-      title: item.title || '상품명 없음',
-      agency: item.agency || '기관명 없음',
-      period: item.period || '상시모집',
-      category: item.category || '기타',
-      categoryClass: item.categoryClass || 'loan',
-      type: 'hot',
-      imageUrl: item.imageUrl || '',
-      postType: 'LOAN', // 기본값
-    }));
-};
-
-/**
  * 게시물 타입 라벨 변환
  */
 const getPostTypeLabel = (postType) => {
@@ -263,7 +253,7 @@ const getPostTypeCategoryClass = (postType) => {
 const handleCardClick = (item) => {
   console.log('카드 클릭:', item);
 
-  // 클릭 추적 (로그인한 사용자만)
+  // 클릭 추적
   if (userEmail.value && item.type === 'recommendation') {
     trackingHelpers.trackView(item.id);
   }
@@ -274,6 +264,20 @@ const handleCardClick = (item) => {
   } else {
     router.push(`/loans/${item.id}`);
   }
+};
+
+/**
+ * 로그인 페이지로 이동
+ */
+const goToLogin = () => {
+  router.push('/login');
+};
+
+/**
+ * 회원가입 페이지로 이동
+ */
+const goToSignup = () => {
+  router.push('/signup');
 };
 
 /**
@@ -314,17 +318,14 @@ const updateScrollButtons = () => {
   canScrollRight.value = scrollLeft < scrollWidth - clientWidth - 10;
 };
 
-/**
- * 전체 추천 페이지로 이동
- */
-const goToFullRecommendations = () => {
-  router.push('/recommendations');
-};
-
 // 컴포넌트 마운트
 onMounted(() => {
   console.log('RecommendationSection 마운트됨');
-  fetchRecommendations();
+
+  // 로그인한 사용자만 추천 데이터 조회
+  if (userEmail.value) {
+    fetchRecommendations();
+  }
 
   // 스크롤 이벤트 리스너
   if (cardGrid.value) {
@@ -344,7 +345,8 @@ defineExpose({
 <style scoped>
 .recommend-section {
   padding: 60px 0;
-  background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
+  /* background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%); */
+  background: transparent;
 }
 
 .container {
@@ -360,28 +362,143 @@ defineExpose({
 
 .section-header h2 {
   display: flex;
-  flex-direction: column; /* 좁아져도 아이콘 위로 올라가도록 */
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   gap: 6px;
   text-align: center;
+  font-size: clamp(20px, 5vw, 32px);
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 16px;
 }
 
 .section-header h2 i {
-  font-size: clamp(16px, 4vw, 24px); /* 아이콘도 반응형 */
+  font-size: clamp(16px, 4vw, 24px);
   flex-shrink: 0;
   color: var(--color-main, #f95453);
 }
 
 .section-subtitle {
-  font-size: clamp(14px, 3.5vw, 16px); /* 반응형 */
+  font-size: clamp(14px, 3.5vw, 16px);
   color: #666;
   font-weight: 400;
   line-height: 1.4;
   padding: 0 20px;
-  max-width: 90%; /* 부모보다 조금 작게 제한 */
+  max-width: 90%;
   margin: 0 auto;
   word-break: keep-all;
+}
+
+/* 로그인 유도 */
+.login-prompt-container {
+  display: flex;
+  justify-content: center;
+  padding: 0 20px;
+}
+
+.login-prompt-content {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 60px 40px;
+  text-align: center;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+.login-prompt-icon {
+  font-size: 64px;
+  color: var(--color-main, #f95453);
+  margin-bottom: 24px;
+}
+
+.login-prompt-content h3 {
+  font-size: clamp(18px, 4vw, 24px);
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 16px;
+  word-break: keep-all;
+}
+
+.login-prompt-content p {
+  font-size: clamp(14px, 3.5vw, 16px);
+  color: #718096;
+  line-height: 1.6;
+  margin-bottom: 32px;
+  word-break: keep-all;
+}
+
+.login-prompt-features {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 40px;
+  padding: 0 20px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.feature-item i {
+  color: var(--color-main, #f95453);
+  font-size: 16px;
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.login-prompt-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.login-btn,
+.signup-btn {
+  padding: 16px 32px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  min-width: 140px;
+  justify-content: center;
+}
+
+.login-btn.primary {
+  background: var(--color-main, #f95453);
+  color: white;
+  border: none;
+}
+
+.login-btn.primary:hover {
+  background: var(--color-sub, #e74847);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(249, 84, 83, 0.3);
+}
+
+.signup-btn.secondary {
+  background: white;
+  color: var(--color-main, #f95453);
+  border: 2px solid var(--color-main, #f95453);
+}
+
+.signup-btn.secondary:hover {
+  background: var(--color-main, #f95453);
+  color: white;
+  transform: translateY(-2px);
 }
 
 /* 로딩 상태 */
@@ -541,28 +658,32 @@ defineExpose({
 /* 추천 상품 래퍼 */
 .recommendations-wrapper {
   position: relative;
-  overflow: hidden; /* 부모에서 스크롤 방지 */
+  overflow: hidden;
 }
+
 .card-scroll-wrapper {
   display: flex;
-  overflow-x: auto; /* 카드만 스크롤 */
+  overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   gap: 24px;
   padding-bottom: 8px;
-  width: 100%; /* 부모 width에 맞춤 */
+  width: 100%;
 }
 
 .card-grid {
   display: flex;
   gap: 24px;
-  flex: 0 0 auto; /* 카드가 축소되지 않도록 */
+  flex: 0 0 auto;
 }
 
 .card-item {
   flex: 0 0 auto;
   width: 260px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.6s ease;
 }
 
 .card-item.animate-in {
@@ -603,6 +724,70 @@ defineExpose({
 
 .nav-next {
   right: -24px;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .login-prompt-content {
+    padding: 40px 20px;
+    margin: 0 10px;
+  }
+
+  .login-prompt-features {
+    gap: 12px;
+    padding: 0 10px;
+  }
+
+  .feature-item {
+    font-size: 13px;
+  }
+
+  .login-prompt-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .login-btn,
+  .signup-btn {
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .empty-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .empty-action-btn {
+    width: 100%;
+    max-width: 250px;
+  }
+
+  .nav-btn {
+    display: none; /* 모바일에서는 네비게이션 버튼 숨김 */
+  }
+}
+
+@media (max-width: 480px) {
+  .recommend-section {
+    padding: 40px 0;
+  }
+
+  .container {
+    padding: 0 15px;
+  }
+
+  .section-header {
+    margin-bottom: 32px;
+  }
+
+  .login-prompt-content {
+    padding: 30px 15px;
+  }
+
+  .card-item {
+    width: 220px;
+  }
 }
 </style>
 

@@ -1,0 +1,121 @@
+name: Frontend Deploy
+
+on:
+  push:
+    branches: [ develop, main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set environment variables
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+            echo "VITE_API_URL=/api" >> .env.production
+            echo "DEPLOY_ENV=staging" >> $GITHUB_ENV
+          else
+            echo "VITE_API_URL=/api" >> .env.production
+            echo "DEPLOY_ENV=production" >> $GITHUB_ENV
+          fi
+
+      - name: Build project
+        run: npm run build
+
+      - name: Upload to EC2
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "dist/*"
+          target: "/home/ec2-user/front-dist-temp/"
+          strip_components: 1
+
+      - name: Deploy Frontend
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            ENV=${{ env.DEPLOY_ENV }}
+            
+            echo "Starting frontend deployment for $ENV environment"
+            
+            # 현재 실행 중인 포트 확인 (무중단 배포 기준)
+            if [ "$ENV" = "staging" ]; then
+              if pgrep -f "server.port=8082" > /dev/null; then
+                BACKEND_PORT=8082
+              elif pgrep -f "server.port=8081" > /dev/null; then
+                BACKEND_PORT=8081
+              else
+                echo "No backend process found for staging!"
+                exit 1
+              fi
+            else
+              if pgrep -f "server.port=8083" > /dev/null; then
+                BACKEND_PORT=8083
+              elif pgrep -f "server.port=8081" > /dev/null; then
+                BACKEND_PORT=8081
+              else
+                echo "No backend process found for production!"
+                exit 1
+              fi
+            fi
+            
+            echo "Detected backend running on port: $BACKEND_PORT"
+            
+            # nginx 설정 파일 업데이트
+            sudo cp /etc/nginx/conf.d/onmarket-frontend.conf /etc/nginx/conf.d/onmarket-frontend.conf.backup
+            sudo sed -i "s/proxy_pass http:\/\/localhost:[0-9]*/proxy_pass http:\/\/localhost:$BACKEND_PORT/" /etc/nginx/conf.d/onmarket-frontend.conf
+            
+            echo "Updated nginx proxy_pass to port $BACKEND_PORT"
+            
+            # 기존 파일 백업
+            if [ -d "/home/ec2-user/front-dist" ]; then
+              sudo rm -rf /home/ec2-user/front-dist-backup
+              sudo cp -r /home/ec2-user/front-dist /home/ec2-user/front-dist-backup
+            fi
+            
+            # 새 파일 반영
+            sudo rm -rf /home/ec2-user/front-dist/*
+            sudo mv /home/ec2-user/front-dist-temp/* /home/ec2-user/front-dist/
+            sudo rmdir /home/ec2-user/front-dist-temp
+            
+            # 권한 설정
+            sudo chown -R nginx:nginx /home/ec2-user/front-dist/
+            sudo chmod -R 755 /home/ec2-user/front-dist/
+            
+            # Nginx 설정 확인 및 재로드
+            sudo nginx -t
+            if [ $? -eq 0 ]; then
+              sudo systemctl reload nginx
+              echo "Frontend deployment completed successfully!"
+              echo "$(date): Frontend $ENV deployed with backend port $BACKEND_PORT" >> /home/ec2-user/frontend-deployment-history.log
+            else
+              echo "Nginx configuration error. Rolling back..."
+              sudo cp /etc/nginx/conf.d/onmarket-frontend.conf.backup /etc/nginx/conf.d/onmarket-frontend.conf
+              if [ -d "/home/ec2-user/front-dist-backup" ]; then
+                sudo rm -rf /home/ec2-user/front-dist
+                sudo mv /home/ec2-user/front-dist-backup /home/ec2-user/front-dist
+                sudo chown -R nginx:nginx /home/ec2-user/front-dist/
+                sudo chmod -R 755 /home/ec2-user/front-dist/
+              fi
+              exit 1
+            fi
+            
+            echo "Deployment verification..."
+            curl -I http://localhost/ || echo "Warning: Local health check failed"

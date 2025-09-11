@@ -72,11 +72,18 @@
         >
           <div class="thumb-wrapper">
             <img
-              v-if="item.imageUrl"
+              v-if="item.imageUrl && !imageErrors[item.postId]"
               :src="item.imageUrl"
-              alt="상품 이미지"
-              style="width: 100%; height: 100%; object-fit: cover"
+              :alt="item.productName || '상품 이미지'"
+              class="card-image"
+              @error="handleImageError(item.postId)"
+              @load="handleImageLoad(item.postId)"
             />
+            <!-- 로딩 상태나 이미지 없을 때 -->
+            <div v-if="!item.imageUrl || imageErrors[item.postId]" class="image-placeholder">
+              <i class="fas fa-image"></i>
+            </div>
+
             <span class="rank-badge">{{ i + 1 }}</span>
           </div>
           <div class="meta">
@@ -120,7 +127,6 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 
 // 🔗 API 모듈 import
-import { fetchHotTop5Api } from '@/api/posts';
 import RecommendationSection from '@/components/recommendation/RecommendationSection.vue';
 import { postAPI } from '@/api/post';
 
@@ -140,6 +146,19 @@ const refreshRecommendations = () => {
   if (recommendationRef.value) {
     recommendationRef.value.refresh();
   }
+};
+
+// --- 이미지 에러 상태 관리 추가 ---
+const imageErrors = ref({});
+const imageLoading = ref({});
+
+const handleImageError = (postId) => {
+  imageErrors.value[postId] = true;
+  imageLoading.value[postId] = false;
+};
+
+const handleImageLoad = (postId) => {
+  imageLoading.value[postId] = false;
 };
 
 // --- 슬라이드 정의 ---
@@ -214,6 +233,14 @@ const fetchHotTop5 = async () => {
   try {
     const list = await postAPI.getTopScrapedPosts(); // ← 배열이 바로 옴
     hotTop5.value = Array.isArray(list) ? list : [];
+
+    imageErrors.value = {};
+    imageLoading.value = {};
+    hotTop5.value.forEach((item) => {
+      if (item.postId) {
+        imageLoading.value[item.postId] = true;
+      }
+    });
     console.log('HOT TOP5 데이터:', hotTop5.value);
   } catch (err) {
     console.error('HOT TOP5 불러오기 실패:', err);
@@ -248,55 +275,6 @@ const getCategoryClass = (postType) => {
       return 'loan';
   }
 };
-
-// --- 추천상품 (임시 하드코딩) ---
-const recommendProducts = ref([
-  {
-    id: 201,
-    title: '소상공인 경영개선자금',
-    agency: '소상공인시장진흥공단',
-    type: '정책자금',
-    rate: '3.0%',
-    category: '대출',
-    categoryClass: 'loan',
-  },
-  {
-    id: 202,
-    title: '혁신성장 바우처',
-    agency: '중기부',
-    region: '전국',
-    period: '2025.07.01 ~ 11.30',
-    category: '공공지원금',
-    categoryClass: 'public',
-  },
-  {
-    id: 203,
-    title: '신용보증재단 창업자금',
-    agency: '서울신용보증재단',
-    type: '보증대출',
-    rate: '4.2%',
-    category: '대출',
-    categoryClass: 'loan',
-  },
-  {
-    id: 204,
-    title: '중소기업 R&D 지원사업',
-    agency: '중기부',
-    region: '전국',
-    period: '2025.03.01 ~ 06.30',
-    category: '공공지원금',
-    categoryClass: 'public',
-  },
-  {
-    id: 205,
-    title: '햇살론 유스',
-    agency: '서민금융진흥원',
-    type: '신용대출',
-    rate: '8.5%',
-    category: '대출',
-    categoryClass: 'loan',
-  },
-]);
 
 onMounted(() => {
   play();
@@ -549,32 +527,64 @@ h2 {
   max-width: 1200px;
   margin: 40px auto;
   padding: 0 24px;
-  overflow-x: hidden;
+  width: 100%; /* 추가 */
+  box-sizing: border-box; /* 추가 */
 }
 
 .hot-card-grid {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(220px, 1fr);
+  display: flex; /* grid에서 flex로 변경 */
   gap: 20px;
   overflow-x: auto;
+  overflow-y: visible;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 20px;
+  padding: 10px 0 20px 0;
+  width: 100%; /* 부모 너비에 맞춤 */
+
+  /* 스크롤바 스타일링 */
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 transparent;
 }
 
 .card-grid {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(220px, 1fr);
+  display: flex; /* grid에서 flex로 변경 */
   gap: 20px;
   overflow-x: auto;
+  overflow-y: visible;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 20px;
+  padding: 10px 0 20px 0;
+  width: 100%; /* 부모 너비에 맞춤 */
+
+  /* 스크롤바 스타일링 */
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 transparent;
 }
 .card-grid > * {
   scroll-snap-align: start;
+}
+
+.hot-card-grid::-webkit-scrollbar,
+.card-grid::-webkit-scrollbar {
+  height: 8px;
+}
+
+.hot-card-grid::-webkit-scrollbar-track,
+.card-grid::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.hot-card-grid::-webkit-scrollbar-thumb,
+.card-grid::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.hot-card-grid::-webkit-scrollbar-thumb:hover,
+.card-grid::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
 }
 
 .data-card {
@@ -588,10 +598,21 @@ h2 {
   transition:
     transform 0.3s ease,
     box-shadow 0.3s ease;
+
+  /* flex 아이템 설정 */
+  min-width: 280px; /* 최소 너비 */
+  width: 280px; /* 고정 너비 */
+  flex-shrink: 0; /* 축소 방지 */
+  scroll-snap-align: start;
 }
+
 .data-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.data-card:hover .card-image {
+  transform: scale(1.05);
 }
 .thumb-wrapper {
   position: relative;
@@ -601,6 +622,22 @@ h2 {
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
+}
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.image-placeholder {
+  color: #ccc;
+  font-size: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 .meta {
   padding: 16px;
